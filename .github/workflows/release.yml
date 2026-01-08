@@ -79,6 +79,8 @@ jobs:
             - uses: tauri-apps/tauri-action@v0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # This might fix the appimage issue of connecting with the device? No Idea...
+                  LINUXDEPLOY_OUTPUT_APP_IMAGE_EXCLUDE: "libpcsclite.so.1"
               with:
                   tagName: v__VERSION__
                   releaseName: "PicoForge(v__VERSION__) ALPHA"

@@ -15,6 +15,9 @@
         "title": "pico-forge",
         "width": 1280,
         "height": 720,
+        "minWidth": 500,
+        "minHeight": 250,
+        "resizable": true,
         "decorations": false,
         "transparent": true
       }

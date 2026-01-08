@@ -21,6 +21,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
+tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
@@ -30,7 +31,9 @@ byteorder = "1.5"      # Required for writing Big-Endian numbers (firmware requi
 thiserror = "2"        # Makes custom error handling much easier
 anyhow = "1"           # For easy error propagation
 ctap-hid-fido2 = "3.5" # For fido2 interface operations
-tauri-plugin-shell = "2"
+
+log = "0.4"        # Logging facade
+log4rs = "1"       # For logging to output (like stdout)
 
 [profile.dev]
 incremental = true # Compile your binary in smaller steps.
