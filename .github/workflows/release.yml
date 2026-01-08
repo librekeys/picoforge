@@ -83,7 +83,7 @@ jobs:
             # Step 1: Generate auto-generated changelog (using a community Action)
             - name: Generate Changelog
               id: changelog
-              uses: requarks/changelog-action@v0
+              uses: requarks/changelog-action@v1
               with:
                   token: ${{ secrets.GITHUB_TOKEN }}
                   tag: v${{ env.version }}
@@ -108,7 +108,7 @@ jobs:
                   } >> $GITHUB_OUTPUT
 
             # Step 3: Publish the release with combined release body
-            - uses: tauri-apps/tauri-action@v1
+            - uses: tauri-apps/tauri-action@v0
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
