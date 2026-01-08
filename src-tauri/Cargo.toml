@@ -1,0 +1,31 @@
+[package]
+name = "pico-forge"
+version = "0.1.0"
+description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte."
+authors = ["Suyog Tandel"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "pico_forge_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+pcsc = "2"          # Standard Smart Card API (connect to the key)
+hex = "0.4"         # For parsing "CAFE:4242" VID/PID strings
+byteorder = "1.5"   # Required for writing Big-Endian numbers (firmware requirement)
+thiserror = "2"     # Makes custom error handling much easier
+anyhow = "1.0.100"  # For easy error propagation
+ctap-hid-fido2 = "3.5" # For fido2 interface operations
