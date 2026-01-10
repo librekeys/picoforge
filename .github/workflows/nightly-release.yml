@@ -1,0 +1,95 @@
+name: "publish-stable"
+on:
+    push:
+        branches:
+            - fido-check
+
+jobs:
+    publish-tauri:
+        permissions:
+            contents: write # Ensure this is present
+            issues: write # Optional but recommended
+            pull-requests: write # Optional but recommended
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - platform: "macos-latest" # for Arm based macs (M1 and above)
+                      args: "--target aarch64-apple-darwin"
+                    - platform: "macos-latest" # for Intel based macs
+                      args: "--target x86_64-apple-darwin"
+                    - platform: "ubuntu-22.04"
+                      args: ""
+                    - platform: "windows-latest" # Windows x64
+                      args: "--target x86_64-pc-windows-msvc"
+                    - platform: "windows-latest" # Windows x86 (32-bit)
+                      args: "--target i686-pc-windows-msvc"
+                    - platform: "windows-latest" # Windows ARM64
+                      args: "--target aarch64-pc-windows-msvc"
+
+        runs-on: ${{ matrix.platform }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: setup node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: lts/*
+
+            - name: install Rust stable
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: >
+                      ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' ||
+                      matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc' || '' }}
+
+            - name: install dependencies (ubuntu only)
+              if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev
+
+            - name: install dependencies (ubuntu-arm64 only)
+              if: matrix.platform == 'ubuntu-24.04-arm'
+              run: |
+                  sudo apt-get install xdg-utils
+
+            - name: Setup Deno
+              uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+
+            - name: install frontend dependencies
+              run: deno install
+
+            - name: Extract version from Cargo.toml
+              id: get_version
+              shell: bash
+              run: |
+                  # Define the path to your Cargo.toml file
+                  cargo_file="src-tauri/Cargo.toml"
+                  # Extract ONLY the version number using a more precise regex
+                  version=$(grep -m 1 '^version' "$cargo_file" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+                  # Output for debugging
+                  echo "Version found: $version"
+                  # Set the output correctly for GitHub Actions
+                  echo "version=$version" >> $GITHUB_ENV
+
+            # Step 3: Publish the release with combined release body
+            - uses: tauri-apps/tauri-action@v0
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  # This might fix the appimage issue of connecting with the device? No Idea...
+                  LINUXDEPLOY_OUTPUT_APP_IMAGE_EXCLUDE: "libpcsclite.so.1"
+              with:
+                  tagName: v__VERSION__
+                  releaseName: "PicoForge(v__VERSION__) NIGHTLY"
+                  releaseBody: |
+                      # PicoForge app(v__VERSION__) NIGHTLY release.
+
+                      ## Caution:
+                      - This is a NIGHTLY release and thus will have lot of bugs.
+
+                  releaseDraft: false
+                  prerelease: true
+                  args: ${{ matrix.args }}

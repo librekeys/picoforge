@@ -1,6 +1,6 @@
 [package]
 name = "picoforge"
-version = "0.1.1"
+version = "0.1.2"
 description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte."
 authors = ["Suyog Tandel"]
 license = "AGPL-3.0"
@@ -31,6 +31,9 @@ byteorder = "1.5"      # Required for writing Big-Endian numbers (firmware requi
 thiserror = "2"        # Makes custom error handling much easier
 anyhow = "1"           # For easy error propagation
 ctap-hid-fido2 = "3.5" # For fido2 interface operations
+hidapi = "2.6"         # For fido2 interface operations but low level access
+serde_cbor_2 = "0.13"
+rand = "0.9"
 
 log = "0.4"            # Logging facade
 log4rs = "1"           # For logging to output (like stdout)

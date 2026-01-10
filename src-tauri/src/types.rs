@@ -81,6 +81,7 @@ pub struct FullDeviceStatus {
 // Fido stuff:
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FidoDeviceInfo {
     pub versions: Vec<String>,
     pub extensions: Vec<String>,
@@ -91,6 +92,30 @@ pub struct FidoDeviceInfo {
     // pub remaining_disc_creds: u32,
     pub min_pin_length: u32,
     pub firmware_version: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PicoMemoryStats {
+    pub free: u64,
+    pub used: u64,
+    pub total: u64,
+    pub files: u64,
+    pub flash_size: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PicoCredential {
+    pub rp_id: String,
+    pub user_id: String,
+    pub user_name: String,
+    pub user_display_name: String,
+    pub credential_id: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PicoPinStatus {
+    pub pin_set: bool,
+    pub retries: u8,
 }
 
 

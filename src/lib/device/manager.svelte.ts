@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG, DEFAULT_DEVICE_INFO, VENDORS } from "$lib/device/consta
 import type { DeviceConfig, DeviceInfo, FidoInfo, SecurityState } from "$lib/device/types.svelte";
 
 class DeviceManager {
+  interfaceType: "rescue" | "fido" | null = $state(null);
   loading = $state(false);
   connected = $state(false);
   fidoInfo: FidoInfo | null = $state(null);
@@ -30,7 +31,9 @@ class DeviceManager {
     try {
       logger.add("Attempting to connect to device...", "info");
 
-      const status: any = await invoke("read_device_details");
+      const status: any = await invoke("refresh_device_status");
+      
+      this.interfaceType = (status.config.vid && status.config.vid !== "" && status.config.vid !== "0000") ? "rescue" : "fido";
 
       this.info = {
         serial: status.info.serial,
@@ -40,16 +43,16 @@ class DeviceManager {
       };
 
       this.config = {
-        vid: status.config.vid,
-        pid: status.config.pid,
-        productName: status.config.product_name,
-        ledGpio: status.config.led_gpio,
-        ledBrightness: status.config.led_brightness,
-        touchTimeout: status.config.touch_timeout,
-        ledDimmable: status.config.led_dimmable,
-        powerCycleOnReset: status.config.power_cycle_on_reset,
-        ledSteady: status.config.led_steady,
-        enableSecp256k1: status.config.enable_secp256k1,
+        vid: status.config.vid || "1209",
+        pid: status.config.pid || "0001",
+        productName: status.config.product_name || "FIDO Device",
+        ledGpio: status.config.led_gpio || 0,
+        ledBrightness: status.config.led_brightness || 0,
+        touchTimeout: status.config.touch_timeout || 0,
+        ledDimmable: status.config.led_dimmable || false,
+        powerCycleOnReset: status.config.power_cycle_on_reset || false,
+        ledSteady: status.config.led_steady || false,
+        enableSecp256k1: status.config.enable_secp256k1 || false,
         ledDriver: status.config.led_driver ? String(status.config.led_driver) : "1",
       };
 
@@ -61,22 +64,21 @@ class DeviceManager {
         confirmed: false,
       };
 
-      const fido: any = await invoke("get_fido_info");
-      this.fidoInfo = {
-        versions: fido.versions,
-        extensions: fido.extensions,
-        aaguid: fido.aaguid,
-        options: fido.options,
-        maxMsgSize: fido.max_msg_size,
-        pinProtocols: fido.pin_protocols,
-        // remainingDiscCreds: fido.remaining_disc_creds,
-        minPinLength: fido.min_pin_length,
-        firmwareVersion: fido.firmware_version,
-      };
+      try {
+        const fido: any = await invoke("get_fido_info");
+        this.fidoInfo = fido;
+        console.log("FIDO Info:", fido);
+        console.log("Min PIN Length:", fido.minPinLength);
+        logger.add(`FIDO Info Retrieved: ${fido.versions?.join(', ')}`, "info");
+      } catch (fidoErr) {
+        logger.add(`Could not fetch FIDO info: ${fidoErr}`, "warning");
+        this.fidoInfo = null;
+      }
 
       if (!this.connected) {
+        const modeText = this.fidoInfo ? "RESCUE + FIDO" : this.interfaceType?.toUpperCase() || "UNKNOWN";
         logger.add(
-          `Device Connected! Serial: ${this.info.serial}, FW: v${this.info.firmwareVersion}`,
+          `Connected via ${modeText}! Serial: ${this.info.serial}`,
           "success",
         );
       }
@@ -87,6 +89,7 @@ class DeviceManager {
         logger.add(`Connection lost: ${err}`, "error");
       }
       this.connected = false;
+      this.fidoInfo = null;
     } finally {
       this.loading = false;
     }
@@ -96,12 +99,12 @@ class DeviceManager {
     if (!this.connected || !this.#originalConfig) return { success: false, msg: "Device not connected" };
 
     this.loading = true;
-    logger.add("Analyzing configuration changes...", "info");
+    logger.add(`Analyzing changes for ${this.interfaceType} interface...`, "info");
 
     try {
       const rustConfig: any = {};
+      const command = this.interfaceType === "fido" ? "write_fido_config" : "write_config";
 
-      // Diffing logic
       if (this.config.vid !== this.#originalConfig.vid || this.config.pid !== this.#originalConfig.pid) {
         rustConfig.vid = this.config.vid;
         rustConfig.pid = this.config.pid;
@@ -154,7 +157,7 @@ class DeviceManager {
         return { success: false, msg: "No changes detected." };
       } else {
         logger.add("Sending configuration to device...", "info");
-        const response = await invoke("write_config", { config: rustConfig });
+        const response = await invoke(command, { config: rustConfig });
         logger.add(`Device Response: ${response}`, "success");
 
         await this.refresh();
