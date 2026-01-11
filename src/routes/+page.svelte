@@ -562,8 +562,8 @@
                           <Label>Vendor Preset</Label>
                           <Select.Root
                             type="single"
-                            bind:value={device.selectedVendor}
-                            onValueChange={device.setVendor}
+                            value={device.selectedVendor}
+                            onValueChange={(v) => device.setVendor(v)}
                             disabled={!device.connected}
                           >
                             <Select.Trigger class="w-full">
