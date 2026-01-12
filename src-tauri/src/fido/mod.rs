@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 pub mod constants;
 pub mod hid;
 

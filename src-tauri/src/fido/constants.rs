@@ -1,4 +1,5 @@
 //! Constants, enums, bitflags and data structures for FIDO2 protocol for pico-fido firmware.
+#![allow(unused)]
 
 use std::fmt;
 
@@ -272,7 +273,7 @@ pub enum CoseAlgorithm {
 	EdDSA = -8,
 	ESP256 = -9,
 	Ed25519 = -19,
-	ECDH_ES_HKDF_256 = -25,
+	EcdhEsHkdf256 = -25,
 	ES384 = -35,
 	ES512 = -36,
 	ES256K = -47,

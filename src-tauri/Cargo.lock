@@ -2949,7 +2949,7 @@ dependencies = [
 
 [[package]]
 name = "picoforge"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "bitflags 2.10.0",

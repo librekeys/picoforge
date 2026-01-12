@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use anyhow::{Result, anyhow};
 use rand::Rng;
 use std::time::Duration;

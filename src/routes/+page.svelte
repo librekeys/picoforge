@@ -20,6 +20,16 @@
   type View = "home" | "config" | "security" | "logs" | "about";
   let currentView: View = $state("home");
 
+  const viewMap = {
+    home: HomeView,
+    config: ConfigView,
+    security: SecurityView,
+    logs: LogsView,
+    about: AboutView,
+  };
+
+  let ActiveView = $derived(viewMap[currentView]);
+
   $effect(() => {
     logger.logs.length;
     tick().then(() => {
@@ -41,21 +51,7 @@
   <ScrollArea class="h-full mr-1">
     <div class="container mx-auto py-8 px-8 max-w-6xl">
       <div class="space-y-8">
-        {#if currentView === "home"}
-          <HomeView />
-        {/if}
-        {#if currentView === "config"}
-          <ConfigView />
-        {/if}
-        {#if currentView === "security"}
-          <SecurityView />
-        {/if}
-        {#if currentView === "logs"}
-          <LogsView />
-        {/if}
-        {#if currentView === "about"}
-          <AboutView />
-        {/if}
+        <ActiveView />
       </div>
     </div>
   </ScrollArea>
