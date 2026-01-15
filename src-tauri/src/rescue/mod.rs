@@ -56,12 +56,31 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Reading full device details");
 	let (card, select_resp) = connect_and_select()?;
 
-	if select_resp.len() < 14 {
+	log::info!("Select Response: {:?}", select_resp);
+
+	// FIX: Relax the length check.
+	// Minimum valid response is 4 bytes data + 2 bytes SW = 6 bytes.
+	if select_resp.len() < 6 {
+		log::error!("Invalid select response length: {}", select_resp.len());
 		return Err(PFError::Device("Invalid select response".into()));
 	}
+
 	let version_major = select_resp[2];
 	let version_minor = select_resp[3];
-	let serial_str = hex::encode_upper(&select_resp[4..12]);
+
+	// FIX: Handle missing Serial Number safely
+	// If the firmware sends 14 bytes, we have a serial. If it sends 6, we don't.
+	let serial_str = if select_resp.len() >= 14 {
+		hex::encode_upper(&select_resp[4..12])
+	} else {
+		log::warn!(
+			"Device did not return a Serial Number (Firmware mismatch?). Using placeholder."
+		);
+		"00000000".to_string()
+	};
+
+	log::info!("Device Version: {}.{}", version_major, version_minor);
+	log::info!("Device Serial: {}", serial_str);
 
 	// 2. Read Flash Info
 	let mut rx_buf = [0; 256];
@@ -71,7 +90,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 			RescueInstruction::Read as u8,
 			ReadParam::FlashInfo as u8,
 			P2_UNUSED,
-			0x00, // Le (Expected Length, 0 = Max)
+			0x00, // Le
 		],
 		&mut rx_buf,
 	)?;
@@ -105,15 +124,13 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		(rx_secure[0] != 0, rx_secure[1] != 0)
 	} else {
 		(false, false)
-	};
-
-	// --- Read PHY Config ---
+	}; // --- Read PHY Config ---
 	let rx_phy = card.transmit(
 		&[
 			APDU_CLA_PROPRIETARY,
 			RescueInstruction::Read as u8,
 			ReadParam::PhyConfig as u8,
-			0x01, // Note: Firmware uses P2=1 here sometimes, leaving as 1 to be safe
+			0x01,
 			0x00,
 		],
 		&mut rx_buf,
@@ -165,7 +182,6 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 					}
 				}
 				PhyTag::UsbProduct => {
-					// Remove null terminator if present
 					let s = std::str::from_utf8(val)
 						.unwrap_or("")
 						.trim_matches(char::from(0));
