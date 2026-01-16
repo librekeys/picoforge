@@ -1,3 +1,4 @@
+%global debug_package %{nil}
 Name:           picoforge
 Version:        0.2.1
 Release:        1%{?dist}
@@ -11,22 +12,21 @@ BuildRequires:  curl
 BuildRequires:  unzip
 
 # Standard Tauri v2 Requirements
-BuildRequires:  gtk3-devel
-BuildRequires:  webkit2gtk4.1-devel
-BuildRequires:  openssl-devel
-BuildRequires:  glib2-devel
-BuildRequires:  libsoup3-devel
-BuildRequires:  libappindicator-gtk3-devel
+BuildRequires:  pkgconfig(gtk+-3.0)
+BuildRequires:  pkgconfig(webkit2gtk-4.1)
+BuildRequires:  pkgconfig(javascriptcoregtk-4.1)
+BuildRequires:  pkgconfig(openssl)
+BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(libsoup-3.0)
+BuildRequires:  pkgconfig(appindicator3-0.1)
 
 # HARDWARE / FIDO Specific
-BuildRequires:  pcsc-lite-devel
-BuildRequires:  systemd-devel
+BuildRequires:  pkgconfig(libpcsclite)
+BuildRequires:  pkgconfig(libudev)
 
 # Build Tools
 BuildRequires:  rust
 BuildRequires:  cargo
-BuildRequires:  curl
-BuildRequires:  unzip
 
 %description
 PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust, Tauri, and Svelte, it provides an intuitive interface for:
