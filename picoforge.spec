@@ -1,6 +1,6 @@
 Name:           picoforge
 Version:        0.2.1
-Release:        1
+Release:        1%{?dist}
 Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte.
 License:        AGPL-3.0
 URL:            https://github.com/librekeys/picoforge
