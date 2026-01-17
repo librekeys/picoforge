@@ -46,6 +46,10 @@ export DENO_INSTALL="$HOME/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 deno --version
 
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+export PATH=$(pwd)/.cargo/bin:$PATH
+rustc --version
+
 %build
 export DENO_INSTALL="$HOME/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
@@ -75,6 +79,13 @@ install -m 644 src-tauri/icons/in.suyogtandel.picoforge.svg %{buildroot}%{_datad
 %{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %changelog
+* Sat Jan 17 2026 Suyog Tandel <git@suyogtandel.in>
+- fix: spec file build deps (git@suyogtandel.in)
+- feat: Packaging picoforge for Fedora, CentOS/RHEL and OpenSuse (#11)
+  (git@suyogtandel.in)
+- build(package.nix): add nix packaging script
+  (226018678+jetcookies@users.noreply.github.com)
+
 * Sat Jan 17 2026 Suyog Tandel <git@suyogtandel.in> 0.2.1-1
 - new package built with tito
 
