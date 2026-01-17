@@ -79,6 +79,9 @@ install -m 644 src-tauri/icons/in.suyogtandel.picoforge.svg %{buildroot}%{_datad
 %{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %changelog
+* Sat Jan 17 2026 Suyog Tandel <git@suyogtandel.in> 0.2.1-5
+- fix: explicit gcc and make dependencies (git@suyogtandel.in)
+
 * Sat Jan 17 2026 Suyog Tandel <git@suyogtandel.in> 0.2.1-4
 - chore: bump spec file release version (git@suyogtandel.in)
 - fix: rust path in spec file (git@suyogtandel.in)
