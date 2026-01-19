@@ -1,0 +1,29 @@
+name: Sync Docs to Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - .github/workflows/wiki-sync.yml
+
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  update-wiki:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Push to Wiki
+        uses: Andrew-Chen-Wang/github-wiki-action@v4
+        with:
+          path: docs
+          token: ${{ secrets.WIKI_SYNC_PAT_TOKEN }}
+          commit_message: "Sync docs from main repo: ${{ github.event.head_commit.message }}"
