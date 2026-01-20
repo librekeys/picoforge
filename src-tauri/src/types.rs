@@ -55,6 +55,7 @@ pub struct FullDeviceStatus {
 	pub config: AppConfig,
 	pub secure_boot: bool,
 	pub secure_lock: bool,
+	pub method: String,
 }
 
 // Fido stuff:

@@ -16,6 +16,7 @@ class DeviceManager {
   connected = $state(false);
   fidoInfo: FidoInfo | null = $state(null);
   error: string | null = $state(null);
+  method: string = $state("");
 
   credentials: StoredCredential[] = $state([]);
   unlocked = $state(false);
@@ -59,6 +60,8 @@ class DeviceManager {
         secureLock: status.secureLock,
         confirmed: false,
       };
+
+      this.method = status.method;
 
       const fido = await invoke<FidoInfo>("get_fido_info");
 

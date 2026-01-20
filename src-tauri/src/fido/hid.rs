@@ -16,6 +16,9 @@ const CTAPHID_KEEPALIVE: u8 = 0xBB;
 pub struct HidTransport {
 	device: hidapi::HidDevice,
 	cid: u32,
+	pub vid: u16,
+	pub pid: u16,
+	pub product_name: String,
 }
 
 impl HidTransport {
@@ -41,6 +44,13 @@ impl HidTransport {
 			info.product_id()
 		);
 
+		let vid = info.vendor_id();
+		let pid = info.product_id();
+		let product_name = info
+			.product_string()
+			.unwrap_or("Unknown FIDO Device")
+			.to_string();
+
 		let device = info.open_device(&api).map_err(|e| {
 			log::error!("Failed to open HID device: {}", e);
 			e
@@ -53,7 +63,13 @@ impl HidTransport {
 		})?;
 
 		log::info!("HID Transport established successfully. CID: 0x{:08X}", cid);
-		Ok(Self { device, cid })
+		Ok(Self {
+			device,
+			cid,
+			vid,
+			pid,
+			product_name,
+		})
 	}
 
 	fn init_channel(device: &hidapi::HidDevice) -> Result<u32> {

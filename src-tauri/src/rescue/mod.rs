@@ -235,6 +235,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		config,
 		secure_boot: sb_enabled,
 		secure_lock: sb_locked,
+		method: "Rescue".to_string(),
 	})
 }
 

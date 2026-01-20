@@ -7,14 +7,24 @@
 
   import { device } from "$lib/device/manager.svelte";
 
-  import { Cpu, Lock, LockOpen, Microchip, ShieldCheck, TriangleAlert, Shield } from "@lucide/svelte";
+  import {
+    Cpu,
+    Lock,
+    LockOpen,
+    Microchip,
+    ShieldCheck,
+    TriangleAlert,
+    Shield,
+  } from "@lucide/svelte";
   import NoDeviceStatus from "$lib/components/device/NoDeviceStatus.svelte";
 </script>
 
 <div class="space-y-6">
   <div>
     <h1 class="text-3xl font-bold tracking-tight">Device Overview</h1>
-    <p class="text-muted-foreground">Quick view of your device status and specifications.</p>
+    <p class="text-muted-foreground">
+      Quick view of your device status and specifications.
+    </p>
   </div>
 
   {#if !device.connected}
@@ -36,15 +46,23 @@
             </div>
             <div class="space-y-1">
               <p class="text-muted-foreground">Firmware Version</p>
-              <p class="font-mono font-medium">v{device.info.firmwareVersion}</p>
+              <p class="font-mono font-medium">
+                v{device.info.firmwareVersion}
+              </p>
             </div>
             <div class="space-y-1">
               <p class="text-muted-foreground">VID:PID</p>
-              <p class="font-mono font-medium">{device.config.vid}:{device.config.pid}</p>
+              <p class="font-mono font-medium">
+                {device.config.vid}:{device.config.pid}
+              </p>
             </div>
             <div class="space-y-1">
               <p class="text-muted-foreground">Product Name</p>
               <p class="font-medium truncate">{device.config.productName}</p>
+            </div>
+            <div class="space-y-1">
+              <p class="text-muted-foreground">Connection Method</p>
+              <Badge variant="outline" class="font-mono">{device.method}</Badge>
             </div>
           </div>
 
@@ -57,7 +75,10 @@
                 {device.info.flashUsed} / {device.info.flashTotal} KB
               </span>
             </div>
-            <Progress value={(device.info.flashUsed / device.info.flashTotal) * 100} class="h-2" />
+            <Progress
+              value={(device.info.flashUsed / device.info.flashTotal) * 100}
+              class="h-2"
+            />
           </div>
         </Card.Content>
       </Card.Root>
@@ -74,7 +95,9 @@
             <div class="grid grid-cols-2 gap-4 text-sm">
               <div class="space-y-1">
                 <p class="text-muted-foreground">FIDO Version</p>
-                <p class="font-medium">{device.fidoInfo.versions[0] || "N/A"}</p>
+                <p class="font-medium">
+                  {device.fidoInfo.versions[0] || "N/A"}
+                </p>
               </div>
               <div class="space-y-1">
                 <p class="text-muted-foreground">PIN Set</p>
@@ -98,10 +121,14 @@
 
             <div class="space-y-1">
               <p class="text-muted-foreground text-sm">AAGUID</p>
-              <p class="font-mono text-xs break-all">{device.fidoInfo.aaguid}</p>
+              <p class="font-mono text-xs break-all">
+                {device.fidoInfo.aaguid}
+              </p>
             </div>
           {:else}
-            <p class="text-muted-foreground text-sm">FIDO information not available</p>
+            <p class="text-muted-foreground text-sm">
+              FIDO information not available
+            </p>
           {/if}
         </Card.Content>
       </Card.Root>
@@ -128,7 +155,9 @@
           </div>
           <div class="flex justify-between">
             <span class="text-muted-foreground">LED Dimmable</span>
-            <Badge variant={device.config.ledDimmable ? "default" : "secondary"}>
+            <Badge
+              variant={device.config.ledDimmable ? "default" : "secondary"}
+            >
               {device.config.ledDimmable ? "Yes" : "No"}
             </Badge>
           </div>
@@ -157,7 +186,9 @@
               {:else}
                 <LockOpen class="h-3 w-3 text-amber-500" />
               {/if}
-              <Badge variant={device.security.secureBoot ? "default" : "secondary"}>
+              <Badge
+                variant={device.security.secureBoot ? "default" : "secondary"}
+              >
                 {device.security.secureBoot ? "Secure Boot" : "Development"}
               </Badge>
             </div>
@@ -170,7 +201,9 @@
           </div>
           <div class="flex justify-between items-center">
             <span class="text-muted-foreground">Secure Lock</span>
-            <Badge variant={device.security.confirmed ? "destructive" : "outline"}>
+            <Badge
+              variant={device.security.confirmed ? "destructive" : "outline"}
+            >
               {device.security.confirmed ? "Acknowledged" : "Pending"}
             </Badge>
           </div>

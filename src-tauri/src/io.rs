@@ -3,8 +3,13 @@ use crate::{error::PFError, fido, rescue, types::*};
 
 #[tauri::command]
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
-	rescue::read_device_details()
-	// fido::read_device_details()
+	match rescue::read_device_details() {
+		Ok(status) => Ok(status),
+		Err(e) => {
+			log::warn!("Rescue method failed: {}. Falling back to FIDO...", e);
+			fido::read_device_details()
+		}
+	}
 }
 
 #[tauri::command]

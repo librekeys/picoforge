@@ -38,6 +38,7 @@ export interface FullDeviceStatus {
   config: DeviceConfig;
   secureBoot: boolean;
   secureLock: boolean;
+  method: string;
 }
 
 export interface SecurityState {
