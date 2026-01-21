@@ -13,8 +13,16 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 }
 
 #[tauri::command]
-pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
-	rescue::write_config(config)
+pub fn write_config(
+	config: AppConfigInput,
+	method: String,
+	pin: Option<String>,
+) -> Result<String, PFError> {
+	if method == "FIDO" {
+		fido::write_config(config, pin)
+	} else {
+		rescue::write_config(config)
+	}
 }
 
 #[tauri::command]
