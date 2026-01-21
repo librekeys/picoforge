@@ -98,9 +98,18 @@ pub(crate) fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, Stri
 	let device = FidoKeyHidFactory::create(&cfg)
 		.map_err(|e| format!("Failed to connect to FIDO device: {:?}", e))?;
 
-	let rps = device
-		.credential_management_enumerate_rps(Some(&pin))
-		.map_err(|e| format!("Failed to enumerate Relying Parties: {:?}", e))?;
+	let rps = match device.credential_management_enumerate_rps(Some(&pin)) {
+		Ok(rps) => rps,
+		Err(e) => {
+			// CTAP2_ERR_NO_CREDENTIALS (0x2E) means no credentials exist - return empty list
+			let err_str = format!("{:?}", e);
+			if err_str.contains("0x2E") || err_str.contains("NO_CREDENTIALS") {
+				log::info!("No credentials stored on device (CTAP2_ERR_NO_CREDENTIALS)");
+				return Ok(Vec::new());
+			}
+			return Err(format!("Failed to enumerate Relying Parties: {:?}", e));
+		}
+	};
 
 	let mut all_credentials = Vec::new();
 
