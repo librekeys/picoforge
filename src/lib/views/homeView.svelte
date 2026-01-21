@@ -60,10 +60,6 @@
               <p class="text-muted-foreground">Product Name</p>
               <p class="font-medium truncate">{device.config.productName}</p>
             </div>
-            <div class="space-y-1">
-              <p class="text-muted-foreground">Connection Method</p>
-              <Badge variant="outline" class="font-mono">{device.method}</Badge>
-            </div>
           </div>
 
           <Separator />

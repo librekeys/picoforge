@@ -15,14 +15,35 @@ class configState {
   minPinLength = $state(4);
   minPinError = $state("");
 
+  authPinDialogOpen = $state(false);
+  authPin = $state("");
+  authPinError = $state("");
+
   dialogOpen = $state(false);
   dialogTitle = $state("");
   dialogMessage = $state("");
 
   async handleSave() {
+    if (device.method === "FIDO" && device.fidoInfo?.options?.clientPin) {
+      this.authPin = "";
+      this.authPinError = "";
+      this.authPinDialogOpen = true;
+      return;
+    }
+
     const result = await device.save();
     if (result) {
       this.showStatusDialog(result.success ? "Success" : "Write Failed", result.msg);
+    }
+  }
+
+  async confirmAuthPinSave() {
+    const result = await device.save(this.authPin);
+    if (result.success) {
+      this.authPinDialogOpen = false;
+      this.showStatusDialog("Success", result.msg);
+    } else {
+      this.authPinError = result.msg as string;
     }
   }
 

@@ -120,11 +120,19 @@
             >Device Status</span
           >
           {#if device.connected}
-            <Badge
-              variant="default"
-              class="bg-green-600 hover:bg-green-600 text-[10px] px-1.5 h-5"
-              >Online</Badge
-            >
+            {#if device.method === "FIDO"}
+              <Badge
+                variant="default"
+                class="bg-amber-500 hover:bg-amber-500 text-[10px] px-1.5 h-5"
+                >Online - Fido</Badge
+              >
+            {:else}
+              <Badge
+                variant="default"
+                class="bg-green-600 hover:bg-green-600 text-[10px] px-1.5 h-5"
+                >Online</Badge
+              >
+            {/if}
           {:else if device.error}
             <Badge
               variant="destructive"
@@ -165,7 +173,7 @@
           <RefreshCw class="h-4 w-4 {device.loading ? 'animate-spin' : ''}" />
         </Button>
         <div
-          class={`h-2 w-2 rounded-full ${device.connected ? "bg-green-500" : device.error ? "bg-amber-500" : "bg-red-500"}`}
+          class={`h-2 w-2 rounded-full ${device.connected ? (device.method === "FIDO" ? "bg-amber-500" : "bg-green-500") : device.error ? "bg-amber-500" : "bg-red-500"}`}
         ></div>
       </div>
     </Sidebar.Footer>

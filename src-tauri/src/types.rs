@@ -32,7 +32,7 @@ pub struct AppConfig {
 	pub enable_secp256k1: bool,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfigInput {
 	pub vid: Option<String>,

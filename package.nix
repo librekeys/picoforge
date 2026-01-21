@@ -5,18 +5,16 @@
   fetchFromGitHub,
   makeDesktopItem,
 
-  cargo-tauri,
   pkg-config,
+  cargo-tauri,
+  wrapGAppsHook3,
+  copyDesktopItems,
 
-  atkmm,
-  eudev,
-  gdk-pixbuf,
   glib,
   gtk3,
-  libgudev,
-  libsoup_3,
-  pango,
+  openssl,
   pcsclite,
+  udev,
   webkitgtk_4_1,
 }:
 rustPlatform.buildRustPackage (finalAttrs: {
@@ -32,13 +30,32 @@ rustPlatform.buildRustPackage (finalAttrs: {
   };
 
   cargoRoot = "src-tauri";
-
   buildAndTestSubdir = finalAttrs.cargoRoot;
 
   cargoHash = "sha256-nLf8v4MIt2zAeA9YMVaoI3s/yut5/Jy2fGM3Sx33EJc=";
 
-  npmDist = buildNpmPackage {
-    name = "${finalAttrs.pname}-${finalAttrs.version}-dist";
+  postPatch = ''
+    sed -i src-tauri/tauri.conf.json -e '/beforeBuildCommand/d'
+  '';
+
+  nativeBuildInputs = [
+    pkg-config
+    cargo-tauri.hook
+    wrapGAppsHook3
+    copyDesktopItems
+  ];
+
+  buildInputs = [
+    glib
+    gtk3
+    openssl
+    pcsclite
+    udev
+    webkitgtk_4_1
+  ];
+
+  frontendDist = buildNpmPackage {
+    name = "${finalAttrs.pname}-${finalAttrs.version}-frontend-dist";
     inherit (finalAttrs) src;
 
     npmDepsHash = "sha256-7DLooiGLzk3JRsKAftOxSf7HAgHBXCJDaAFp2p/pryc=";
@@ -54,27 +71,8 @@ rustPlatform.buildRustPackage (finalAttrs: {
   };
 
   preBuild = ''
-    sed -i '/beforeBuildCommand/d' src-tauri/tauri.conf.json
-    cp -r ${finalAttrs.npmDist} build
+    cp -r ${finalAttrs.frontendDist} build
   '';
-
-  nativeBuildInputs = [
-    cargo-tauri.hook
-    pkg-config
-  ];
-
-  buildInputs = [
-    atkmm
-    eudev
-    gdk-pixbuf
-    glib
-    gtk3
-    libgudev
-    libsoup_3
-    pango
-    pcsclite
-    webkitgtk_4_1
-  ];
 
   postInstall = ''
     install -Dm644 ${finalAttrs.src}/static/in.suyogtandel.picoforge.svg $out/share/icons/hicolor/scalable/apps/picoforge.svg
@@ -97,7 +95,7 @@ rustPlatform.buildRustPackage (finalAttrs: {
 
   meta = {
     changelog = "https://github.com/librekeys/picoforge/releases/tag/v${finalAttrs.version}";
-    description = "An open source commissioning tool for Pico FIDO security keys.";
+    description = "An open source commissioning tool for Pico FIDO security keys";
     homepage = "https://github.com/librekeys/picoforge";
     license = lib.licenses.agpl3Only;
     mainProgram = "picoforge";

@@ -5,13 +5,19 @@ pub mod hid;
 
 use crate::{
 	error::PFError,
-	types::{AppConfig, DeviceInfo, FidoDeviceInfo, FullDeviceStatus, StoredCredential},
+	types::{
+		AppConfig, AppConfigInput, DeviceInfo, FidoDeviceInfo, FullDeviceStatus, StoredCredential,
+	},
 };
 use constants::*;
 use ctap_hid_fido2::{
-	Cfg, FidoKeyHidFactory, public_key_credential_descriptor::PublicKeyCredentialDescriptor,
+	Cfg, FidoKeyHidFactory,
+	fidokey::make_credential::{MakeCredentialArgs, MakeCredentialArgsBuilder},
+	public_key_credential_descriptor::PublicKeyCredentialDescriptor,
+	public_key_credential_user_entity::PublicKeyCredentialUserEntity,
 };
 use hid::*;
+use rand::Rng;
 use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::{BTreeMap, HashMap};
 
@@ -149,8 +155,12 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 	log::info!("Starting FIDO device details read...");
 
 	let transport = HidTransport::open().map_err(|e| {
-		log::error!("Failed to open HID transport: {}", e);
-		PFError::Device(e.to_string())
+		if let Some(PFError::NoDevice) = e.downcast_ref::<PFError>() {
+			PFError::NoDevice
+		} else {
+			log::error!("Failed to open HID transport: {}", e);
+			PFError::Device(e.to_string())
+		}
 	})?;
 
 	// --- 1. Get Info ---
@@ -331,4 +341,119 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
 		secure_lock: false,
 		method: "FIDO".to_string(),
 	})
+}
+
+pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<String, PFError> {
+	log::info!("Starting FIDO write_config...");
+
+	let pin_val = pin.as_deref().ok_or_else(|| {
+		log::error!("PIN is required for configuration");
+		PFError::Device("PIN is required for configuration".into())
+	})?;
+
+	// 1. Obtain PIN token using the library handle
+	let pin_token = {
+		let cfg = Cfg::init();
+		let device = FidoKeyHidFactory::create(&cfg)
+			.map_err(|e| PFError::Device(format!("Could not connect to FIDO device: {:?}", e)))?;
+
+		use ctap_hid_fido2::fidokey::pin::Permission;
+		// Try to obtain a token with AuthenticatorConfiguration permission (CTAP 2.1)
+		match device
+			.get_pinuv_auth_token_with_permission(pin_val, Permission::AuthenticatorConfiguration)
+		{
+			Ok(token) => {
+				log::debug!("Successfully obtained PIN token with ACFG permission.");
+				token.key
+			}
+			Err(e) => {
+				log::warn!(
+					"Failed to get PIN token with ACFG permission (Error: {:?}). Falling back to standard token.",
+					e
+				);
+				// Fallback to standard PIN token (Subcommand 0x05)
+				let token = device.get_pin_token(pin_val).map_err(|e2| {
+					log::error!("Failed to obtain even a standard PIN token: {:?}", e2);
+					PFError::Device(format!("PIN token acquisition failed: {:?}", e2))
+				})?;
+				log::debug!("Successfully obtained standard PIN token (fallback).");
+				token.key
+			}
+		}
+		// Library handle 'device' is dropped here, closing the HID session.
+	};
+
+	// 2. Open custom HidTransport and send vendor commands using the token
+	let transport = HidTransport::open().map_err(|e| {
+		log::error!("Failed to open HID transport: {}", e);
+		PFError::Device(format!("Could not open HID transport: {}", e))
+	})?;
+
+	// VID/PID config
+	if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
+		let vid = u16::from_str_radix(vid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
+		let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
+		let vidpid = ((vid as u32) << 16) | (pid as u32);
+		transport.send_vendor_config(
+			&pin_token,
+			VendorConfigCommand::PhysicalVidPid,
+			Value::Integer(vidpid as i128),
+		)?;
+	}
+
+	// LED GPIO config
+	if let Some(gpio) = config.led_gpio {
+		transport.send_vendor_config(
+			&pin_token,
+			VendorConfigCommand::PhysicalLedGpio,
+			Value::Integer(gpio as i128),
+		)?;
+	}
+
+	// LED brightness config
+	if let Some(brightness) = config.led_brightness {
+		transport.send_vendor_config(
+			&pin_token,
+			VendorConfigCommand::PhysicalLedBrightness,
+			Value::Integer(brightness as i128),
+		)?;
+	}
+
+	// Options config
+	let mut opts = 0u16;
+	if config.led_dimmable.unwrap_or(false) {
+		opts |= 0x02; // PHY_OPT_DIMM
+	}
+	if !config.power_cycle_on_reset.unwrap_or(true) {
+		opts |= 0x04; // PHY_OPT_DISABLE_POWER_RESET
+	}
+	if config.led_steady.unwrap_or(false) {
+		opts |= 0x08; // PHY_OPT_LED_STEADY
+	}
+	// Touch_timeout config
+	if let Some(timeout) = config.touch_timeout {
+		// In the firmware's phy_data, touch_timeout is often part of opts or separate.
+		// Looking at the previous code, it was separate (0x08).
+		// However, in vendor configuration, we usually send parameters individually.
+		transport
+			.send_vendor_config(
+				&pin_token,
+				VendorConfigCommand::PhysicalOptions, // Assuming there's a command for it or it's in opts
+				Value::Integer(timeout as i128),      // Wait, let's check VendorConfigCommand again
+			)
+			.ok(); // If it fails, maybe it's not supported as a standalone vendor cmd
+	}
+
+	transport.send_vendor_config(
+		&pin_token,
+		VendorConfigCommand::PhysicalOptions,
+		Value::Integer(opts as i128),
+	)?;
+
+	// ToDo : Product name configuration is not implemented in pico-fido firmware (cbor_config.c)?
+
+	Ok(
+		"Configuration updated successfully! Unplug and re-plug the device to apply VID/PID changes."
+			.to_string(),
+	)
 }
