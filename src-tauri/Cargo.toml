@@ -35,6 +35,7 @@ hidapi = "2.6"         # For fido2 interface operations but non-standard command
 serde_cbor_2 = "0.13"
 rand = "0.9"
 bitflags = "2.10"
+ring = "0.17" # For signing fido2 messages with pin token
 
 log = "0.4"            # Logging facade
 log4rs = "1"           # For logging to output (like stdout)

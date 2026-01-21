@@ -16,6 +16,7 @@
 
   import SetPinDialog from "$lib/components/dialogs/setPinDialog.svelte";
   import MinPinDialog from "$lib/components/dialogs/minPinDialog.svelte";
+  import AuthPinDialog from "$lib/components/dialogs/authPinDialog.svelte";
   import MessageDialog from "$lib/components/dialogs/messageDialog.svelte";
 
   type View = "home" | "passkeys" | "config" | "security" | "logs" | "about";
@@ -35,7 +36,9 @@
   $effect(() => {
     logger.logs.length;
     tick().then(() => {
-      const viewport = document.querySelector("[data-radix-scroll-area-viewport]");
+      const viewport = document.querySelector(
+        "[data-radix-scroll-area-viewport]",
+      );
       if (viewport) {
         viewport.scrollTop = viewport.scrollHeight;
       }
@@ -62,3 +65,4 @@
 <MessageDialog />
 <SetPinDialog />
 <MinPinDialog />
+<AuthPinDialog />
