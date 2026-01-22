@@ -79,13 +79,39 @@ pub(crate) fn set_min_pin_length(
 	current_pin: String,
 	min_pin_length: u8,
 ) -> Result<String, String> {
-	let cfg = Cfg::init();
-	let device = FidoKeyHidFactory::create(&cfg)
-		.map_err(|e| format!("Failed to connect to FIDO device: {:?}", e))?;
+	log::info!("Starting set_min_pin_length (custom implementation)...");
 
-	device
-		.set_min_pin_length(min_pin_length, Some(&current_pin))
-		.map_err(|e| format!("Failed to set minimum PIN length: {:?}", e))?;
+	// 1. Obtain PIN token using the library handle
+	let pin_token = {
+		let cfg = Cfg::init();
+		let device = FidoKeyHidFactory::create(&cfg)
+			.map_err(|e| format!("Could not connect to FIDO device: {:?}", e))?;
+
+		use ctap_hid_fido2::fidokey::pin::Permission;
+		// Obtain a token with AuthenticatorConfiguration permission (CTAP 2.1)
+		match device.get_pinuv_auth_token_with_permission(
+			&current_pin,
+			Permission::AuthenticatorConfiguration,
+		) {
+			Ok(token) => {
+				log::debug!("Successfully obtained PIN token with ACFG permission.");
+				token.key
+			}
+			Err(e) => {
+				log::error!("Failed to get PIN token with ACFG permission: {:?}", e);
+				return Err(format!("Failed to obtain PIN token: {:?}", e));
+			}
+		}
+		// Library handle 'device' is dropped here, closing the HID session.
+	};
+
+	// 2. Open custom HidTransport and send command using the token because ctap-hid-fido2 has a bug where it sends CBOR map keys out of order (0x01, 0x03, 0x04, 0x02) instead of the required ascending order (0x01, 0x02, 0x03, 0x04). The pico-fido firmware strictly requires ascending order.
+	let transport =
+		HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+	transport
+		.send_config_set_min_pin_length(&pin_token, min_pin_length)
+		.map_err(|e| format!("Failed to set minimum PIN length: {}", e))?;
 
 	Ok(format!(
 		"Minimum PIN length successfully set to {}",

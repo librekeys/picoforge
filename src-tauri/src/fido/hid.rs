@@ -372,4 +372,82 @@ impl HidTransport {
 
 		Ok(())
 	}
+
+	/// Send authenticatorConfig command to set minimum PIN length.
+	///
+	/// This bypasses the ctap-hid-fido2 library which has a bug where it sends
+	/// CBOR map keys out of order (0x01, 0x03, 0x04, 0x02) instead of the required
+	/// ascending order (0x01, 0x02, 0x03, 0x04). The pico-fido firmware strictly
+	/// enforces canonical CBOR ordering per CTAP2 spec.
+	pub fn send_config_set_min_pin_length(
+		&self,
+		pin_token: &[u8],
+		new_min_pin_length: u8,
+	) -> Result<(), PFError> {
+		log::debug!(
+			"Sending setMinPINLength config command (new length: {})...",
+			new_min_pin_length
+		);
+
+		// Build subCommandParams (Key 0x02): { 0x01: newMinPINLength }
+		let mut sub_params_map = BTreeMap::new();
+		sub_params_map.insert(
+			Value::Integer(ConfigSubCommandParam::NewMinPinLength as i128),
+			Value::Integer(new_min_pin_length as i128),
+		);
+		let sub_params = Value::Map(sub_params_map);
+		let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
+
+		// Build HMAC message for signing
+		// Per FIDO 2.1 spec: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
+		let mut message = vec![0xff; 32];
+		message.push(CtapCommand::Config as u8); // 0x0d
+		message.push(ConfigSubCommand::SetMinPinLength as u8); // 0x03
+		message.extend(&sub_params_bytes);
+
+		// Sign using provided PIN token (Protocol 1 uses HMAC-SHA256, first 16 bytes)
+		use ring::hmac;
+		let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
+		let sig = hmac::sign(&hmac_key, &message);
+		let pin_auth = sig.as_ref()[0..16].to_vec();
+
+		// Build full authenticatorConfig map with keys in ASCENDING ORDER
+		// This is critical - the firmware parser rejects out-of-order keys with CTAP2_ERR_INVALID_CBOR
+		let mut config_map = BTreeMap::new();
+		config_map.insert(
+			Value::Integer(ConfigParam::SubCommand as i128), // 0x01
+			Value::Integer(ConfigSubCommand::SetMinPinLength as i128), // 0x03
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::SubCommandParams as i128), // 0x02
+			sub_params,
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::PinUvAuthProtocol as i128), // 0x03
+			Value::Integer(1),                                      // PIN protocol version 1
+		);
+		config_map.insert(
+			Value::Integer(ConfigParam::PinUvAuthParam as i128), // 0x04
+			Value::Bytes(pin_auth),
+		);
+
+		let config_payload_cbor =
+			to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
+
+		// Prepend CTAP command byte
+		let mut payload = vec![CtapCommand::Config as u8];
+		payload.extend(config_payload_cbor);
+
+		// Send via HID
+		self.send_cbor(CTAPHID_CBOR, &payload).map_err(|e| {
+			log::error!("Failed to send setMinPINLength config: {}", e);
+			PFError::Device(format!("setMinPINLength failed: {}", e))
+		})?;
+
+		log::info!(
+			"Successfully set minimum PIN length to {}",
+			new_min_pin_length
+		);
+		Ok(())
+	}
 }
