@@ -20,19 +20,19 @@
 rustPlatform.buildRustPackage (finalAttrs: {
 
   pname = "picoforge";
-  version = "0.2.1";
+  version = "0.3.0";
 
   src = fetchFromGitHub {
     owner = "librekeys";
     repo = "picoforge";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-bVD8CXDDiXBPDCdspk9b4Y9hSfRDH4nHGF0IIZIMb9M=";
+    hash = "sha256-26UGHCzpN14UTsSQ7gIeRh/Qv0ze03BXTjvp4tdflo8=";
   };
 
   cargoRoot = "src-tauri";
   buildAndTestSubdir = finalAttrs.cargoRoot;
 
-  cargoHash = "sha256-nLf8v4MIt2zAeA9YMVaoI3s/yut5/Jy2fGM3Sx33EJc=";
+  cargoHash = "sha256-DB54egPebUniP/yjEZc+/AY9vOChJRBA+tqnbISmEgg=";
 
   postPatch = ''
     sed -i src-tauri/tauri.conf.json -e '/beforeBuildCommand/d'
