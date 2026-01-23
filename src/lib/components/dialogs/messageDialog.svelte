@@ -10,13 +10,18 @@
 <AlertDialog.Root bind:open={state.dialogOpen}>
   <AlertDialog.Content>
     <AlertDialog.Header>
-      <AlertDialog.Title>{state.dialogTitle}</AlertDialog.Title>
+      <AlertDialog.Title
+        class={state.dialogType === "error" ? "text-red-500" : ""}
+        >{state.dialogTitle}</AlertDialog.Title
+      >
       <AlertDialog.Description>
         {state.dialogMessage}
       </AlertDialog.Description>
     </AlertDialog.Header>
     <AlertDialog.Footer>
-      <AlertDialog.Action onclick={() => (state.dialogOpen = false)}>Okay</AlertDialog.Action>
+      <AlertDialog.Action onclick={() => (state.dialogOpen = false)}
+        >Okay</AlertDialog.Action
+      >
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>

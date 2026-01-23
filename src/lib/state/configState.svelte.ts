@@ -22,6 +22,7 @@ class configState {
   dialogOpen = $state(false);
   dialogTitle = $state("");
   dialogMessage = $state("");
+  dialogType: "success" | "error" = $state("success");
 
   async handleSave() {
     if (device.method === "FIDO" && device.fidoInfo?.options?.clientPin) {
@@ -33,7 +34,7 @@ class configState {
 
     const result = await device.save();
     if (result) {
-      this.showStatusDialog(result.success ? "Success" : "Write Failed", result.msg);
+      this.showStatusDialog(result.success ? "Success" : "Write Failed", result.msg, result.success ? "success" : "error");
     }
   }
 
@@ -47,9 +48,10 @@ class configState {
     }
   }
 
-  showStatusDialog(title: string, message: string) {
+  showStatusDialog(title: string, message: string, type: "success" | "error" = "success") {
     this.dialogTitle = title;
     this.dialogMessage = message;
+    this.dialogType = type;
     this.dialogOpen = true;
   }
 
@@ -88,7 +90,7 @@ class configState {
     const result = await device.changePin(this.isSettingPin ? null : this.currentPin, this.newPin);
     if (result.success) {
       this.setPinDialogOpen = false;
-      this.showStatusDialog("Success", this.isSettingPin ? "PIN set successfully" : "PIN changed successfully");
+      this.showStatusDialog("Success", this.isSettingPin ? "PIN set successfully" : "PIN changed successfully", "success");
     } else {
       this.pinError = result.msg as string;
     }
@@ -119,6 +121,7 @@ class configState {
       this.showStatusDialog(
         "Success",
         `Minimum PIN length updated to ${this.minPinLength} and PIN changed successfully`,
+        "success",
       );
     } else {
       this.minPinError = pinResult.msg as string;
