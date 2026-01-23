@@ -156,6 +156,8 @@ Follow the [Installation Guide](https://nixos.org/download/#download-nix) and [N
 
 ### 2. Build & Run
 
+#### a. with Flakes
+
 You can build and run PicoForge with a single command:
 
 ```bash
@@ -168,14 +170,35 @@ Or simply build it and link to the current directory:
 nix build github:librekeys/picoforge
 ```
 
+#### b. without Flakes
+
+Download the package definition:
+
+```bash
+curl -LO https://raw.githubusercontent.com/librekeys/picoforge/main/package.nix
+```
+
+Run the following command in the directory containing `package.nix`:
+
+```bash
+nix-build -E 'with import <nixpkgs> {}; callPackage ./package.nix { }'
+```
+
+The compiled binary will be available at: `result/bin/picoforge`
+
 ### 3. Develop
-Alternatively, you can enter a developement environement with all the required dependencies by running:
+
+You can enter a developement environement with all the required dependencies.
+
+#### a. with Flakes
 
 ```bash
 nix develop github:librekeys/picoforge
 ```
 
-Or use the shell.nix file that is at the root of the repository:
+#### b. without Flakes
+
+You can use the `shell.nix` file that is at the root of the repository by running:
 
 ```bash
 nix-shell
