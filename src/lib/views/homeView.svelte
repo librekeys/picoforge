@@ -137,32 +137,45 @@
           </Card.Title>
         </Card.Header>
         <Card.Content class="space-y-3 text-sm">
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">LED GPIO Pin</span>
-            <span class="font-medium">GPIO {device.config.ledGpio}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">LED Brightness</span>
-            <span class="font-medium">{device.config.ledBrightness}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">Presence Touch Timeout</span>
-            <span class="font-medium">{device.config.touchTimeout}s</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">LED Dimmable</span>
-            <Badge
-              variant={device.config.ledDimmable ? "default" : "secondary"}
+          {#if device.method === "FIDO"}
+            <div
+              class="flex flex-col items-center justify-center py-4 text-center space-y-2"
             >
-              {device.config.ledDimmable ? "Yes" : "No"}
-            </Badge>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-muted-foreground">LED Steady Mode</span>
-            <Badge variant={device.config.ledSteady ? "default" : "secondary"}>
-              {device.config.ledSteady ? "On" : "Off"}
-            </Badge>
-          </div>
+              <TriangleAlert class="h-8 w-8 text-amber-500" />
+              <p class="text-muted-foreground">
+                Information is not available in Fido only communication mode.
+              </p>
+            </div>
+          {:else}
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">LED GPIO Pin</span>
+              <span class="font-medium">GPIO {device.config.ledGpio}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">LED Brightness</span>
+              <span class="font-medium">{device.config.ledBrightness}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">Presence Touch Timeout</span>
+              <span class="font-medium">{device.config.touchTimeout}s</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">LED Dimmable</span>
+              <Badge
+                variant={device.config.ledDimmable ? "default" : "secondary"}
+              >
+                {device.config.ledDimmable ? "Yes" : "No"}
+              </Badge>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-muted-foreground">LED Steady Mode</span>
+              <Badge
+                variant={device.config.ledSteady ? "default" : "secondary"}
+              >
+                {device.config.ledSteady ? "On" : "Off"}
+              </Badge>
+            </div>
+          {/if}
         </Card.Content>
       </Card.Root>
 
