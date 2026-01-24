@@ -3,9 +3,9 @@ import type { DeviceConfig } from "$lib/device/types.svelte.ts";
 export const VENDORS = [
   { value: "custom", label: "Custom (Manual Entry)", vid: "", pid: "" },
   { value: "generic", label: "Generic (FEFF:FCFD)", vid: "FEFF", pid: "FCFD" },
-  { value: "pico-hsm", label: "Pico Keys HSM (2E8A:0x10FD)", vid: "2E8A", pid: "0x10FD" },
-  { value: "pico-fido", label: "Pico Keys Fido (2E8A:0x10FE)", vid: "2E8A", pid: "0x10FE" },
-  { value: "pico-openpgp", label: "Pico Keys OpenPGP (2E8A:0x10FF)", vid: "2E8A", pid: "0x10FF" },
+  { value: "pico-hsm", label: "Pico Keys HSM (2E8A:10FD)", vid: "2E8A", pid: "10FD" },
+  { value: "pico-fido", label: "Pico Keys Fido (2E8A:10FE)", vid: "2E8A", pid: "10FE" },
+  { value: "pico-openpgp", label: "Pico Keys OpenPGP (2E8A:10FF)", vid: "2E8A", pid: "10FF" },
   { value: "pico", label: "Pico (2E8A:0003)", vid: "2E8A", pid: "0003" },
   { value: "solokeys", label: "SoloKeys (0483:A2CA)", vid: "0483", pid: "A2CA" },
   { value: "nitrohsm", label: "NitroHSM (20A0:4230)", vid: "20A0", pid: "4230" },

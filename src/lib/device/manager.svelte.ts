@@ -38,6 +38,10 @@ class DeviceManager {
     return match ? match.value : "custom";
   }
 
+  get hasFido() {
+    return !!this.fidoInfo;
+  }
+
   async refresh() {
     this.loading = true;
     this.error = null;
@@ -63,9 +67,13 @@ class DeviceManager {
 
       this.method = status.method;
 
-      const fido = await invoke<FidoInfo>("get_fido_info");
-
-      this.fidoInfo = fido;
+      try {
+        const fido = await invoke<FidoInfo>("get_fido_info");
+        this.fidoInfo = fido;
+      } catch (e) {
+        logger.add("FIDO info could not be read (device might not support FIDO features)", "warning");
+        this.fidoInfo = null;
+      }
 
       if (!this.connected) {
         logger.add(`Device Connected! Serial: ${this.info.serial}, FW: v${this.info.firmwareVersion}`, "success");

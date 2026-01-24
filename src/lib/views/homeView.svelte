@@ -19,7 +19,7 @@
   import NoDeviceStatus from "$lib/components/device/NoDeviceStatus.svelte";
 </script>
 
-<div class="space-y-6">
+<div class="space-y-4">
   <div>
     <h1 class="text-3xl font-bold tracking-tight">Device Overview</h1>
     <p class="text-muted-foreground">

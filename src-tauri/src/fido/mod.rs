@@ -382,8 +382,12 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 	log::info!("Starting FIDO write_config...");
 
 	let pin_val = pin.as_deref().ok_or_else(|| {
-		log::error!("PIN is required for configuration");
-		PFError::Device("PIN is required for configuration".into())
+		log::error!(
+			"A security PIN is required to be set to change the configuration in fido mode"
+		);
+		PFError::Device(
+			"A security PIN is required to be set to change the configuration in fido mode".into(),
+		)
 	})?;
 
 	// 1. Obtain PIN token using the library handle
