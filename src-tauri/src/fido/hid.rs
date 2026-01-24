@@ -1,10 +1,7 @@
-#![allow(unused)]
-
-use anyhow::{Result, anyhow};
 use rand::Rng;
 use serde_cbor_2::{Value, to_vec};
 use std::collections::BTreeMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::error::PFError;
 use crate::fido::constants::*;
@@ -18,6 +15,12 @@ pub const CTAPHID_CBOR: u8 = 0x90;
 const CTAPHID_ERROR: u8 = 0xBF;
 const CTAPHID_KEEPALIVE: u8 = 0xBB;
 
+// Timeouts
+const HID_READ_TIMEOUT_MS: i32 = 10;
+const HID_INIT_READ_TIMEOUT_MS: i32 = 100;
+const HID_RESP_READ_TIMEOUT_MS: i32 = 2000;
+const HID_CONT_READ_TIMEOUT_MS: i32 = 500;
+
 pub struct HidTransport {
 	device: hidapi::HidDevice,
 	cid: u32,
@@ -27,11 +30,11 @@ pub struct HidTransport {
 }
 
 impl HidTransport {
-	pub fn open() -> Result<Self> {
+	pub fn open() -> Result<Self, PFError> {
 		log::info!("Attempting to open HID transport for FIDO device...");
 		let api = hidapi::HidApi::new().map_err(|e| {
 			log::error!("Failed to initialize HidApi: {}", e);
-			e
+			PFError::Device(format!("Failed to initialize HidApi: {}", e))
 		})?;
 
 		// Find device with FIDO Usage Page (0xF1D0)
@@ -58,13 +61,13 @@ impl HidTransport {
 
 		let device = info.open_device(&api).map_err(|e| {
 			log::error!("Failed to open HID device: {}", e);
-			e
+			PFError::Device(format!("Failed to open HID device: {}", e))
 		})?;
 
 		// Negotiate Channel ID (CID)
 		let cid = Self::init_channel(&device).map_err(|e| {
 			log::error!("Failed to negotiate Channel ID: {}", e);
-			e
+			PFError::Device(format!("Failed to negotiate Channel ID: {}", e))
 		})?;
 
 		log::info!("HID Transport established successfully. CID: 0x{:08X}", cid);
@@ -77,13 +80,13 @@ impl HidTransport {
 		})
 	}
 
-	fn init_channel(device: &hidapi::HidDevice) -> Result<u32> {
+	fn init_channel(device: &hidapi::HidDevice) -> Result<u32, PFError> {
 		log::debug!("Initializing CTAPHID channel...");
 
 		// --- Drain Step ---
 		// Read and discard any pending packets to avoid using a stale response for CID negotiation.
 		let mut drain_buf = [0u8; HID_REPORT_SIZE];
-		while let Ok(n) = device.read_timeout(&mut drain_buf[..], 10) {
+		while let Ok(n) = device.read_timeout(&mut drain_buf[..], HID_READ_TIMEOUT_MS) {
 			if n == 0 {
 				break;
 			}
@@ -104,14 +107,17 @@ impl HidTransport {
 		log::trace!("Sending CTAPHID_INIT broadcast with nonce: {:02X?}", nonce);
 		device.write(&report[..]).map_err(|e| {
 			log::error!("Failed to write INIT packet: {}", e);
-			e
+			PFError::Io(format!("Failed to write INIT packet: {}", e))
 		})?;
 
 		// Read Response until we find our nonce
 		let start = std::time::Instant::now();
 		while start.elapsed() < Duration::from_secs(1) {
 			let mut buf = [0u8; HID_REPORT_SIZE];
-			if device.read_timeout(&mut buf[..], 100).is_ok() {
+			if device
+				.read_timeout(&mut buf[..], HID_INIT_READ_TIMEOUT_MS)
+				.is_ok()
+			{
 				// Check if response matches our broadcast and nonce
 				if buf[0..4] == CTAPHID_CID_BROADCAST.to_be_bytes()
 					&& buf[4] == CTAPHID_INIT
@@ -125,20 +131,26 @@ impl HidTransport {
 			}
 		}
 		log::error!("Timeout waiting for CTAPHID_INIT response.");
-		Err(anyhow!("Timeout waiting for FIDO Init response"))
+		Err(PFError::Device(
+			"Timeout waiting for FIDO Init response".into(),
+		))
 	}
 
-	pub fn send_cbor(&self, cmd: u8, payload: &[u8]) -> Result<Vec<u8>> {
+	pub fn send_cbor(&self, cmd: u8, payload: &[u8]) -> Result<Vec<u8>, PFError> {
+		self.write_cbor_request(cmd, payload)?;
+		self.read_cbor_response(cmd)
+	}
+
+	fn write_cbor_request(&self, cmd: u8, payload: &[u8]) -> Result<(), PFError> {
 		log::debug!(
 			"Sending CBOR Command: 0x{:02X}, Payload Size: {} bytes",
 			cmd,
 			payload.len()
 		);
 
-		// --- Transmit ---
-		let mut sequence = 0u8;
 		let total_len = payload.len();
 		let mut sent = 0;
+		let mut sequence = 0u8;
 
 		// 1. Init Packet
 		let mut report = [0u8; HID_REPORT_SIZE + 1];
@@ -154,7 +166,10 @@ impl HidTransport {
 		// log::trace!("Writing Init Packet (Sent: {}/{})", sent, total_len);
 		if let Err(e) = self.device.write(&report[..]) {
 			log::error!("Failed to write initial HID packet: {}", e);
-			return Err(e.into());
+			return Err(PFError::Io(format!(
+				"Failed to write initial HID packet: {}",
+				e
+			)));
 		}
 
 		// 2. Continuation Packets
@@ -175,26 +190,36 @@ impl HidTransport {
 					sequence - 1,
 					e
 				);
-				return Err(e.into());
+				return Err(PFError::Io(format!(
+					"Failed to write continuation HID packet: {}",
+					e
+				)));
 			}
 		}
 
-		// --- Receive ---
+		Ok(())
+	}
+
+	fn read_cbor_response(&self, cmd: u8) -> Result<Vec<u8>, PFError> {
+		log::debug!("Waiting for response...");
+
+		let mut buf = [0u8; HID_REPORT_SIZE];
 		let mut response_data = Vec::new();
-		let mut expected_len = 0;
+		let expected_len: usize;
 		let mut read_len = 0;
 		let mut last_seq = 0;
 
-		log::debug!("Waiting for response...");
-
-		// Read First Packet (Loop to handle Keepalives)
-		let mut buf = [0u8; HID_REPORT_SIZE];
-
-		let mut buf = [0u8; HID_REPORT_SIZE];
+		// 1. Read First Packet (Loop to handle Keepalives)
 		loop {
-			if let Err(e) = self.device.read_timeout(&mut buf[..], 2000) {
+			if let Err(e) = self
+				.device
+				.read_timeout(&mut buf[..], HID_RESP_READ_TIMEOUT_MS)
+			{
 				log::error!("Timeout reading response packet: {}", e);
-				return Err(e.into());
+				return Err(PFError::Io(format!(
+					"Timeout reading response packet: {}",
+					e
+				)));
 			}
 
 			// Check CID mismatch
@@ -219,7 +244,10 @@ impl HidTransport {
 
 		if buf[4] == CTAPHID_ERROR {
 			log::error!("Device returned CTAP Error code: 0x{:02X}", buf[5]);
-			return Err(anyhow!("Device returned CTAP Error: 0x{:02X}", buf[5]));
+			return Err(PFError::Device(format!(
+				"Device returned CTAP Error: 0x{:02X}",
+				buf[5]
+			)));
 		}
 
 		if buf[4] == cmd {
@@ -234,18 +262,23 @@ impl HidTransport {
 				buf[4],
 				cmd
 			);
-			return Err(anyhow!(
+			return Err(PFError::Device(format!(
 				"Unexpected command response: 0x{:02X} (Expected 0x{:02X})",
-				buf[4],
-				cmd
-			));
+				buf[4], cmd
+			)));
 		}
 
 		// 2. Read Continuation Packets
 		while read_len < expected_len {
-			if let Err(e) = self.device.read_timeout(&mut buf[..], 500) {
+			if let Err(e) = self
+				.device
+				.read_timeout(&mut buf[..], HID_CONT_READ_TIMEOUT_MS)
+			{
 				log::error!("Timeout reading continuation packet: {}", e);
-				return Err(e.into());
+				return Err(PFError::Io(format!(
+					"Timeout reading continuation packet: {}",
+					e
+				)));
 			}
 
 			if u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]) != self.cid {
@@ -259,7 +292,7 @@ impl HidTransport {
 					last_seq,
 					seq
 				);
-				return Err(anyhow!("Sequence mismatch"));
+				return Err(PFError::Device("Sequence mismatch".into()));
 			}
 			last_seq += 1;
 
@@ -271,15 +304,15 @@ impl HidTransport {
 		// 3. Check CTAP Status Byte (First byte of payload)
 		if response_data.is_empty() {
 			log::error!("Device sent empty payload response.");
-			return Err(anyhow!("Empty response"));
+			return Err(PFError::Device("Empty response".into()));
 		}
 		let status = response_data[0];
 		if status != 0x00 {
 			log::error!("FIDO Operation returned failure status: 0x{:02X}", status);
-			return Err(anyhow!(
+			return Err(PFError::Device(format!(
 				"FIDO Operation Failed with Status: 0x{:02X}",
 				status
-			));
+			)));
 		}
 
 		log::debug!(
@@ -325,18 +358,12 @@ impl HidTransport {
 		let sub_params = Value::Map(sub_params_inner);
 		let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
 
-		// Build HMAC message for signing
-		// According to FIDO 2.1: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
-		let mut message = vec![0xff; 32];
-		message.push(CtapCommand::Config as u8);
-		message.push(ConfigSubCommand::VendorPrototype as u8);
-		message.extend(&sub_params_bytes);
-
-		// Sign using provided PIN token
-		use ring::hmac;
-		let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
-		let sig = hmac::sign(&hmac_key, &message);
-		let pin_auth = sig.as_ref()[0..16].to_vec();
+		// Calculate PIN Auth
+		let pin_auth = self.sign_config_command(
+			pin_token,
+			ConfigSubCommand::VendorPrototype as u8,
+			&sub_params_bytes,
+		);
 
 		// Build full authenticatorConfig map
 		let mut config_map = BTreeMap::new();
@@ -398,21 +425,15 @@ impl HidTransport {
 		let sub_params = Value::Map(sub_params_map);
 		let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
 
-		// Build HMAC message for signing
-		// Per FIDO 2.1 spec: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
-		let mut message = vec![0xff; 32];
-		message.push(CtapCommand::Config as u8); // 0x0d
-		message.push(ConfigSubCommand::SetMinPinLength as u8); // 0x03
-		message.extend(&sub_params_bytes);
-
-		// Sign using provided PIN token (Protocol 1 uses HMAC-SHA256, first 16 bytes)
-		use ring::hmac;
-		let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
-		let sig = hmac::sign(&hmac_key, &message);
-		let pin_auth = sig.as_ref()[0..16].to_vec();
+		// Calculate PIN Auth
+		let pin_auth = self.sign_config_command(
+			pin_token,
+			ConfigSubCommand::SetMinPinLength as u8,
+			&sub_params_bytes,
+		);
 
 		// Build full authenticatorConfig map with keys in ASCENDING ORDER
-		// This is critical - the firmware parser rejects out-of-order keys with CTAP2_ERR_INVALID_CBOR
+		// Keeping the map item in the correct order is critical - the firmware parser rejects out-of-order keys with CTAP2_ERR_INVALID_CBOR
 		let mut config_map = BTreeMap::new();
 		config_map.insert(
 			Value::Integer(ConfigParam::SubCommand as i128), // 0x01
@@ -454,12 +475,33 @@ impl HidTransport {
 				// Check for PIN policy violation (0x37) - cannot decrease min PIN length
 				if err_str.contains("0x37") {
 					return Err(PFError::Device(
-						"Cannot decrease minimum PIN length. The FIDO2 security policy only allows increasing the minimum PIN length, not decreasing it. A device reset is required to lower the minimum.".into()
-					));
+                        "Cannot decrease minimum PIN length. The FIDO2 security policy only allows increasing the minimum PIN length, not decreasing it. A device reset is required to lower the minimum.".into()
+                    ));
 				}
 
 				Err(PFError::Device(format!("setMinPINLength failed: {}", e)))
 			}
 		}
+	}
+
+	/// Helper to sign the authenticatorConfig command
+	fn sign_config_command(
+		&self,
+		pin_token: &[u8],
+		sub_cmd: u8,
+		sub_params_bytes: &[u8],
+	) -> Vec<u8> {
+		// Build HMAC message for signing
+		// According to FIDO 2.1: authenticate(pinUvAuthToken, 32×0xff || 0x0d || uint8(subCommand) || subCommandParams)
+		let mut message = vec![0xff; 32];
+		message.push(CtapCommand::Config as u8);
+		message.push(sub_cmd);
+		message.extend(sub_params_bytes);
+
+		// Sign using provided PIN token
+		use ring::hmac;
+		let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
+		let sig = hmac::sign(&hmac_key, &message);
+		sig.as_ref()[0..16].to_vec()
 	}
 }
