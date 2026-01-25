@@ -7,9 +7,9 @@ on:
 jobs:
   publish-tauri:
     permissions:
-      contents: write # Ensure this is present
-      issues: write # Optional but recommended
-      pull-requests: write # Optional but recommended
+      contents: write
+      issues: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
@@ -83,14 +83,15 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # This might fix the appimage issue of connecting with the device? No Idea...
           LINUXDEPLOY_OUTPUT_APP_IMAGE_EXCLUDE: "libpcsclite.so.1"
         with:
           tagName: v__VERSION__
-          releaseName: "PicoForge(v__VERSION__) ALPHA"
+          releaseName: "PicoForge-v__VERSION__"
           releaseBody: |
-            > [!CAUTION]
-            > This is an alpha release and thus can have some bugs, report them using github issues.
+            > [!WARNING]
+            > This is a Beta release and thus can have some bugs, report them using github issues.
+
+            #### Check the Installation guide for the Application on the wiki: https://github.com/librekeys/picoforge/wiki/Installation
 
           releaseDraft: true
           prerelease: false
@@ -101,7 +102,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Determine Architecture based on the matrix platform
           if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
             TOOL_ARCH="aarch64"
           else
@@ -110,23 +110,17 @@ jobs:
 
           echo "Detected architecture for AppImageTool: $TOOL_ARCH"
 
-          # 2. Download the correct AppImageTool for this architecture
           wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$TOOL_ARCH.AppImage"
           chmod +x "appimagetool-$TOOL_ARCH.AppImage"
 
-          # 3. Locate the Tauri-built AppImage
           APPIMAGE_PATH=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -n 1)
           echo "Patching local file: $APPIMAGE_PATH"
 
-          # 4. Extract content and remove the conflicting library
           "$APPIMAGE_PATH" --appimage-extract > /dev/null
           rm -f squashfs-root/usr/lib/libpcsclite.so.1
 
-          # 5. Repackage using the architecture-specific tool and flag
-          # We pass ARCH=$TOOL_ARCH so appimagetool knows what header to use
           ARCH=$TOOL_ARCH "./appimagetool-$TOOL_ARCH.AppImage" --appimage-extract-and-run squashfs-root/ "$APPIMAGE_PATH"
 
-          # 6. Upload
           echo "Overwriting Draft Release asset..."
           gh release upload "v${{ env.version }}" "$APPIMAGE_PATH" --clobber
 

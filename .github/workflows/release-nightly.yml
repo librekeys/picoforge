@@ -1,4 +1,4 @@
-name: "publish-stable"
+name: "publish-nightly"
 on:
   push:
     branches:
@@ -8,31 +8,37 @@ jobs:
   publish-tauri:
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest"
+          - platform: "macos-latest" # for Arm based macs (M1 and above)
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest"
+          - platform: "macos-latest" # for Intel based macs
             args: "--target x86_64-apple-darwin"
           - platform: "ubuntu-22.04"
             args: ""
-          - platform: "windows-latest"
+          - platform: "ubuntu-24.04-arm"
+            args: ""
+          - platform: "windows-latest" # Windows x64
             args: "--target x86_64-pc-windows-msvc"
-          - platform: "windows-latest"
+          - platform: "windows-latest" # Windows x86 (32-bit)
             args: "--target i686-pc-windows-msvc"
-          - platform: "windows-latest"
+          - platform: "windows-latest" # Windows ARM64
             args: "--target aarch64-pc-windows-msvc"
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - name: setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: lts/*
+          node-version: latest
 
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -42,12 +48,15 @@ jobs:
             matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc' || '' }}
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev
-          # --- ADDED: Prerequisites for repacking AppImage ---
-          sudo apt-get install -y fuse libfuse2
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev podman
+
+      - name: install dependencies (ubuntu-arm64 only)
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get install xdg-utils
 
       - name: Setup Deno
         uses: denoland/setup-deno@v2
@@ -61,43 +70,67 @@ jobs:
         id: get_version
         shell: bash
         run: |
+          # Define the path to your Cargo.toml file
           cargo_file="src-tauri/Cargo.toml"
+          # Extract ONLY the version number using a more precise regex
           version=$(grep -m 1 '^version' "$cargo_file" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          # Output for debugging
+          echo "Version found: $version"
+          # Set the output correctly for GitHub Actions
           echo "version=$version" >> $GITHUB_ENV
 
+      # Step 3: Publish the release with combined release body
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This might fix the appimage issue of connecting with the device? No Idea...
+          LINUXDEPLOY_OUTPUT_APP_IMAGE_EXCLUDE: "libpcsclite.so.1"
         with:
-          tagName: v${{ env.version }}
-          releaseName: "PicoForge(v${{ env.version }})-nightly"
+          tagName: v__VERSION__
+          releaseName: "PicoForge(v__VERSION__)-nightly"
           releaseBody: |
-            ### PicoForge app(v${{ env.version }}) Nightly release
+            ### PicoForge app(v__VERSION__) Nightly release
 
             > [!CAUTION]
             > This is a nightly release and thus will have bugs.
             >
             > I am not responsible if using this build bricks your pico in any way.
+
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
       - name: Patch and Overwrite AppImage
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          wget -q https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
+          # 1. Determine Architecture based on the matrix platform
+          if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
+            TOOL_ARCH="aarch64"
+          else
+            TOOL_ARCH="x86_64"
+          fi
 
+          echo "Detected architecture for AppImageTool: $TOOL_ARCH"
+
+          # 2. Download the correct AppImageTool for this architecture
+          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$TOOL_ARCH.AppImage"
+          chmod +x "appimagetool-$TOOL_ARCH.AppImage"
+
+          # 3. Locate the Tauri-built AppImage
           APPIMAGE_PATH=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -n 1)
           echo "Patching local file: $APPIMAGE_PATH"
 
-          $APPIMAGE_PATH --appimage-extract > /dev/null
+          # 4. Extract content and remove the conflicting library
+          "$APPIMAGE_PATH" --appimage-extract > /dev/null
           rm -f squashfs-root/usr/lib/libpcsclite.so.1
 
-          ARCH=x86_64 ./appimagetool-x86_64.AppImage --appimage-extract-and-run squashfs-root/ "$APPIMAGE_PATH"
+          # 5. Repackage using the architecture-specific tool and flag
+          # We pass ARCH=$TOOL_ARCH so appimagetool knows what header to use
+          ARCH=$TOOL_ARCH "./appimagetool-$TOOL_ARCH.AppImage" --appimage-extract-and-run squashfs-root/ "$APPIMAGE_PATH"
 
+          # 6. Upload
           echo "Overwriting Draft Release asset..."
           gh release upload "v${{ env.version }}" "$APPIMAGE_PATH" --clobber
 
