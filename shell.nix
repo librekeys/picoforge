@@ -17,6 +17,7 @@ let
     pcsclite
     hidapi
     mesa 
+    udev
   ];
 
   packages = with pkgs; [
