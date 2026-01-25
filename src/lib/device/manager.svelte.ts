@@ -195,6 +195,7 @@ class DeviceManager {
     try {
       const res = await invoke("change_fido_pin", { currentPin: current, newPin: next });
       logger.add(res as string, "success");
+      await this.refresh();
       return { success: true };
     } catch (err) {
       logger.add(`PIN Error: ${err}`, "error");

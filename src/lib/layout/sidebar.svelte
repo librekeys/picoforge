@@ -77,7 +77,9 @@
 <Sidebar.Provider>
   <Sidebar.Root collapsible="icon">
     <Sidebar.Header>
-      <div class="flex items-center gap-3 p-2">
+      <div
+        class="flex items-center gap-3 p-2 group-data-[collapsible=icon]:!p-0 group-data-[collapsible=icon]:justify-center"
+      >
         <img
           src="/in.suyogtandel.picoforge.svg"
           alt="PicoForge Logo"

@@ -6,21 +6,12 @@
   import { Separator } from "$lib/components/ui/separator";
   import { Slider } from "$lib/components/ui/slider/index.js";
   import * as Card from "$lib/components/ui/card";
-  import * as Alert from "$lib/components/ui/alert";
   import * as Select from "$lib/components/ui/select";
 
   import { device } from "$lib/device/manager.svelte";
   import { LED_DRIVERS, VENDORS } from "$lib/device/constants.svelte";
 
-  import {
-    Microchip,
-    RefreshCw,
-    Save,
-    Settings,
-    Tag,
-    TriangleAlert,
-    X,
-  } from "@lucide/svelte";
+  import { Microchip, RefreshCw, Save, Settings, Tag } from "@lucide/svelte";
 
   import { configViewState as state } from "$lib/state/configState.svelte";
   import NoDeviceStatus from "$lib/components/device/NoDeviceStatus.svelte";
