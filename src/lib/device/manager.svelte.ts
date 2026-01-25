@@ -166,11 +166,11 @@ class DeviceManager {
         return { success: false, msg: "No changes detected." };
       } else {
         logger.add("Sending configuration to device...", "info");
-        const response = await invoke("write_config", { config: rustConfig, method: this.method, pin });
+        const response = await invoke<string>("write_config", { config: rustConfig, method: this.method, pin });
         logger.add(`Device Response: ${response}`, "success");
 
         await this.refresh();
-        return { success: true, msg: "Configuration Applied Successfully!" };
+        return { success: true, msg: response };
       }
     } catch (err: any) {
       console.error("Write failed:", err);
