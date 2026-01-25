@@ -2,13 +2,10 @@
   import { Button, buttonVariants } from "$lib/components/ui/button";
 
   import * as Card from "$lib/components/ui/card";
-  import * as Alert from "$lib/components/ui/alert";
-  import * as Dialog from "$lib/components/ui/dialog";
   import * as Drawer from "$lib/components/ui/drawer";
   import { Badge } from "$lib/components/ui/badge";
   import { Separator } from "$lib/components/ui/separator";
   import {
-    TriangleAlert,
     KeyRound,
     Trash2,
     Lock,
@@ -223,14 +220,16 @@
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {#each device.credentials as cred}
                 <button
-                  class="text-left w-full h-full"
+                  class="text-left w-full h-full block"
                   onclick={() => openDetails(cred)}
                 >
                   <Card.Root
                     class="overflow-hidden transition-all hover:shadow-md hover:border-primary/50 cursor-pointer h-full"
                   >
                     <Card.Header>
-                      <div class="flex items-center justify-between gap-3">
+                      <div
+                        class="flex items-center justify-between gap-3 w-full min-w-0"
+                      >
                         <div class="flex items-center gap-3 flex-1 min-w-0">
                           <div
                             class="h-10 w-10 rounded-lg bg-linear-to-br from-primary/20 to-primary/5 flex items-center justify-center shrink-0"

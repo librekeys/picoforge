@@ -3,7 +3,6 @@
   import { Badge } from "$lib/components/ui/badge";
   import { Progress } from "$lib/components/ui/progress/index.js";
   import * as Card from "$lib/components/ui/card";
-  import * as Alert from "$lib/components/ui/alert";
 
   import { device } from "$lib/device/manager.svelte";
 
@@ -13,7 +12,6 @@
     LockOpen,
     Microchip,
     ShieldCheck,
-    TriangleAlert,
     Shield,
   } from "@lucide/svelte";
   import NoDeviceStatus from "$lib/components/device/NoDeviceStatus.svelte";
