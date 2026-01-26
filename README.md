@@ -309,12 +309,10 @@ See [LICENSE](LICENSE) for full details.
 ## Disclaimer
 
 > [!WARNING]
-> PicoForge is experimental software and still in the Alpha stage! 
+> PicoForge is experimental software and still in the Beta stage! 
 > The app does contain bugs and is not secure by any means.
 >
 > It does not support all the features exposed by the `pico-fido` firmware and `pico-hsm`.
->
-> The secure boot feature can permanently lock devices if misconfigured. Always understand the implications before enabling security features.
 
 > [!CAUTION]
 > **USB VID/PID Notice**: The vendor presets provided in this software include USB Vendor IDs (VID) and Product IDs (PID) that are the intellectual property of their respective owners. These identifiers are included for testing and educational purposes only. You are NOT authorized to distribute or commercially market devices using VID/PID combinations you do not own or license. Commercial distribution requires obtaining your own VID from the USB Implementers Forum ([usb.org](https://www.usb.org/getting-vendor-id)) and complying with all applicable trademark and certification requirements. Unauthorized use may violate USB-IF policies and intellectual property laws. The PicoForge developers assume no liability for misuse of USB identifiers.

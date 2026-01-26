@@ -35,7 +35,7 @@ Welcome to the official installation guide for PicoForge. This document will hel
 
 ## Linux
 
-We offer multiple ways to run the application on Linux. Please choose the method that best suits your needs.
+We offer multiple ways to run the application on Linux. Please choose the method for your distribution.
 
 ### Global Prerequisite: Smart Card Daemon
 
@@ -52,22 +52,34 @@ To have the pcscd service, you may need to install pcsc-lite if it is not instal
 - On NixOS, add this line in your /etc/nixos/configuration.nix : `services.pcscd.enable = true;`
 
 
-### Option 1: [COPR Repository](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/) (Recommended for Fedora, openSUSE, and RHEL-based distros)
+### Fedora
 
-[COPR](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/) is the recommended way of installing the application on Fedora, openSUSE, and RHEL-based distributions. This method ensures you get the latest release of the app on the same day it's published.
+[COPR](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/) is the recommended way of installing the application on Fedora.
 
-#### Fedora
-
-##### Fedora Rawhide, 43, 42
+#### Fedora Rawhide, 43, 42
 
 ```bash
 sudo dnf copr enable lockedmutex/picoforge
 sudo dnf install picoforge
 ```
 
-#### RHEL-based Distributions
+If you prefer to install the `.rpm` manually, you can download it from the [Latest Releases](https://github.com/librekeys/picoforge/releases/latest).
 
-##### RHEL, CentOS, AlmaLinux, Rocky Linux (EPEL 10)
+<details>
+<summary><strong>Fedora Dependencies (for manual .rpm install)</strong></summary>
+
+```bash
+sudo dnf install webkit2gtk4.1 libsoup3 gtk3 \
+pcsc-lite pcsc-tools hidapi libsecret \
+gstreamer1-plugins-base libavif libwebp enchant2
+
+sudo systemctl enable --now pcscd
+```
+</details>
+
+### RHEL-based Distributions
+
+#### RHEL, CentOS, AlmaLinux, Rocky Linux (EPEL 10)
 
 ```bash
 sudo dnf install dnf-plugins-core
@@ -75,9 +87,11 @@ sudo dnf copr enable lockedmutex/picoforge
 sudo dnf install picoforge
 ```
 
-#### openSUSE
+**Troubleshooting**: Ensure EPEL repository is enabled.
 
-##### Tumbleweed
+### openSUSE
+
+#### Tumbleweed
 
 ```bash
 sudo zypper addrepo https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/repo/opensuse-tumbleweed/lockedmutex-picoforge-opensuse-tumbleweed.repo
@@ -85,7 +99,7 @@ sudo zypper refresh
 sudo zypper install picoforge
 ```
 
-##### Leap 15.6
+#### Leap 15.6
 
 ```bash
 sudo zypper addrepo https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/repo/opensuse-leap-15.6/lockedmutex-picoforge-opensuse-leap-15.6.repo
@@ -93,46 +107,44 @@ sudo zypper refresh
 sudo zypper install picoforge
 ```
 
-#### Post-Installation
+**Troubleshooting**: Verify the repository URL matches your distribution version.
 
-After installation, you can launch picoforge from your application menu or run:
+### Debian / Ubuntu
+
+For Debian and Ubuntu-based distributions, you can install the application using the `.deb` package.
+
+1.  Download the `.deb` file from the [Latest Releases](https://github.com/librekeys/picoforge/releases/latest).
+2.  Install dependencies and the package:
+
+<details>
+<summary><strong>Debian / Ubuntu Dependencies</strong></summary>
 
 ```bash
-picoforge
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 \
+libpcsclite1 pcscd pcsc-tools libhidapi-hidraw0 libsecret-1-0 \
+gstreamer1.0-plugins-base libavif16 libwebp7 libenchant-2-2
+```
+</details>
+
+```bash
+# Example installation command (replace with actual filename)
+sudo apt install ./picoforge_[version]_amd64.deb
 ```
 
-#### Troubleshooting
+### Other Distributions
 
-If you encounter issues during installation:
+For distributions that do not have a native package or repository (e.g., Arch Linux), you can use Distrobox or AppImage.
 
-- **Fedora/RHEL**: Ensure EPEL repository is enabled for RHEL-based systems
-- **openSUSE**: Verify the repository URL matches your distribution version
-- For general issues, check the [project repository](https://github.com/librekeys/picoforge) or [report a bug](https://github.com/librekeys/picoforge/issues)
-
-### Option 2: AppImage (Simplest)
-
-The AppImage format contains most dependencies and runs on almost any Linux distribution.
-
-1.  Download the `.AppImage` file from the [Latest Releases](https://github.com/librekeys/picoforge/releases/latest).
-2.  Mark the file as executable:
-    ```bash
-    chmod +x picoforge_*.AppImage
-    ```
-3.  Launch the file.
-
-> [!NOTE]
-> If the AppImage does not start, check if you are missing FUSE (Filesystem in Userspace), which is required for AppImages on some newer distributions like Ubuntu 22.04+.
-
-### Option 3: Distrobox
+#### Distrobox (Recommended)
 
 If you encounter dependency issues on your specific distribution, we highly recommend using **Distrobox**. This method runs the application inside a stable Fedora environment while integrating it seamlessly with your desktop.
 
-#### Requirements:
-
+**Requirements:**
 - [Distrobox](https://distrobox.it/) installed on your system.
 - A container engine like `podman` or `docker`.
 
-#### Step-by-Step Guide:
+**Step-by-Step Guide:**
 
 1.  **Create the Container:**
     We will use a standard Fedora Toolbox image which is known to be compatible.
@@ -160,56 +172,27 @@ If you encounter dependency issues on your specific distribution, we highly reco
 5.  **Launch:**
     You can now find and launch "picoforge" from your application launcher.
 
-### Option 4: Native Package
+#### AppImage
 
-If you prefer to install the package directly on your system, please ensure you have installed all necessary dependencies for your specific distribution.
+> [!WARNING]
+> AppImages in releases have a lot of issues right now and do not work correctly on a lot of distros, so it is better to avoid them if possible. Please use the Distrobox method if you can.
 
-<details>
-<summary><strong>OpenSuse Tumbleweed Dependencies</strong></summary>
+The AppImage format contains most dependencies and runs on almost any Linux distribution.
 
-```bash
-sudo zypper install libwebkit2gtk-4_1-0 libsoup-3_0-0 libgtk-3-0 \
-libpcsclite1 libhidapi-hidraw0 libsecret-1-0 \
-gstreamer-plugins-base libavif16 libwebp7 libenchant-2-2 pcsc-tools
+1.  Download the `.AppImage` file from the [Latest Releases](https://github.com/librekeys/picoforge/releases/latest).
+2.  Mark the file as executable:
+    ```bash
+    chmod +x picoforge_*.AppImage
+    ```
+3.  Launch the file.
 
-sudo systemctl enable --now pcscd
-```
-</details>
+> [!NOTE]
+> If the AppImage does not start, check if you are missing FUSE (Filesystem in Userspace), which is required for AppImages on some newer distributions like Ubuntu 22.04+.
 
-<details>
-<summary><strong>Fedora Dependencies</strong></summary>
+### Post-Installation
 
-```bash
-sudo dnf install webkit2gtk4.1 libsoup3 gtk3 \
-pcsc-lite pcsc-tools hidapi libsecret \
-gstreamer1-plugins-base libavif libwebp enchant2
-
-sudo systemctl enable --now pcscd
-```
-</details>
-
-<details>
-<summary><strong>Debian / Ubuntu Dependencies</strong></summary>
+After installation, you can launch picoforge from your application menu or run:
 
 ```bash
-sudo apt update
-sudo apt install libwebkit2gtk-4.1-0 libgtk-3-0 libsoup-3.0-0 \
-libpcsclite1 pcscd pcsc-tools libhidapi-hidraw0 libsecret-1-0 \
-gstreamer1.0-plugins-base libavif16 libwebp7 libenchant-2-2
+picoforge
 ```
-</details>
-
-<details>
-<summary><strong>Arch Linux Dependencies</strong></summary>
-
-```bash
-sudo pacman -S webkit2gtk-4.1 gtk3 libsoup3 \
-pcsclite pcsc-tools hidapi libsecret \
-gst-plugins-base libavif libwebp enchant
-```
-</details>
-
-#### Installation:
-
-1.  Download the `.deb` (Debian/Ubuntu) or `.rpm` (Fedora/Suse) from the releases.
-2.  Install using your package manager (e.g., `sudo apt install ./package.deb` or `sudo dnf install ./package.rpm`) or a software center like `gnome-software`.
