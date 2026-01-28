@@ -1,19 +1,19 @@
+use directories::ProjectDirs;
 use log::LevelFilter;
 use log4rs::{
     append::{
         console::{ConsoleAppender, Target},
         rolling_file::{
-            policy::compound::{
-                roll::delete::DeleteRoller, trigger::size::SizeTrigger, CompoundPolicy,
-            },
             RollingFileAppender,
+            policy::compound::{
+                CompoundPolicy, roll::delete::DeleteRoller, trigger::size::SizeTrigger,
+            },
         },
     },
     config::{Appender, Logger, Root},
     encode::pattern::PatternEncoder,
 };
 use std::fs;
-use directories::ProjectDirs;
 
 /// Initializes log4rs with custom configuration for stdout and file logging.
 pub fn logger_init() {
