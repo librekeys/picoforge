@@ -1,13 +1,20 @@
-use crate::ui::colors;
-use crate::ui::views::{
-    about::AboutView, config::ConfigView, home::HomeView, logs::LogsView, passkeys::PasskeysView,
-    security::SecurityView,
+use crate::device::types::{DeviceMethod, FullDeviceStatus};
+use crate::ui::{
+    colors,
+    views::{
+        about::AboutView, config::ConfigView, home::HomeView, logs::LogsView,
+        passkeys::PasskeysView, security::SecurityView,
+    },
 };
 use gpui::*;
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::scroll::ScrollableElement;
-use gpui_component::{ActiveTheme, Icon, IconName, TitleBar, h_flex, v_flex};
-use gpui_component::{Side, sidebar::*};
+use gpui_component::{
+    ActiveTheme, Icon, IconName, Side, TitleBar,
+    button::{Button, ButtonVariants},
+    h_flex,
+    scroll::ScrollableElement,
+    sidebar::*,
+    v_flex,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 enum ActiveView {
@@ -22,19 +29,45 @@ enum ActiveView {
 pub struct ApplicationRoot {
     active_view: ActiveView,
     collapsed: bool,
+    device_status: Option<FullDeviceStatus>,
+    device_loading: bool,
+    device_error: Option<String>,
 }
 
 impl ApplicationRoot {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(cx: &mut Context<Self>) -> Self {
+        let mut this = Self {
             active_view: ActiveView::Home,
             collapsed: false,
+            device_status: None,
+            device_loading: false,
+            device_error: None,
+        };
+        this.refresh_device_status(cx);
+        this
+    }
+
+    fn refresh_device_status(&mut self, cx: &mut Context<Self>) {
+        if self.device_loading {
+            return;
         }
+
+        self.device_loading = true;
+        self.device_error = None;
+        cx.notify();
+
+        // TODO: Enable async refresh once WeakView/handle type is resolved
+        self.device_loading = false;
     }
 }
 
 impl Render for ApplicationRoot {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let device_status = self.device_status.clone();
+
+        let device_error = self.device_error.clone();
+        let collapsed = self.collapsed;
+
         h_flex()
             .size_full()
             .child(
@@ -142,12 +175,108 @@ impl Render for ApplicationRoot {
                             ),
                     )
                     .child(
-                        div()
+                        v_flex()
                             .w_full()
-                            .h(px(90.))
                             .bg(rgb(0x111113))
                             .border_r_1()
-                            .border_color(cx.theme().sidebar_border),
+                            .border_color(cx.theme().sidebar_border)
+                            .p_2()
+                            .gap_3()
+                            .child(if collapsed {
+                                // Collapsed View
+                                v_flex()
+                                    .items_center()
+                                    .justify_center()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("refresh-btn-collapsed")
+                                            .ghost()
+                                            .child(Icon::default().path("icons/refresh-cw.svg"))
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.refresh_device_status(cx);
+                                            })),
+                                    )
+                                    .child(div().w(px(8.)).h(px(8.)).rounded_full().bg(
+                                        if let Some(status) = &device_status {
+                                            if status.method == DeviceMethod::Fido {
+                                                rgb(0xf59e0b)
+                                            } else {
+                                                rgb(0x22c55e)
+                                            }
+                                        } else if device_error.is_some() {
+                                            rgb(0xf59e0b)
+                                        } else {
+                                            rgb(0xef4444)
+                                        },
+                                    ))
+                            } else {
+                                // Expanded View
+                                v_flex()
+                                    .gap_3()
+                                    .child(
+                                        h_flex()
+                                            .items_center()
+                                            .justify_between()
+                                            .child(
+                                                div()
+                                                    .text_size(px(12.))
+                                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                                    .text_color(cx.theme().muted_foreground)
+                                                    .child("Device Status"),
+                                            )
+                                            .child({
+                                                let (text, color_bg, color_text) =
+                                                    if let Some(status) = &device_status {
+                                                        if status.method == DeviceMethod::Fido {
+                                                            (
+                                                                "Online - Fido",
+                                                                rgb(0xf59e0b),
+                                                                rgb(0xffffff),
+                                                            )
+                                                        } else {
+                                                            ("Online", rgb(0x16a34a), rgb(0xffffff))
+                                                        }
+                                                    } else if device_error.is_some() {
+                                                        ("Error", rgb(0xd97706), rgb(0xffffff))
+                                                    } else {
+                                                        ("Offline", rgb(0xef4444), rgb(0xffffff))
+                                                    };
+
+                                                div()
+                                                    .px(px(6.))
+                                                    .h(px(20.))
+                                                    .flex()
+                                                    .items_center()
+                                                    .rounded(px(10.))
+                                                    .bg(color_bg)
+                                                    .child(
+                                                        div()
+                                                            .text_size(px(10.))
+                                                            .font_weight(gpui::FontWeight::BOLD)
+                                                            .text_color(color_text)
+                                                            .child(text),
+                                                    )
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("refresh-btn")
+                                            .outline()
+                                            .w_full()
+                                            .child(
+                                                h_flex()
+                                                    .gap_2()
+                                                    .justify_center()
+                                                    .child(
+                                                        Icon::default()
+                                                            .path("icons/refresh-cw.svg"),
+                                                    )
+                                                    .child("Refresh"),
+                                            )
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.refresh_device_status(cx);
+                                            })),
+                                    )
+                            }),
                     ),
             )
             .child(

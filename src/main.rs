@@ -4,15 +4,16 @@ use gpui_component::{Theme, ThemeMode};
 use ui::rootview::ApplicationRoot;
 
 mod device;
+pub mod logging;
 mod ui;
 
 fn main() {
+    logging::logger_init();
     let app = Application::new().with_assets(ui::assets::Assets);
 
     app.run(move |cx| {
         gpui_component::init(cx);
         Theme::change(ThemeMode::Dark, None, cx);
-        // Theme::change(ThemeMode::Dark, Some(ui::theme::dark_theme()), cx);
 
         cx.activate(true);
 
@@ -56,7 +57,7 @@ fn main() {
             };
 
             cx.open_window(window_options, |window, cx| {
-                let view = cx.new(|_| ApplicationRoot::new());
+                let view = cx.new(|cx| ApplicationRoot::new(cx));
                 cx.new(|cx| Root::new(view, window, cx))
             })?;
 

@@ -6,7 +6,7 @@ struct PForgeState {
     device_info: DeviceInfo,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
     pub serial: String,
@@ -15,7 +15,7 @@ pub struct DeviceInfo {
     pub firmware_version: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppConfig {
     pub vid: String,
@@ -48,7 +48,7 @@ pub struct AppConfigInput {
     pub enable_secp256k1: Option<bool>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FullDeviceStatus {
     pub info: DeviceInfo,
