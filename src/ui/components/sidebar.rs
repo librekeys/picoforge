@@ -3,7 +3,7 @@ use crate::ui::colors;
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Icon, IconName, Side,
-    button::{Button, ButtonVariants},
+    button::{Button, ButtonCustomVariant, ButtonVariants},
     h_flex,
     sidebar::*,
     v_flex,
@@ -265,7 +265,12 @@ impl<V: 'static> AppSidebar<V> {
                             )
                             .child(
                                 Button::new("refresh-btn")
-                                    .outline()
+                                    .custom(
+                                        ButtonCustomVariant::new(cx)
+                                            .color(rgb(colors::zinc::ZINC800).into())
+                                            .hover(rgb(colors::zinc::ZINC600).into())
+                                            .active(rgb(colors::zinc::ZINC700).into()),
+                                    )
                                     .w_full()
                                     .child(
                                         h_flex()
