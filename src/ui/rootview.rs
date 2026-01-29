@@ -119,7 +119,7 @@ impl Render for ApplicationRoot {
                                         PasskeysView::build().into_any_element()
                                     }
                                     ActiveView::Configuration => {
-                                        ConfigView::build().into_any_element()
+                                        cx.new(|cx| ConfigView::new(window, cx)).into_any_element()
                                     }
                                     ActiveView::Security => {
                                         SecurityView::build(cx).into_any_element()

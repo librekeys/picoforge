@@ -16,3 +16,7 @@ vite.config.ts.timestamp-*
 # Nix
 result
 .direnv
+
+# misc
+docs-gpui-components
+src-svelte
