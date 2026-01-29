@@ -170,8 +170,9 @@ jobs:
             git commit -m "chore: sync spec to $NEW_VERSION [skip ci]"
           fi
 
+          git fetch origin main
+          git rebase origin/main
           tito tag --offline --accept-auto-changelog --keep-version
-          git pull --rebase origin main
           git push --follow-tags origin HEAD:main HEAD:release
           EOF
 
