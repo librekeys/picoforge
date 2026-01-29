@@ -143,6 +143,12 @@ jobs:
 
           git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git
 
+          git reset --hard HEAD
+          git clean -fd
+
+          git fetch origin main
+          git rebase origin/main
+
           CARGO_FILE="src-tauri/Cargo.toml"
           NEW_VERSION=$(grep -m 1 '^version' "$CARGO_FILE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
 
@@ -170,8 +176,6 @@ jobs:
             git commit -m "chore: sync spec to $NEW_VERSION [skip ci]"
           fi
 
-          git fetch origin main
-          git rebase origin/main
           tito tag --offline --accept-auto-changelog --keep-version
           git push --follow-tags origin HEAD:main HEAD:release
           EOF
