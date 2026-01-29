@@ -124,7 +124,9 @@ impl Render for ApplicationRoot {
                                     ActiveView::Security => {
                                         SecurityView::build(cx).into_any_element()
                                     }
-                                    ActiveView::Logs => LogsView::build().into_any_element(),
+                                    ActiveView::Logs => {
+                                        cx.new(|cx| LogsView::new(window, cx)).into_any_element()
+                                    }
                                     ActiveView::About => {
                                         AboutView::build(cx.theme()).into_any_element()
                                     }
