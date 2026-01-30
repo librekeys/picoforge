@@ -1,6 +1,7 @@
 use crate::device::io;
 use crate::device::types::{AppConfigInput, FullDeviceStatus};
 use crate::ui::components::page_view::PageView;
+use crate::ui::ui_types::VENDORS;
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Disableable, Icon, StyledExt, Theme,
@@ -47,118 +48,6 @@ impl SelectItem for DriverItem {
         &self.value
     }
 }
-
-struct VendorData {
-    value: &'static str,
-    label: &'static str,
-    vid: &'static str,
-    pid: &'static str,
-}
-
-const VENDORS: &[VendorData] = &[
-    VendorData {
-        value: "custom",
-        label: "Custom (Manual Entry)",
-        vid: "",
-        pid: "",
-    },
-    VendorData {
-        value: "generic",
-        label: "Generic (FEFF:FCFD)",
-        vid: "FEFF",
-        pid: "FCFD",
-    },
-    VendorData {
-        value: "pico-hsm",
-        label: "Pico Keys HSM (2E8A:10FD)",
-        vid: "2E8A",
-        pid: "10FD",
-    },
-    VendorData {
-        value: "pico-fido",
-        label: "Pico Keys Fido (2E8A:10FE)",
-        vid: "2E8A",
-        pid: "10FE",
-    },
-    VendorData {
-        value: "pico-openpgp",
-        label: "Pico Keys OpenPGP (2E8A:10FF)",
-        vid: "2E8A",
-        pid: "10FF",
-    },
-    VendorData {
-        value: "pico",
-        label: "Pico (2E8A:0003)",
-        vid: "2E8A",
-        pid: "0003",
-    },
-    VendorData {
-        value: "solokeys",
-        label: "SoloKeys (0483:A2CA)",
-        vid: "0483",
-        pid: "A2CA",
-    },
-    VendorData {
-        value: "nitrohsm",
-        label: "NitroHSM (20A0:4230)",
-        vid: "20A0",
-        pid: "4230",
-    },
-    VendorData {
-        value: "nitrofido2",
-        label: "NitroFIDO2 (20A0:42D4)",
-        vid: "20A0",
-        pid: "42D4",
-    },
-    VendorData {
-        value: "nitrostart",
-        label: "NitroStart (20A0:4211)",
-        vid: "20A0",
-        pid: "4211",
-    },
-    VendorData {
-        value: "nitropro",
-        label: "NitroPro (20A0:4108)",
-        vid: "20A0",
-        pid: "4108",
-    },
-    VendorData {
-        value: "nitro3",
-        label: "Nitrokey 3 (20A0:42B2)",
-        vid: "20A0",
-        pid: "42B2",
-    },
-    VendorData {
-        value: "yubikey5",
-        label: "YubiKey 5 (1050:0407)",
-        vid: "1050",
-        pid: "0407",
-    },
-    VendorData {
-        value: "yubikeyneo",
-        label: "YubiKey Neo (1050:0116)",
-        vid: "1050",
-        pid: "0116",
-    },
-    VendorData {
-        value: "yubihsm",
-        label: "YubiHSM 2 (1050:0030)",
-        vid: "1050",
-        pid: "0030",
-    },
-    VendorData {
-        value: "gnuk",
-        label: "Gnuk Token (234B:0000)",
-        vid: "234B",
-        pid: "0000",
-    },
-    VendorData {
-        value: "gnupg",
-        label: "GnuPG (234B:0000)",
-        vid: "234B",
-        pid: "0000",
-    },
-];
 
 pub struct ConfigView {
     vendor_select: Entity<SelectState<Vec<VendorItem>>>,
@@ -326,7 +215,7 @@ impl ConfigView {
         }
     }
 
-    fn apply_changes(&mut self, cx: &mut Context<Self>) {
+    fn apply_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let status = if let Some(s) = &self.device_status {
             s
         } else {
@@ -391,15 +280,12 @@ impl ConfigView {
             }
         }
 
-        if self.led_dimmable != current_config.led_dimmable {
+        if (self.led_dimmable != current_config.led_dimmable)
+            || (self.led_steady != current_config.led_steady)
+            || (self.power_cycle != current_config.power_cycle_on_reset)
+        {
             changes.led_dimmable = Some(self.led_dimmable);
-        }
-
-        if self.led_steady != current_config.led_steady {
             changes.led_steady = Some(self.led_steady);
-        }
-
-        if self.power_cycle != current_config.power_cycle_on_reset {
             changes.power_cycle_on_reset = Some(self.power_cycle);
         }
 
@@ -421,7 +307,7 @@ impl ConfigView {
             || changes.enable_secp256k1.is_some();
 
         if !has_changes {
-            println!("No changes detected");
+            log::info!("No changes detected");
             return;
         }
 
@@ -434,10 +320,18 @@ impl ConfigView {
 
         match result {
             Ok(msg) => {
-                println!("Success: {}", msg);
+                log::info!("Success: {}", msg);
+
+                if let Ok(new_status) = io::read_device_details() {
+                    log::info!(
+                        "Refreshed device status. LED Steady: {}",
+                        new_status.config.led_steady
+                    );
+                    self.update_status(Some(new_status), window, cx);
+                }
             }
             Err(e) => {
-                eprintln!("Error saving config: {}", e);
+                log::error!("Error saving config: {}", e);
             }
         }
 
@@ -558,10 +452,8 @@ impl ConfigView {
             cx.notify();
         });
 
-        // Access theme after creating listeners (which requires mutable borrow of cx)
         let theme = cx.theme();
 
-        // Read slider value (requires immutable borrow of cx)
         let brightness = self.led_brightness_slider.read(cx).value().start() as i32;
 
         let content = v_flex()
@@ -784,11 +676,9 @@ impl Render for ConfigView {
             .into_any_element();
         }
 
-        // I need to call mutable methods first.
         let led_card = self.render_led_card(cx).into_any_element();
         let options_card = self.render_options_card(cx).into_any_element();
 
-        // Then get theme and render rest
         let theme = cx.theme();
 
         let identity_card = self.render_identity_card(theme).into_any_element();
@@ -815,8 +705,8 @@ impl Render for ConfigView {
                             .icon(Icon::default().path("icons/save.svg"))
                             .child("Apply Changes")
                             .disabled(self.loading)
-                            .on_click(cx.listener(|this, _, _, cx| {
-                                this.apply_changes(cx);
+                            .on_click(cx.listener(|this, _, window, cx| {
+                                this.apply_changes(window, cx);
                             })),
                     ),
                 ),

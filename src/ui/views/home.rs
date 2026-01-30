@@ -359,7 +359,7 @@ impl HomeView {
                                     Icon::default()
                                         .path("icons/lock-open.svg")
                                         .size_3p5()
-                                        .text_color(gpui::yellow())
+                                        .text_color(rgb(0xfe9a00))
                                 })
                                 .child(
                                     Badge::new()
