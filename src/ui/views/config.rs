@@ -1,7 +1,7 @@
 use crate::device::io;
 use crate::device::types::{AppConfigInput, FullDeviceStatus};
 use crate::ui::components::{card::Card, page_view::PageView};
-use crate::ui::ui_types::VENDORS;
+use crate::ui::ui_types::{LedDriverType, UsbIdentityPreset};
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Disableable, Icon, Theme,
@@ -14,48 +14,48 @@ use gpui_component::{
 };
 
 #[derive(Clone, PartialEq)]
-struct VendorItem {
-    value: SharedString,
+struct VendorSelectOption {
+    preset: UsbIdentityPreset,
     label: SharedString,
 }
 
-impl SelectItem for VendorItem {
-    type Value = SharedString;
+impl SelectItem for VendorSelectOption {
+    type Value = UsbIdentityPreset;
 
     fn title(&self) -> SharedString {
         self.label.clone()
     }
 
     fn value(&self) -> &Self::Value {
-        &self.value
+        &self.preset
     }
 }
 
 #[derive(Clone, PartialEq)]
-struct DriverItem {
-    value: u8,
+struct DriverSelectOption {
+    driver_type: LedDriverType,
     label: SharedString,
 }
 
-impl SelectItem for DriverItem {
-    type Value = u8;
+impl SelectItem for DriverSelectOption {
+    type Value = LedDriverType;
 
     fn title(&self) -> SharedString {
         self.label.clone()
     }
 
     fn value(&self) -> &Self::Value {
-        &self.value
+        &self.driver_type
     }
 }
 
 pub struct ConfigView {
-    vendor_select: Entity<SelectState<Vec<VendorItem>>>,
+    vendor_select: Entity<SelectState<Vec<VendorSelectOption>>>,
     vid_input: Entity<InputState>,
     pid_input: Entity<InputState>,
     product_name_input: Entity<InputState>,
     led_gpio_input: Entity<InputState>,
-    led_driver_select: Entity<SelectState<Vec<DriverItem>>>,
+    led_driver_select: Entity<SelectState<Vec<DriverSelectOption>>>,
     led_brightness_slider: Entity<SliderState>,
     led_dimmable: bool,
     led_steady: bool,
@@ -75,34 +75,28 @@ impl ConfigView {
     ) -> Self {
         let config = device_status.as_ref().map(|s| &s.config);
 
-        let vendors: Vec<VendorItem> = VENDORS
+        // Prepare Vendor Options
+        let vendors: Vec<VendorSelectOption> = UsbIdentityPreset::all()
             .iter()
-            .map(|v| VendorItem {
-                value: v.value.into(),
-                label: v.label.into(),
+            .map(|preset| {
+                let (label, _, _) = preset.details();
+                VendorSelectOption {
+                    preset: *preset,
+                    label,
+                }
             })
             .collect();
 
-        let drivers = vec![
-            DriverItem {
-                value: 1,
-                label: "Pico (Standard GPIO)".into(),
-            },
-            DriverItem {
-                value: 2,
-                label: "Pimoroni (RGB)".into(),
-            },
-            DriverItem {
-                value: 3,
-                label: "WS2812 (Neopixel)".into(),
-            },
-            DriverItem {
-                value: 5,
-                label: "ESP32 Neopixel".into(),
-            },
-        ];
+        // Prepare Driver Options
+        let drivers: Vec<DriverSelectOption> = LedDriverType::all()
+            .iter()
+            .map(|driver| DriverSelectOption {
+                driver_type: *driver,
+                label: driver.label(),
+            })
+            .collect();
 
-        // Determine initial vendor selection
+        // Determine Initial State
         let current_vid: SharedString = config
             .map(|c| c.vid.clone().into())
             .unwrap_or_else(|| "CAFE".into());
@@ -120,22 +114,15 @@ impl ConfigView {
             .unwrap_or_else(|| "10".into());
         let current_brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
 
-        let mut initial_vendor_idx = 0; // Default to first item (Custom)
-        let mut is_custom_vendor = true;
+        // Identify Preset
+        let initial_preset = UsbIdentityPreset::from_vid_pid(&current_vid, &current_pid);
+        let is_custom_vendor = initial_preset == UsbIdentityPreset::Custom;
 
-        for (i, vendor) in VENDORS.iter().enumerate() {
-            // Check matching VID/PID, but skip the generic "custom" entries if they don't have specific values
-            if vendor.value == "custom" && vendor.vid.is_empty() {
-                continue;
-            }
-            if vendor.vid.eq_ignore_ascii_case(current_vid.as_ref())
-                && vendor.pid.eq_ignore_ascii_case(current_pid.as_ref())
-            {
-                initial_vendor_idx = i;
-                is_custom_vendor = false;
-                break;
-            }
-        }
+        // Find index for the SelectState
+        let initial_vendor_idx = UsbIdentityPreset::all()
+            .iter()
+            .position(|p| *p == initial_preset)
+            .unwrap_or(0);
 
         let vendor_select = cx.new(|cx| {
             SelectState::new(
@@ -154,11 +141,17 @@ impl ConfigView {
         let led_gpio_input =
             cx.new(|cx| InputState::new(window, cx).default_value(current_led_gpio.clone()));
 
-        let _initial_driver_idx = config.and_then(|c| c.led_driver).unwrap_or(0) as usize;
+        // Identify Driver
+        let current_driver_val = config.and_then(|c| c.led_driver).unwrap_or(0);
+        let initial_driver_idx = LedDriverType::all()
+            .iter()
+            .position(|d| d.value() == current_driver_val)
+            .unwrap_or(0);
+
         let led_driver_select = cx.new(|cx| {
             SelectState::new(
                 drivers,
-                Some(gpui_component::IndexPath::default()),
+                Some(gpui_component::IndexPath::default().row(initial_driver_idx)),
                 window,
                 cx,
             )
@@ -168,18 +161,20 @@ impl ConfigView {
             &vendor_select,
             window,
             |this: &mut Self, _, event, window, cx| {
-                if let gpui_component::select::SelectEvent::Confirm(Some(value)) = event {
-                    if let Some(vendor) = VENDORS.iter().find(|v| value == v.value) {
-                        this.is_custom_vendor = vendor.value == "custom";
+                if let gpui_component::select::SelectEvent::Confirm(Some(preset)) = event {
+                    let (_, vid_opt, pid_opt) = preset.details();
 
-                        if !this.is_custom_vendor {
-                            this.vid_input
-                                .update(cx, |input, cx| input.set_value(vendor.vid, window, cx));
-                            this.pid_input
-                                .update(cx, |input, cx| input.set_value(vendor.pid, window, cx));
-                        }
-                        cx.notify();
+                    if let (Some(vid), Some(pid)) = (vid_opt, pid_opt) {
+                        this.is_custom_vendor = false;
+                        this.vid_input
+                            .update(cx, |input, cx| input.set_value(vid, window, cx));
+                        this.pid_input
+                            .update(cx, |input, cx| input.set_value(pid, window, cx));
+                    } else {
+                        // Custom selected
+                        this.is_custom_vendor = true;
                     }
+                    cx.notify();
                 }
             },
         )
@@ -259,12 +254,15 @@ impl ConfigView {
             }
         }
 
+        // Get Driver Value
         let driver_idx = self.led_driver_select.read(cx).selected_index(cx);
         if let Some(idx) = driver_idx {
-            // Assuming values are 0, 1, 2 matches index
-            let val = idx.row as u8;
-            if Some(val) != current_config.led_driver {
-                changes.led_driver = Some(val);
+            // Map index back to enum value safely
+            if let Some(driver) = LedDriverType::all().get(idx.row) {
+                let val = driver.value();
+                if Some(val) != current_config.led_driver {
+                    changes.led_driver = Some(val);
+                }
             }
         }
 
