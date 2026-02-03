@@ -1,6 +1,5 @@
 use crate::device::io;
 use crate::device::types::{AppConfigInput, FullDeviceStatus};
-use crate::ui::colors;
 use crate::ui::components::{card::Card, page_view::PageView};
 use crate::ui::ui_types::{LedDriverType, UsbIdentityPreset};
 use gpui::*;
@@ -67,6 +66,7 @@ pub struct ConfigView {
     loading: bool,
     device_status: Option<FullDeviceStatus>,
     is_custom_vendor: bool,
+    _task: Option<Task<()>>,
 }
 
 impl ConfigView {
@@ -209,10 +209,11 @@ impl ConfigView {
             loading: false,
             device_status: device_status.clone(),
             is_custom_vendor,
+            _task: None,
         }
     }
 
-    fn apply_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    fn apply_changes(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let status = if let Some(s) = &self.device_status {
             s
         } else {
@@ -256,10 +257,8 @@ impl ConfigView {
             }
         }
 
-        // Get Driver Value
         let driver_idx = self.led_driver_select.read(cx).selected_index(cx);
         if let Some(idx) = driver_idx {
-            // Map index back to enum value safely
             if let Some(driver) = LedDriverType::all().get(idx.row) {
                 let val = driver.value();
                 if Some(val) != current_config.led_driver {
@@ -293,7 +292,6 @@ impl ConfigView {
             changes.enable_secp256k1 = Some(self.enable_secp256k1);
         }
 
-        // Check if we have any changes
         let has_changes = changes.vid.is_some()
             || changes.pid.is_some()
             || changes.product_name.is_some()
@@ -314,28 +312,50 @@ impl ConfigView {
         self.loading = true;
         cx.notify();
 
-        let result = io::write_config(changes, status.method.clone(), None);
+        let entity = cx.entity().downgrade();
+        let method = status.method.clone();
 
-        self.loading = false;
+        self._task = Some(cx.spawn(async move |_, cx| {
+            use std::time::Duration;
 
-        match result {
-            Ok(msg) => {
-                log::info!("Success: {}", msg);
+            cx.background_executor()
+                .timer(Duration::from_millis(500))
+                .await;
 
-                if let Ok(new_status) = io::read_device_details() {
-                    log::info!(
-                        "Refreshed device status. LED Steady: {}",
-                        new_status.config.led_steady
-                    );
-                    self.update_status(Some(new_status), window, cx);
+            let result = io::write_config(changes, method, None);
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+
+                match result {
+                    Ok(msg) => {
+                        log::info!("Success: {}", msg);
+
+                        if let Ok(new_status) = io::read_device_details() {
+                            log::info!(
+                                "Refreshed device status. LED Steady: {}",
+                                new_status.config.led_steady
+                            );
+
+                            let config = &new_status.config;
+
+                            this.led_dimmable = config.led_dimmable;
+                            this.led_steady = config.led_steady;
+                            this.power_cycle = config.power_cycle_on_reset;
+                            this.enable_secp256k1 = config.enable_secp256k1;
+
+                            this.device_status = Some(new_status);
+                            cx.notify();
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Error saving config: {}", e);
+                    }
                 }
-            }
-            Err(e) => {
-                log::error!("Error saving config: {}", e);
-            }
-        }
 
-        cx.notify();
+                cx.notify();
+            });
+        }));
     }
 
     pub fn update_status(
@@ -391,6 +411,25 @@ impl ConfigView {
         let brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
         self.led_brightness_slider
             .update(cx, |slider, cx| slider.set_value(brightness, window, cx));
+
+        cx.notify();
+    }
+
+    pub(crate) fn update_device_status(
+        &mut self,
+        status: Option<FullDeviceStatus>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.device_status == status {
+            return;
+        }
+        self.device_status = status.clone();
+        let config = status.as_ref().map(|s| &s.config);
+
+        self.led_dimmable = config.map(|c| c.led_dimmable).unwrap_or(true);
+        self.led_steady = config.map(|c| c.led_steady).unwrap_or(false);
+        self.power_cycle = config.map(|c| c.power_cycle_on_reset).unwrap_or(false);
+        self.enable_secp256k1 = config.map(|c| c.enable_secp256k1).unwrap_or(true);
 
         cx.notify();
     }
@@ -528,7 +567,7 @@ impl ConfigView {
             .child(content)
     }
 
-    fn render_touch_card(&self, theme: &Theme) -> impl IntoElement {
+    fn render_touch_card(&self, _theme: &Theme) -> impl IntoElement {
         let content = v_flex().gap_4().child(
             v_flex()
                 .gap_2()

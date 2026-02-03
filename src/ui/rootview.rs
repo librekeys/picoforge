@@ -66,10 +66,9 @@ impl ApplicationRoot {
 
         match io::read_device_details() {
             Ok(status) => {
-                self.state.device_status = Some(status);
+                self.state.device_status = Some(status.clone());
                 self.state.error = None;
 
-                // If successful, try to get FIDO info
                 match io::get_fido_info() {
                     Ok(fido) => {
                         self.state.fido_info = Some(fido);
@@ -78,6 +77,12 @@ impl ApplicationRoot {
                         eprintln!("FIDO Info fetch failed: {}", e);
                         self.state.fido_info = None;
                     }
+                }
+
+                if let Some(config_view) = &self.config_view {
+                    config_view.update(cx, |view, cx| {
+                        view.update_device_status(Some(status), cx);
+                    });
                 }
             }
             Err(e) => {
@@ -170,13 +175,6 @@ impl Render for ApplicationRoot {
                                                     self.state.device_status.clone(),
                                                 )
                                             })
-                                        });
-                                        view.update(cx, |view, cx| {
-                                            view.update_status(
-                                                self.state.device_status.clone(),
-                                                window,
-                                                cx,
-                                            );
                                         });
                                         view.clone().into_any_element()
                                     }
