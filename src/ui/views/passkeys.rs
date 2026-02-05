@@ -87,7 +87,11 @@ impl PasskeysView {
         let entity = cx.entity().downgrade();
 
         self._task = Some(cx.spawn(async move |_, cx| {
-            let result = io::get_credentials(pin.clone());
+            let pin_for_bg = pin.clone();
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::get_credentials(pin_for_bg) })
+                .await;
 
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
@@ -125,7 +129,11 @@ impl PasskeysView {
         let entity = cx.entity().downgrade();
 
         self._task = Some(cx.spawn(async move |_, cx| {
-            let result = io::delete_credential(pin.clone(), credential_id);
+            let pin_for_bg = pin.clone();
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::delete_credential(pin_for_bg, credential_id) })
+                .await;
 
             let _ = entity.update(cx, |this, cx| match result {
                 Ok(_) => {
@@ -148,7 +156,11 @@ impl PasskeysView {
     fn refresh_credentials(&mut self, pin: String, cx: &mut Context<Self>) {
         let entity = cx.entity().downgrade();
         self._task = Some(cx.spawn(async move |_, cx| {
-            let result = io::get_credentials(pin);
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::get_credentials(pin) })
+                .await;
+
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
                 if let Ok(creds) = result {
@@ -303,7 +315,7 @@ impl PasskeysView {
                                 }
 
                                 if new_val != confirm_val {
-                                    // Todo: show validation error (toast?)
+                                    // Todo: show validation error (toast)
                                     let _ = view.update(cx, |_, cx| {
                                         cx.emit(PasskeysEvent::Notification(
                                             "PINs do not match".to_string(),
@@ -457,7 +469,11 @@ impl PasskeysView {
         let entity = cx.entity().downgrade();
 
         self._task = Some(cx.spawn(async move |_, cx| {
-            let result = io::change_fido_pin(Some(current), new);
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::change_fido_pin(Some(current), new) })
+                .await;
+
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
                 match result {
@@ -493,7 +509,12 @@ impl PasskeysView {
         let entity = cx.entity().downgrade();
 
         self._task = Some(cx.spawn(async move |_, cx| {
-            let res_len = io::set_min_pin_length(current.clone(), min_len);
+            // 1. Set Min Length
+            let current_for_bg = current.clone();
+            let res_len = cx
+                .background_executor()
+                .spawn(async move { io::set_min_pin_length(current_for_bg, min_len) })
+                .await;
 
             if let Err(e) = res_len {
                 let _ = entity.update(cx, |this, cx| {
@@ -508,7 +529,10 @@ impl PasskeysView {
             }
 
             if !new_pin.is_empty() {
-                let res_pin = io::change_fido_pin(Some(current), new_pin);
+                let res_pin = cx
+                    .background_executor()
+                    .spawn(async move { io::change_fido_pin(Some(current), new_pin) })
+                    .await;
                 let _ = entity.update(cx, |this, cx| {
                     this.loading = false;
                     match res_pin {
