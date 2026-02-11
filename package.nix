@@ -1,81 +1,80 @@
 {
   lib,
+  stdenv,
   rustPlatform,
-  buildNpmPackage,
   fetchFromGitHub,
   makeDesktopItem,
 
   pkg-config,
-  cargo-tauri,
-  wrapGAppsHook3,
   copyDesktopItems,
+  makeWrapper,
 
-  glib,
-  gtk3,
-  openssl,
+  hidapi,
   pcsclite,
   udev,
-  webkitgtk_4_1,
+  alsa-lib,
+  libxkbcommon,
+  wayland,
+  libGL,
+  vulkan-loader,
+  libx11,
+  libxcb,
+
+  withGLES ? false,
 }:
+assert withGLES -> stdenv.hostPlatform.isLinux;
 rustPlatform.buildRustPackage (finalAttrs: {
 
   pname = "picoforge";
-  version = "0.3.1";
+  version = "0.3.1-unstable-2026-02-08";
 
   src = fetchFromGitHub {
     owner = "librekeys";
     repo = "picoforge";
-    rev = "v${finalAttrs.version}";
-    hash = "sha256-v3N/E80mS8KZafWJ5T6BD3+O9LL+iwNXFEThbo4Lf0Y=";
+    rev = "430aec1f3429ee8b89470f78d6db8c22c5de7db4";
+    hash = "sha256-BWLLmINoKC+nIuY8KWfzhOnYtuo2KrbHd2jdappPyuE=";
   };
 
-  cargoRoot = "src-tauri";
-  buildAndTestSubdir = finalAttrs.cargoRoot;
-
-  cargoHash = "sha256-DB54egPebUniP/yjEZc+/AY9vOChJRBA+tqnbISmEgg=";
-
-  postPatch = ''
-    sed -i src-tauri/tauri.conf.json -e '/beforeBuildCommand/d'
-  '';
+  cargoHash = "sha256-be0ycwwDxlBaKxQsTGidZC0loFh91HXMpr0jMHfbAd4=";
 
   nativeBuildInputs = [
     pkg-config
-    cargo-tauri.hook
-    wrapGAppsHook3
     copyDesktopItems
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    makeWrapper
   ];
+
+  gpu-lib = if withGLES then libGL else vulkan-loader;
 
   buildInputs = [
-    glib
-    gtk3
-    openssl
+    hidapi
     pcsclite
     udev
-    webkitgtk_4_1
+  ]
+  ++ lib.optionals stdenv.hostPlatform.isLinux [
+    alsa-lib
+    libxkbcommon
+    wayland
+    finalAttrs.gpu-lib
+    libx11
+    libxcb
   ];
 
-  frontendDist = buildNpmPackage {
-    name = "${finalAttrs.pname}-${finalAttrs.version}-frontend-dist";
-    inherit (finalAttrs) src;
-
-    npmDepsHash = "sha256-yCs/Fvtf0m5eW/m+Revzn3q1P7wwkwinUBHLOcV06/M=";
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p $out
-      cp -r build/* $out
-
-      runHook postInstall
-    '';
-  };
-
-  preBuild = ''
-    cp -r ${finalAttrs.frontendDist} build
+  postInstall = ''
+    install -Dm644 ${finalAttrs.src}/static/appIcons/in.suyogtandel.picoforge.svg $out/share/icons/hicolor/scalable/apps/picoforge.svg
   '';
 
-  postInstall = ''
-    install -Dm644 ${finalAttrs.src}/static/in.suyogtandel.picoforge.svg $out/share/icons/hicolor/scalable/apps/picoforge.svg
+  postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
+    wrapProgram $out/bin/picoforge --prefix LD_LIBRARY_PATH : "${
+      lib.makeLibraryPath [
+        wayland
+        libxkbcommon
+        finalAttrs.gpu-lib
+        libx11
+        libxcb
+      ]
+    }"
   '';
 
   desktopItems = [

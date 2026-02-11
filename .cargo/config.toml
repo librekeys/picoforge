@@ -1,0 +1,2 @@
+[alias]
+run-watch = "watch -c -x check -x run"

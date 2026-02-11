@@ -2,7 +2,7 @@
 
 # PicoForge
 
-<img src="static/in.suyogtandel.picoforge.svg" width="512" height="512" alt="PicoForge Logo">
+<img src="static/appIcons/in.suyogtandel.picoforge.svg" width="512" height="512" alt="PicoForge Logo">
 
 **An open source commissioning tool for Pico FIDO security keys**
 
