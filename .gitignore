@@ -16,6 +16,7 @@ vite.config.ts.timestamp-*
 # Nix
 result
 .direnv
+.devenv
 
 # misc
 docs-gpui-components
