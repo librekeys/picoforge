@@ -1,0 +1,33 @@
+name: "Update Nix Package"
+on:
+  schedule:
+    - cron:  '0 0 * * 0' # https://crontab.guru/#0_0_*_*_0
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update:
+    strategy:
+      matrix:
+        nixPath:
+          - nixpkgs=https://github.com/NixOS/nixpkgs/archive/refs/heads/nixos-unstable.tar.gz
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+    - name: Install nix
+      uses: cachix/install-nix-action@v31
+      with:
+        nix_path: "${{ matrix.nixPath }}"
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+          access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+    - name: Show nixpkgs version
+      run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
+    - name: Update flake packages
+      uses: gepbird/nix-update-action@v2.1.1
+      with:
+        token: ${{ secrets.NIX_UPDATE_TOKEN }}
+        blacklist: "default"
+        branch: "build/update-nix-package"
