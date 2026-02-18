@@ -1,34 +1,36 @@
 %global debug_package %{nil}
 Name:           picoforge
-Version:        0.3.1
+Version:        0.4.0
 Release:        1%{?dist}
-Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte.
+Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI.
 License:        AGPL-3.0
 URL:            https://github.com/librekeys/picoforge
 Source0:        %{name}-%{version}.tar.gz
 
-# Dependencies needed to compile Tauri/Rust
+# Dependencies needed to compile Rust
 BuildRequires:  gcc
 BuildRequires:  make
 BuildRequires:  binutils
 BuildRequires:  curl
 BuildRequires:  unzip
-
-# Standard Tauri v2 Requirements
-BuildRequires:  pkgconfig(gtk+-3.0)
-BuildRequires:  pkgconfig(webkit2gtk-4.1)
-BuildRequires:  pkgconfig(javascriptcoregtk-4.1)
-BuildRequires:  pkgconfig(openssl)
-BuildRequires:  pkgconfig(glib-2.0)
-BuildRequires:  pkgconfig(libsoup-3.0)
-BuildRequires:  pkgconfig(appindicator3-0.1)
+BuildRequires:  pkgconfig(fontconfig)
+BuildRequires:  pkgconfig(freetype2)
+BuildRequires:  pkgconfig(xcb)
+BuildRequires:  pkgconfig(xcb-xkb)
+BuildRequires:  pkgconfig(xcb-render)
+BuildRequires:  pkgconfig(xcb-shape)
+BuildRequires:  pkgconfig(xkbcommon)
+BuildRequires:  pkgconfig(xkbcommon-x11)
+# Verify if these are needed for your specific GPUI usage or if they are pulled in transitively
+# BuildRequires:  pkgconfig(vulkan)
+# BuildRequires:  pkgconfig(wayland-client)
 
 # HARDWARE / FIDO Specific
 BuildRequires:  pkgconfig(libpcsclite)
 BuildRequires:  pkgconfig(libudev)
 
 %description
-PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust, Tauri, and Svelte, it provides an intuitive interface for:
+PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust and GPUI, it provides an intuitive interface for:
 
 - Reading device information and firmware details
 - Configuring USB VID/PID and product names
@@ -40,24 +42,15 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 %prep
 %autosetup
 
-curl -fsSL https://deno.land/x/install/install.sh | sh
-export DENO_INSTALL="$HOME/.deno"
-export PATH="$DENO_INSTALL/bin:$PATH"
-deno --version
-
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 export PATH="$HOME/.cargo/bin:$PATH"
 rustc --version
 
 %build
-export DENO_INSTALL="$HOME/.deno"
-export PATH="$DENO_INSTALL/bin:$PATH"
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # Build the App
-# This will download Rust crates and Deno modules over the internet
-deno install
-deno task tauri build --no-bundle
+cargo build --release
 
 %install
 mkdir -p %{buildroot}%{_bindir}
@@ -65,13 +58,13 @@ mkdir -p %{buildroot}%{_datadir}/applications
 mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
 
 # 1. Install Binary
-install -m 755 src-tauri/target/release/picoforge %{buildroot}%{_bindir}/%{name}
+install -m 755 target/release/picoforge %{buildroot}%{_bindir}/%{name}
 
 # 2. Install Desktop File
 install -m 644 data/in.suyogtandel.picoforge.desktop %{buildroot}%{_datadir}/applications/%{name}.desktop
 
-# 3. Install Icon (Assumes you have this icon in your source)
-install -m 644 src-tauri/icons/in.suyogtandel.picoforge.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
+# 3. Install Icon
+install -m 644 static/appIcons/in.suyogtandel.picoforge.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %files
 %{_bindir}/%{name}
