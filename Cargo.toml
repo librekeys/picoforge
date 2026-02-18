@@ -1,7 +1,7 @@
 [package]
 name = "picoforge"
 version = "0.4.0"
-description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust, Tauri, and Svelte."
+description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI."
 authors = ["Suyog Tandel", "PicoForge Contributers"]
 license = "AGPL-3.0"
 edition = "2024"
@@ -43,3 +43,6 @@ lto = true        # Enables link-time-optimizations however is not stable.
 opt-level = 3     # Prioritizes speed. Use `z` if you prefer small binary size.
 # panic = "abort"   # Higher performance by disabling panic handlers.
 strip = true      # Ensures debug symbols are removed.
+
+[package.metadata.packager]
+before-packaging-command = "cargo build --release"
