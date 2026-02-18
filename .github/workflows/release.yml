@@ -36,11 +36,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup node
-        uses: actions/setup-node@v6
-        with:
-          node-version: latest
-
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -52,20 +47,32 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libpcsclite-dev libudev-dev libusb-1.0-0-dev podman
+          sudo apt install -y \
+              build-essential \
+              pkg-config \
+              libssl-dev \
+              libpcsclite-dev \
+              libudev-dev \
+              libvulkan-dev \
+              vulkan-tools \
+              libwayland-dev \
+              wayland-protocols \
+              libxkbcommon-dev \
+              libxcb1-dev \
+              libxkbcommon-x11-dev \
+              libfontconfig1-dev \
+              libasound2-dev \
+              libdbus-1-dev \
+              file \
+              desktop-file-utils \
+              libx11-dev \
+              libxcb-shape0-dev \
+              libxcb-xfixes0-dev libusb-1.0-0-dev podman patchelf librsvg2-dev libappindicator3-dev libwebkit2gtk-4.1-dev
 
       - name: install dependencies (ubuntu-arm64 only)
         if: matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get install xdg-utils
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: install frontend dependencies
-        run: deno install
 
       - name: Extract version from Cargo.toml
         id: get_version
@@ -85,12 +92,12 @@ jobs:
 
       - name: Build and Package (Linux)
         if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
-        run: cargo packager --release --formats deb pacman
+        run: cargo packager --release --formats deb,pacman
 
       - name: Build and Package (Others)
         if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
         run: cargo packager --release ${{ matrix.args }}
-      
+
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
@@ -103,15 +110,14 @@ jobs:
             #### Check the Installation guide for the Application on the wiki: https://github.com/librekeys/picoforge/wiki/Installation
           prerelease: false
           files: |
-             packaging/cargoPackager/*.deb
-             packaging/cargoPackager/*.pkg.tar.zst
-             packaging/cargoPackager/*.tar.gz
-             packaging/cargoPackager/*.PKGBUILD
-             packaging/cargoPackager/PKGBUILD
-             packaging/cargoPackager/*.msi
-             packaging/cargoPackager/*.exe
-             packaging/cargoPackager/*.dmg
-             packaging/cargoPackager/*.app
+            target/release/*.deb
+            target/release/*.pkg.tar.zst
+            target/release/*.tar.gz
+            target/release/PKGBUILD
+            target/release/*.msi
+            target/release/*.exe
+            target/release/*.dmg
+            target/release/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -120,56 +126,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          cat << 'EOF' > ./update_spec_in_container.sh
-          #!/bin/sh
-          set -e
-
-          dnf install -y tito git
-
-          git config --global --add safe.directory /workspace
-          git config --global user.email 'git@suyogtandel.in'
-          git config --global user.name 'Suyog Tandel'
-
-          git remote set-url origin https://x-access-token:$GITHUB_TOKEN@github.com/$GITHUB_REPOSITORY.git
-
-          git reset --hard HEAD
-          git clean -fd
-
-          git fetch origin main
-          git rebase origin/main
-
-          CARGO_FILE="Cargo.toml"
-          NEW_VERSION=$(grep -m 1 '^version' "$CARGO_FILE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-
-          CURRENT_SPEC_VERSION=$(grep -m 1 '^Version:' picoforge.spec | awk '{print $2}')
-          CURRENT_SPEC_RELEASE=$(grep -m 1 '^Release:' picoforge.spec | awk '{print $2}' | sed 's/%{?dist}//')
-
-          echo "Cargo Version: $NEW_VERSION"
-          echo "Spec Version:  $CURRENT_SPEC_VERSION"
-          echo "Spec Release:  $CURRENT_SPEC_RELEASE"
-
-          if [ "$NEW_VERSION" != "$CURRENT_SPEC_VERSION" ]; then
-              echo "New version detected. Resetting Release to 1."
-              sed -i "s/^Version:.*/Version:        $NEW_VERSION/" picoforge.spec
-              sed -i "s/^Release:.*/Release:        1%{?dist}/" picoforge.spec
-          else
-              echo "Version match. Incrementing Release number."
-              NEW_RELEASE=$((CURRENT_SPEC_RELEASE + 1))
-              sed -i "s/^Release:.*/Release:        $NEW_RELEASE%{?dist}/" picoforge.spec
-          fi
-
-          if git diff --quiet picoforge.spec; then
-            echo "No changes to spec file."
-          else
-            git add picoforge.spec
-            git commit -m "chore: sync spec to $NEW_VERSION [skip ci]"
-          fi
-
-          tito tag --offline --accept-auto-changelog --keep-version
-          git push --follow-tags origin HEAD:main HEAD:release
-          EOF
-
-          chmod +x ./update_spec_in_container.sh
+          chmod +x .github/scripts/sync_spec_version.sh
 
           podman run --rm \
             --security-opt label=disable \
@@ -178,6 +135,4 @@ jobs:
             -e GITHUB_TOKEN=$GITHUB_TOKEN \
             -e GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
             fedora:latest \
-            /workspace/update_spec_in_container.sh
-
-          rm -f ./update_spec_in_container.sh
+            /workspace/.github/scripts/sync_spec_version.sh

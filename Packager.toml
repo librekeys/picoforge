@@ -30,8 +30,8 @@ icons = [
 
 beforePackagingCommand = "cargo build --release"
 
-binaries = [{ main = true, path = "../../target/release/picoforge" }]
-outDir = "packaging/cargoPackager"
+binaries = [{ main = true, name = "picoforge" }]
+# outDir = "packaging/cargoPackager"
 
 [linux]
 generateDesktopEntry = false

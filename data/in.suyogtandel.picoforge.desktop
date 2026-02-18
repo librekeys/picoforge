@@ -4,7 +4,6 @@ Name=picoforge
 Exec=picoforge
 Icon=in.suyogtandel.picoforge
 Terminal=false
-Type=Application
 Categories=Utility;Clock;
 Keywords=Config;
 StartupNotify=true

@@ -22,3 +22,4 @@ docs-gpui-components
 src-svelte
 gpui-component
 packaging
+.cargo-packager
