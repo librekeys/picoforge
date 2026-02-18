@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 Name:           picoforge
 Version:        0.4.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI.
 License:        AGPL-3.0
 URL:            https://github.com/librekeys/picoforge
@@ -9,6 +9,7 @@ Source0:        %{name}-%{version}.tar.gz
 
 # Dependencies needed to compile Rust
 BuildRequires:  gcc
+BuildRequires:  gcc-c++
 BuildRequires:  make
 BuildRequires:  binutils
 BuildRequires:  curl

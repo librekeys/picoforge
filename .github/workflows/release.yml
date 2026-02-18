@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           # Define the path to your Cargo.toml file
-          cargo_file="src-tauri/Cargo.toml"
+          cargo_file="Cargo.toml"
           # Extract ONLY the version number using a more precise regex
           version=$(grep -m 1 '^version' "$cargo_file" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
           # Output for debugging
@@ -80,54 +80,42 @@ jobs:
           # Set the output correctly for GitHub Actions
           echo "version=$version" >> $GITHUB_ENV
 
-      # Step 3: Publish the release with combined release body
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          LINUXDEPLOY_OUTPUT_APP_IMAGE_EXCLUDE: "libpcsclite.so.1"
+      - name: install cargo-packager
+        run: cargo install cargo-packager --locked
+
+      - name: Build and Package (Linux)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: cargo packager --release --formats deb pacman
+
+      - name: Build and Package (Others)
+        if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
+        run: cargo packager --release ${{ matrix.args }}
+      
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
         with:
-          tagName: v__VERSION__
-          releaseName: "PicoForge-v__VERSION__"
-          releaseBody: |
+          tag_name: v${{ env.version }}
+          name: "PicoForge-v${{ env.version }}"
+          body: |
             > [!WARNING]
             > This is a Beta release and thus can have some bugs, report them using github issues.
 
             #### Check the Installation guide for the Application on the wiki: https://github.com/librekeys/picoforge/wiki/Installation
-
-          releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
-
-      - name: Patch and Overwrite AppImage
-        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+          files: |
+             packaging/cargoPackager/*.deb
+             packaging/cargoPackager/*.pkg.tar.zst
+             packaging/cargoPackager/*.tar.gz
+             packaging/cargoPackager/*.PKGBUILD
+             packaging/cargoPackager/PKGBUILD
+             packaging/cargoPackager/*.msi
+             packaging/cargoPackager/*.exe
+             packaging/cargoPackager/*.dmg
+             packaging/cargoPackager/*.app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [[ "${{ matrix.platform }}" == *"arm"* ]]; then
-            TOOL_ARCH="aarch64"
-          else
-            TOOL_ARCH="x86_64"
-          fi
 
-          echo "Detected architecture for AppImageTool: $TOOL_ARCH"
-
-          wget -q "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-$TOOL_ARCH.AppImage"
-          chmod +x "appimagetool-$TOOL_ARCH.AppImage"
-
-          APPIMAGE_PATH=$(find src-tauri/target/release/bundle/appimage -name "*.AppImage" | head -n 1)
-          echo "Patching local file: $APPIMAGE_PATH"
-
-          "$APPIMAGE_PATH" --appimage-extract > /dev/null
-          rm -f squashfs-root/usr/lib/libpcsclite.so.1
-
-          ARCH=$TOOL_ARCH "./appimagetool-$TOOL_ARCH.AppImage" --appimage-extract-and-run squashfs-root/ "$APPIMAGE_PATH"
-
-          echo "Overwriting Draft Release asset..."
-          gh release upload "v${{ env.version }}" "$APPIMAGE_PATH" --clobber
-
-          echo "Success! The Draft Release now has the fixed AppImage."
-
-      - name: Sync Spec Version & Tag (Podman Container)
+      - name: Sync Spec Version & Tag
         if: matrix.platform == 'ubuntu-22.04'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -150,7 +138,7 @@ jobs:
           git fetch origin main
           git rebase origin/main
 
-          CARGO_FILE="src-tauri/Cargo.toml"
+          CARGO_FILE="Cargo.toml"
           NEW_VERSION=$(grep -m 1 '^version' "$CARGO_FILE" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
 
           CURRENT_SPEC_VERSION=$(grep -m 1 '^Version:' picoforge.spec | awk '{print $2}')
