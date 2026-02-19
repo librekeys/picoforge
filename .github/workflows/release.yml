@@ -43,6 +43,11 @@ jobs:
             ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' ||
             matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc' || '' }}
 
+      - name: Cache Cargo registry and target
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.platform }}-${{ matrix.args }}
+
       - name: install dependencies (ubuntu only)
         if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
@@ -88,17 +93,25 @@ jobs:
           echo "version=$version" >> $GITHUB_ENV
 
       - name: install cargo-packager
-        uses: taiki-e/install-action@cargo-packager
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-packager
 
       - name: Build Binary
         run: cargo build --release ${{ matrix.args }}
 
-      # - name: Build and Package (Linux)
-      #   if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
-      #   run: cargo packager --release --formats deb,pacman
+      - name: Build and Package (Linux)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: cargo packager --release --formats deb,pacman
+
+      - name: Build AppImage
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          chmod +x .github/scripts/build_appimage.sh
+          ./.github/scripts/build_appimage.sh
 
       - name: Build and Package
-        # if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
+        if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
         run: cargo packager --release ${{ matrix.args }}
 
       - name: Upload Release Assets
@@ -118,7 +131,6 @@ jobs:
             target/release/*.AppImage
             target/release/*.tar.gz
             target/release/*.msi
-            target/release/*.exe
             target/release/*.dmg
             target/release/*.app
             target/x86_64-apple-darwin/release/*.dmg
