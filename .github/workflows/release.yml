@@ -95,12 +95,18 @@ jobs:
       - name: Build Binary
         run: cargo build --release ${{ matrix.args }}
 
-      # - name: Build and Package (Linux)
-      #   if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
-      #   run: cargo packager --release --formats deb,pacman
+      - name: Build and Package (Linux)
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: cargo packager --release --formats deb,pacman
+
+      - name: Build AppImage
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          chmod +x .github/scripts/build_appimage.sh
+          ./.github/scripts/build_appimage.sh
 
       - name: Build and Package
-        # if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
+        if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
         run: cargo packager --release ${{ matrix.args }}
 
       - name: Upload Release Assets
@@ -120,7 +126,6 @@ jobs:
             target/release/*.AppImage
             target/release/*.tar.gz
             target/release/*.msi
-            target/release/*.exe
             target/release/*.dmg
             target/release/*.app
             target/x86_64-apple-darwin/release/*.dmg
