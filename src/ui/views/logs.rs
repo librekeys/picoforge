@@ -58,8 +58,14 @@ impl LogsView {
 
 impl Render for LogsView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let clear_listener = cx.listener(|this, _, _, cx| {
+        let clear_logs_listener = cx.listener(|this, _, _, cx| {
             this.clear(cx);
+        });
+
+        let copy_logs_listener = cx.listener(|this, _, _, cx| {
+            let all_logs = this.logs.join("\n");
+            log::info!("Copying {} bytes of logs", all_logs.len());
+            cx.write_to_clipboard(ClipboardItem::new_string(all_logs));
         });
 
         let theme = cx.theme();
@@ -133,11 +139,20 @@ impl Render for LogsView {
                         }),
                 )
                 .child(
-                    h_flex().justify_end().child(
-                        Button::new("clear_logs")
-                            .label("Clear Logs")
-                            .on_click(clear_listener),
-                    ),
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child(
+                            // NOTE: This does not work on linux as of now(tested on NIXOS-26_GNOME-49_WAYLAND)
+                            Button::new("copy_logs")
+                                .label("Copy Logs")
+                                .on_click(copy_logs_listener),
+                        )
+                        .child(
+                            Button::new("clear_logs")
+                                .label("Clear Logs")
+                                .on_click(clear_logs_listener),
+                        ),
                 ),
             theme,
         )

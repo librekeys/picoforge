@@ -4,7 +4,8 @@
 
 pub mod constants;
 
-use crate::device::{error::PFError, rescue::constants::*, types::*};
+use crate::device::{rescue::constants::*, types::*};
+use crate::error::PFError;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use pcsc::{Context, Protocols, Scope, ShareMode};
 use std::io::Cursor;

@@ -2,11 +2,11 @@ pub mod constants;
 pub mod hid;
 
 use crate::{
-    device::error::PFError,
     device::types::{
         AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FullDeviceStatus,
         StoredCredential,
     },
+    error::PFError,
 };
 use constants::*;
 use ctap_hid_fido2::{

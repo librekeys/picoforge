@@ -1,6 +1,6 @@
 use crate::device::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView};
-use crate::ui::ui_types::GlobalDeviceState;
+use crate::ui::types::GlobalDeviceState;
 use gpui::*;
 use gpui_component::StyledExt;
 use gpui_component::{Icon, IconName, Theme, badge::Badge, h_flex, progress::Progress, v_flex};

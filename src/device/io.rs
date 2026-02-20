@@ -1,7 +1,7 @@
 //! Tauri Commands to interact with the pico-fido firmware via rescue and fido protocols.
 #![allow(unused)]
 
-use crate::{device::error::PFError, device::fido, device::rescue, device::types::*};
+use crate::{device::fido, device::rescue, device::types::*, error::PFError};
 
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     match rescue::read_device_details() {

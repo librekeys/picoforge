@@ -3,8 +3,8 @@ use serde_cbor_2::{Value, to_vec};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use crate::device::error::PFError;
 use crate::device::fido::constants::*;
+use crate::error::PFError;
 
 // HID Transport Constants
 const HID_REPORT_SIZE: usize = 64;

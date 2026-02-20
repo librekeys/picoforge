@@ -1,7 +1,7 @@
 use crate::device::io;
 use crate::device::types::{AppConfigInput, FullDeviceStatus};
 use crate::ui::components::{card::Card, page_view::PageView};
-use crate::ui::ui_types::{LedDriverType, UsbIdentityPreset};
+use crate::ui::types::{LedDriverType, UsbIdentityPreset};
 use gpui::*;
 use gpui_component::button::{ButtonCustomVariant, ButtonVariants};
 use gpui_component::{

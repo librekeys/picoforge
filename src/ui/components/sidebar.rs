@@ -1,7 +1,7 @@
 use crate::device::types::DeviceMethod;
 use crate::ui::colors;
 use crate::ui::components::button::PFIconButton;
-use crate::ui::ui_types::{ActiveView, GlobalDeviceState};
+use crate::ui::types::{ActiveView, GlobalDeviceState};
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Icon, IconName, Side,

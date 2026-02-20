@@ -1,6 +1,6 @@
 use crate::device::io;
 use crate::ui::components::sidebar::AppSidebar;
-use crate::ui::ui_types::{ActiveView, GlobalDeviceState};
+use crate::ui::types::{ActiveView, GlobalDeviceState};
 use crate::ui::{
     colors,
     views::{
@@ -22,9 +22,10 @@ use gpui_component::{
 
 pub struct ApplicationRoot {
     active_view: ActiveView,
-    collapsed: bool,
+    is_sidebar_collapsed: bool,
     state: GlobalDeviceState,
     device_loading: bool,
+    // Umm, why did my past self do this? This does not belong here.
     sidebar_width: Pixels,
     config_view: Option<Entity<ConfigView>>,
     passkeys_view: Option<Entity<PasskeysView>>,
@@ -35,7 +36,7 @@ impl ApplicationRoot {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let mut this = Self {
             active_view: ActiveView::Home,
-            collapsed: false,
+            is_sidebar_collapsed: false,
             state: GlobalDeviceState::new(),
             device_loading: false,
             sidebar_width: px(255.),
@@ -66,7 +67,7 @@ impl ApplicationRoot {
                         self.state.fido_info = Some(fido);
                     }
                     Err(e) => {
-                        eprintln!("FIDO Info fetch failed: {}", e);
+                        log::error!("FIDO Info fetch failed: {}", e);
                         self.state.fido_info = None;
                     }
                 }
@@ -101,7 +102,7 @@ impl Render for ApplicationRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let window_width = window.bounds().size.width;
         let is_window_wide = window_width > px(800.0);
-        let is_sidebar_collapsed = self.collapsed || !is_window_wide;
+        let is_sidebar_collapsed = self.is_sidebar_collapsed || !is_window_wide;
 
         let target_width = if is_sidebar_collapsed {
             px(48.)
@@ -152,7 +153,8 @@ impl Render for ApplicationRoot {
                                             .ghost()
                                             .icon(IconName::PanelLeft)
                                             .on_click(cx.listener(|this, _, _, _| {
-                                                this.collapsed = !this.collapsed;
+                                                this.is_sidebar_collapsed =
+                                                    !this.is_sidebar_collapsed;
                                             }))
                                             .tooltip("Toggle Sidebar"),
                                     ),

@@ -7,6 +7,7 @@ use gpui_component::{Theme, ThemeMode};
 use ui::rootview::ApplicationRoot;
 
 mod device;
+pub mod error;
 pub mod logging;
 mod ui;
 
@@ -61,7 +62,7 @@ fn main() {
             };
 
             cx.open_window(window_options, |window, cx| {
-                let view = cx.new(|cx| ApplicationRoot::new(cx));
+                let view = cx.new(ApplicationRoot::new);
                 cx.new(|cx| Root::new(view, window, cx))
             })?;
 
