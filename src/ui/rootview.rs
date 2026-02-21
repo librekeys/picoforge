@@ -137,26 +137,29 @@ impl Render for ApplicationRoot {
                 .child(
                     v_flex()
                         .size_full()
-                        .child(
-                            TitleBar::new().bg(cx.theme().title_bar).child(
-                                h_flex()
-                                    .w_full()
-                                    .justify_between()
-                                    .bg(cx.theme().title_bar)
-                                    .items_center()
-                                    .cursor(gpui::CursorStyle::OpenHand)
-                                    .child(
-                                        Button::new("sidebar_toggle")
-                                            .ghost()
-                                            .icon(IconName::PanelLeft)
-                                            .on_click(cx.listener(|this, _, _, _| {
-                                                this.is_sidebar_collapsed =
-                                                    !this.is_sidebar_collapsed;
-                                            }))
-                                            .tooltip("Toggle Sidebar"),
-                                    ),
-                            ),
-                        )
+                        .child(TitleBar::new().bg(cx.theme().title_bar).child({
+                            #[cfg(not(target_os = "macos"))]
+                            let container = h_flex();
+
+                            #[cfg(target_os = "macos")]
+                            let container = h_flex().ml(gpui::px(-72.));
+
+                            container
+                                .w_full()
+                                .justify_between()
+                                .bg(cx.theme().title_bar)
+                                .items_center()
+                                .cursor(gpui::CursorStyle::OpenHand)
+                                .child(
+                                    Button::new("sidebar_toggle")
+                                        .ghost()
+                                        .icon(IconName::PanelLeft)
+                                        .on_click(cx.listener(|this, _, _, _| {
+                                            this.is_sidebar_collapsed = !this.is_sidebar_collapsed;
+                                        }))
+                                        .tooltip("Toggle Sidebar"),
+                                )
+                        }))
                         .child(
                             v_flex()
                                 .min_h(px(0.))
