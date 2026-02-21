@@ -3,6 +3,7 @@ use crate::device::types::{FidoDeviceInfo, FullDeviceStatus, StoredCredential};
 use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
+    dialog,
     page_view::PageView,
 };
 use gpui::*;
@@ -172,49 +173,20 @@ impl PasskeysView {
     }
 
     fn open_unlock_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let pin_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter FIDO PIN")
-                .masked(true)
-        });
         let view_handle = cx.entity().downgrade();
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let view_handle_for_footer = view_handle.clone();
-            let pin_input_for_footer = pin_input.clone();
-
-            dialog
-                .title("Unlock Storage")
-                .child(
-                    v_flex()
-                        .gap_4()
-                        .pb_4()
-                        .child("Enter your device PIN to view saved passkeys")
-                        .child(Input::new(&pin_input)),
-                )
-                .footer(move |_, _, _, _| {
-                    let view = view_handle_for_footer.clone();
-                    let input = pin_input_for_footer.clone();
-
-                    vec![
-                        Button::new("cancel")
-                            .label("Cancel")
-                            .on_click(|_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        Button::new("unlock").primary().label("Unlock").on_click(
-                            move |_, _window, cx| {
-                                let pin = input.read(cx).text().to_string();
-                                if !pin.is_empty() {
-                                    let _ = view.update(cx, |this, cx| {
-                                        this.unlock_storage(pin, cx);
-                                    });
-                                }
-                            },
-                        ),
-                    ]
-                })
-        });
+        dialog::open_pin_prompt(
+            "Unlock Storage",
+            "Enter your device PIN to view saved passkeys",
+            "Unlock",
+            window,
+            cx,
+            move |pin, _, cx| {
+                let _ = view_handle.update(cx, |this, cx| {
+                    this.unlock_storage(pin, cx);
+                });
+            },
+        );
     }
 
     fn open_delete_dialog(
@@ -229,120 +201,39 @@ impl PasskeysView {
         let name = cred.rp_id.clone();
         let view_handle = cx.entity().downgrade();
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let view_handle = view_handle.clone();
-            let cred_id = cred_id.clone();
-            let pin_str = pin_str.clone();
-
-            dialog
-                .confirm()
-                .title("Delete Passkey")
-                .child(div().pb_4().child(format!(
-                    "Are you sure you want to delete the passkey for {}?",
-                    name
-                )))
-                .on_ok(move |_, _, cx| {
-                    let _ = view_handle.update(cx, |this, cx| {
-                        this.execute_delete(cred_id.clone(), pin_str.clone(), cx);
-                    });
-                    false
-                })
-                .on_cancel(|_, _, _| true)
-                .button_props(
-                    gpui_component::dialog::DialogButtonProps::default()
-                        .ok_text("Delete")
-                        .ok_variant(ButtonVariant::Danger),
-                )
-        });
+        dialog::open_confirm(
+            "Delete Passkey",
+            format!("Are you sure you want to delete the passkey for {}?", name),
+            "Delete",
+            ButtonVariant::Danger,
+            window,
+            cx,
+            move |_, cx| {
+                let _ = view_handle.update(cx, |this, cx| {
+                    this.execute_delete(cred_id.clone(), pin_str.clone(), cx);
+                });
+            },
+        );
     }
 
     fn open_change_pin_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let current_pin = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter current PIN")
-                .masked(true)
-        });
-        let new_pin = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter new PIN")
-                .masked(true)
-        });
-        let confirm_pin = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Confirm new PIN")
-                .masked(true)
-        });
-
         let view_handle = cx.entity().downgrade();
+        let view_for_error = cx.entity().downgrade();
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let view = view_handle.clone();
-            let current = current_pin.clone();
-            let new = new_pin.clone();
-            let confirm = confirm_pin.clone();
-
-            dialog
-                .title("Change PIN")
-                .child("Enter your current PIN and choose a new one.")
-                .child(
-                    v_flex()
-                        .gap_4()
-                        .pb_4()
-                        .child("Current PIN")
-                        .child(Input::new(&current))
-                        .child("New PIN")
-                        .child(Input::new(&new))
-                        .child("Confirm New PIN")
-                        .child(Input::new(&confirm)),
-                )
-                .footer(move |_, _window, _cx, _| {
-                    let view = view.clone();
-                    let current = current.clone();
-                    let new = new.clone();
-                    let confirm = confirm.clone();
-
-                    vec![
-                        Button::new("cancel")
-                            .label("Cancel")
-                            .on_click(|_, window, cx| window.close_dialog(cx)),
-                        Button::new("confirm").primary().label("Confirm").on_click(
-                            move |_, _, cx| {
-                                let current_val = current.read(cx).text().to_string();
-                                let new_val = new.read(cx).text().to_string();
-                                let confirm_val = confirm.read(cx).text().to_string();
-
-                                if current_val.is_empty() {
-                                    return;
-                                    // Todo: show error
-                                }
-
-                                if new_val != confirm_val {
-                                    // Todo: show validation error (toast)
-                                    let _ = view.update(cx, |_, cx| {
-                                        cx.emit(PasskeysEvent::Notification(
-                                            "PINs do not match".to_string(),
-                                        ));
-                                    });
-                                    return;
-                                }
-
-                                if new_val.len() < 4 {
-                                    let _ = view.update(cx, |_, cx| {
-                                        cx.emit(PasskeysEvent::Notification(
-                                            "PIN too short".to_string(),
-                                        ));
-                                    });
-                                    return;
-                                }
-
-                                let _ = view.update(cx, |this, cx| {
-                                    this.change_pin(current_val, new_val, cx);
-                                });
-                            },
-                        ),
-                    ]
-                })
-        });
+        dialog::open_change_pin(
+            window,
+            cx,
+            move |msg, cx| {
+                let _ = view_for_error.update(cx, |_, cx| {
+                    cx.emit(PasskeysEvent::Notification(msg.to_string()));
+                });
+            },
+            move |current, new, cx| {
+                let _ = view_handle.update(cx, |this, cx| {
+                    this.change_pin(current, new, cx);
+                });
+            },
+        );
     }
 
     fn open_min_pin_length_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {

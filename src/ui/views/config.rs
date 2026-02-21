@@ -1,11 +1,11 @@
 use crate::device::io;
 use crate::device::types::{AppConfigInput, FullDeviceStatus};
-use crate::ui::components::{card::Card, page_view::PageView};
+use crate::ui::components::{card::Card, dialog, page_view::PageView};
 use crate::ui::types::{LedDriverType, UsbIdentityPreset};
 use gpui::*;
 use gpui_component::button::{ButtonCustomVariant, ButtonVariants};
 use gpui_component::{
-    ActiveTheme, Disableable, Icon, Theme, WindowExt,
+    ActiveTheme, Disableable, Icon, Theme,
     button::Button,
     input::{Input, InputState},
     select::{Select, SelectItem, SelectState},
@@ -274,57 +274,25 @@ impl ConfigView {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let pin_input = cx.new(|cx| {
-            InputState::new(window, cx)
-                .placeholder("Enter FIDO PIN")
-                .masked(true)
-        });
         let view_handle = cx.entity().downgrade();
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let view_handle_for_footer = view_handle.clone();
-            let pin_input_for_footer = pin_input.clone();
-            let changes = changes.clone();
-
-            dialog
-                .title("Authentication Required")
-                .child(
-                    v_flex()
-                        .gap_4()
-                        .pb_4()
-                        .child("Enter your device PIN to apply changes.")
-                        .child(Input::new(&pin_input)),
-                )
-                .footer(move |_, _, _, _| {
-                    let view = view_handle_for_footer.clone();
-                    let input = pin_input_for_footer.clone();
-                    let changes = changes.clone();
-
-                    vec![
-                        Button::new("cancel")
-                            .label("Cancel")
-                            .on_click(|_, window, cx| {
-                                window.close_dialog(cx);
-                            }),
-                        Button::new("confirm").primary().label("Confirm").on_click(
-                            move |_, window, cx| {
-                                let pin = input.read(cx).text().to_string();
-                                if !pin.is_empty() {
-                                    window.close_dialog(cx);
-                                    let _ = view.update(cx, |this, cx| {
-                                        this.write_config_to_device(
-                                            changes.clone(),
-                                            crate::device::types::DeviceMethod::Fido,
-                                            Some(pin),
-                                            cx,
-                                        );
-                                    });
-                                }
-                            },
-                        ),
-                    ]
-                })
-        });
+        dialog::open_pin_prompt(
+            "Authentication Required",
+            "Enter your device PIN to apply changes.",
+            "Confirm",
+            window,
+            cx,
+            move |pin, _, cx| {
+                let _ = view_handle.update(cx, |this, cx| {
+                    this.write_config_to_device(
+                        changes.clone(),
+                        crate::device::types::DeviceMethod::Fido,
+                        Some(pin),
+                        cx,
+                    );
+                });
+            },
+        );
     }
 
     fn apply_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {

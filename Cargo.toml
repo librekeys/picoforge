@@ -16,7 +16,7 @@ directories = "6"      # For Applcation config/data dir handling
 
 # For device management backend:
 pcsc = "2"             # Standard Smart Card API (connect to the key)
-hex = "0.4"            # For parsing "CAFE:4242" VID/PID strings
+hex = "0.4"            # For parsing VID/PID strings
 byteorder = "1.5"      # Required for writing Big-Endian numbers (firmware requirement)
 thiserror = "2"        # Makes custom error handling much easier
 anyhow = "1"           # For easy error propagation
