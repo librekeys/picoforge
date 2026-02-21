@@ -3,7 +3,7 @@ use gpui_component::{
     ActiveTheme, Disableable, Sizable, WindowExt,
     button::{Button, ButtonVariant, ButtonVariants},
     h_flex,
-    input::{Input, InputState},
+    input::{Input, InputEvent, InputState},
     v_flex,
 };
 
@@ -22,6 +22,7 @@ pub struct PinPromptContent {
     confirm_label: SharedString,
     pin_input: Entity<InputState>,
     on_confirm: std::rc::Rc<dyn Fn(String, WeakEntity<PinPromptContent>, &mut App)>,
+    _subscription: Subscription,
 }
 
 impl PinPromptContent {
@@ -38,6 +39,18 @@ impl PinPromptContent {
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
+    }
+
+    fn trigger_confirm(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.phase, DialogPhase::Loading | DialogPhase::Success(_)) {
+            return;
+        }
+        let pin = self.pin_input.read(cx).text().to_string();
+        if !pin.is_empty() {
+            let handle = cx.entity().downgrade();
+            self.set_loading(cx);
+            (self.on_confirm)(pin, handle, cx);
+        }
     }
 }
 
@@ -196,14 +209,24 @@ pub fn open_pin_prompt(
     });
 
     let dialog_title = title_str.clone();
+    let pin_for_sub = pin_input.clone();
 
-    let content = cx.new(|_cx| PinPromptContent {
-        phase: DialogPhase::Input,
-        title: title_str,
-        description,
-        confirm_label,
-        pin_input,
-        on_confirm: std::rc::Rc::new(on_confirm),
+    let content = cx.new(|cx| {
+        let sub = cx.subscribe(&pin_for_sub, |this: &mut PinPromptContent, _, event, cx| {
+            if matches!(event, InputEvent::PressEnter { .. }) {
+                this.trigger_confirm(cx);
+            }
+        });
+
+        PinPromptContent {
+            phase: DialogPhase::Input,
+            title: title_str,
+            description,
+            confirm_label,
+            pin_input: pin_for_sub,
+            on_confirm: std::rc::Rc::new(on_confirm),
+            _subscription: sub,
+        }
     });
 
     window.open_dialog(cx, move |dialog, _, _| {
@@ -404,6 +427,7 @@ pub struct ChangePinContent {
     new_pin: Entity<InputState>,
     confirm_pin: Entity<InputState>,
     on_confirm: std::rc::Rc<dyn Fn(String, String, WeakEntity<ChangePinContent>, &mut App)>,
+    _subscriptions: Vec<Subscription>,
 }
 
 impl ChangePinContent {
@@ -420,6 +444,34 @@ impl ChangePinContent {
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
+    }
+
+    fn trigger_confirm(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.phase, DialogPhase::Loading | DialogPhase::Success(_)) {
+            return;
+        }
+
+        let current_val = self.current_pin.read(cx).text().to_string();
+        let new_val = self.new_pin.read(cx).text().to_string();
+        let confirm_val = self.confirm_pin.read(cx).text().to_string();
+
+        if current_val.is_empty() {
+            return;
+        }
+
+        if new_val != confirm_val {
+            self.set_error("PINs do not match".to_string(), cx);
+            return;
+        }
+
+        if new_val.len() < 4 {
+            self.set_error("PIN must be at least 4 characters".to_string(), cx);
+            return;
+        }
+
+        let handle = cx.entity().downgrade();
+        self.set_loading(cx);
+        (self.on_confirm)(current_val, new_val, handle, cx);
     }
 }
 
@@ -655,12 +707,26 @@ pub fn open_change_pin(
             .masked(true)
     });
 
-    let content = cx.new(|_cx| ChangePinContent {
-        phase: DialogPhase::Input,
-        current_pin,
-        new_pin,
-        confirm_pin,
-        on_confirm: std::rc::Rc::new(on_confirm),
+    let confirm_for_sub = confirm_pin.clone();
+
+    let content = cx.new(|cx| {
+        let sub = cx.subscribe(
+            &confirm_for_sub,
+            |this: &mut ChangePinContent, _, event, cx| {
+                if matches!(event, InputEvent::PressEnter { .. }) {
+                    this.trigger_confirm(cx);
+                }
+            },
+        );
+
+        ChangePinContent {
+            phase: DialogPhase::Input,
+            current_pin,
+            new_pin,
+            confirm_pin: confirm_for_sub,
+            on_confirm: std::rc::Rc::new(on_confirm),
+            _subscriptions: vec![sub],
+        }
     });
 
     window.open_dialog(cx, move |dialog, _, _| {
