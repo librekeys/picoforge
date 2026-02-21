@@ -1,9 +1,9 @@
 use crate::device::types::DeviceMethod;
-use crate::ui::components::{card::Card, page_view::PageView};
+use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::types::GlobalDeviceState;
 use gpui::*;
 use gpui_component::StyledExt;
-use gpui_component::{Icon, IconName, Theme, badge::Badge, h_flex, progress::Progress, v_flex};
+use gpui_component::{Icon, IconName, Theme, h_flex, progress::Progress, v_flex};
 
 pub struct HomeView;
 
@@ -271,13 +271,8 @@ impl HomeView {
                                     .child("LED Dimmable"),
                             )
                             .child(
-                                Badge::new()
-                                    .child(if config.led_dimmable { "Yes" } else { "No" })
-                                    .color(if config.led_dimmable {
-                                        theme.primary
-                                    } else {
-                                        theme.secondary
-                                    }),
+                                Tag::new(if config.led_dimmable { "Yes" } else { "No" })
+                                    .active(config.led_dimmable),
                             ),
                     )
                     .child(
@@ -289,13 +284,8 @@ impl HomeView {
                                     .child("LED Steady Mode"),
                             )
                             .child(
-                                Badge::new()
-                                    .child(if config.led_steady { "On" } else { "Off" })
-                                    .color(if config.led_steady {
-                                        theme.primary
-                                    } else {
-                                        theme.secondary
-                                    }),
+                                Tag::new(if config.led_steady { "On" } else { "Off" })
+                                    .active(config.led_steady),
                             ),
                     )
                     .into_any_element()
@@ -332,17 +322,12 @@ impl HomeView {
                                             .text_color(rgb(0xfe9a00))
                                     })
                                     .child(
-                                        Badge::new()
-                                            .child(if status.secure_boot {
-                                                "Secure Boot"
-                                            } else {
-                                                "Development"
-                                            })
-                                            .color(if status.secure_boot {
-                                                theme.primary
-                                            } else {
-                                                theme.secondary
-                                            }),
+                                        Tag::new(if status.secure_boot {
+                                            "Secure Boot"
+                                        } else {
+                                            "Development"
+                                        })
+                                        .active(status.secure_boot),
                                     ),
                             ),
                     )
@@ -373,17 +358,12 @@ impl HomeView {
                                     .child("Secure Lock"),
                             )
                             .child(
-                                Badge::new()
-                                    .child(if status.secure_lock {
-                                        "Acknowledged"
-                                    } else {
-                                        "Pending"
-                                    })
-                                    .color(if status.secure_lock {
-                                        gpui::red()
-                                    } else {
-                                        theme.secondary
-                                    }),
+                                Tag::new(if status.secure_lock {
+                                    "Acknowledged"
+                                } else {
+                                    "Pending"
+                                })
+                                .active(status.secure_lock),
                             ),
                     ),
             )

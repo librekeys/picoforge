@@ -1,7 +1,7 @@
 // src/views/about.rs
-use crate::ui::components::{card::Card, page_view::PageView};
+use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use gpui::*;
-use gpui_component::{Icon, StyledExt, Theme, badge::Badge, button::Button, h_flex, v_flex};
+use gpui_component::{Icon, StyledExt, Theme, button::Button, h_flex, v_flex};
 
 pub struct AboutView;
 
@@ -38,7 +38,7 @@ impl AboutView {
                                             .text_color(theme.foreground)
                                             .child("PicoForge"),
                                     )
-                                    .child(Badge::new().child("v0.4.0").color(theme.secondary))
+                                    .child(Tag::new("v0.4.0"))
                                     .child(
                                         div()
                                             .text_color(theme.muted_foreground)
