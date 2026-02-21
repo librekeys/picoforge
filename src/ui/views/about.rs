@@ -91,6 +91,7 @@ impl AboutView {
                                             .child(
                                                 Button::new("github_btn")
                                                     .outline()
+                                                    .bg(rgb(0x222225))
                                                     .child(
                                                         h_flex()
                                                             .gap_2()

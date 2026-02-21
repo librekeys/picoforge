@@ -12,9 +12,14 @@ pub struct SecurityView;
 
 impl SecurityView {
     pub fn build<V: 'static>(cx: &mut Context<V>) -> impl IntoElement {
-        let (fg, muted_fg, border) = {
+        let (fg, muted_fg, border, card_bg) = {
             let theme = cx.theme();
-            (theme.foreground, theme.muted_foreground, theme.border)
+            (
+                theme.foreground,
+                theme.muted_foreground,
+                theme.border,
+                theme.secondary,
+            )
         };
 
         let destructive_red = rgb(0xef4444);
@@ -33,7 +38,7 @@ impl SecurityView {
                     .gap_2()
                     .border_1()
                     .border_color(destructive_border)
-                    .bg(rgb(crate::ui::colors::zinc::ZINC900))
+                    .bg(card_bg)
                     .rounded_md()
                     .child(
                         h_flex()
@@ -63,7 +68,7 @@ impl SecurityView {
                     .w_full()
                     .border_1()
                     .border_color(destructive_border)
-                    .bg(rgb(crate::ui::colors::zinc::ZINC900))
+                    .bg(card_bg)
                     .rounded_xl()
                     .overflow_hidden()
                     .child(

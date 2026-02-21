@@ -1,9 +1,11 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::rc::Rc;
+
 use gpui::*;
 use gpui_component::Root;
-use gpui_component::{Theme, ThemeMode};
+use gpui_component::{Theme, ThemeMode, ThemeSet};
 use ui::rootview::ApplicationRoot;
 
 mod device;
@@ -18,6 +20,17 @@ fn main() {
     app.run(move |cx| {
         gpui_component::init(cx);
         Theme::change(ThemeMode::Dark, None, cx);
+
+        let theme_json = include_str!("../themes/picoforge-zinc.json");
+        if let Ok(theme_set) = serde_json::from_str::<ThemeSet>(theme_json) {
+            for config in theme_set.themes {
+                if config.mode == ThemeMode::Dark {
+                    let config = Rc::new(config);
+                    Theme::global_mut(cx).apply_config(&config);
+                    break;
+                }
+            }
+        }
 
         cx.activate(true);
 

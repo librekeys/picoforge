@@ -1,12 +1,9 @@
 use crate::device::io;
 use crate::ui::components::sidebar::AppSidebar;
 use crate::ui::types::{ActiveView, GlobalDeviceState};
-use crate::ui::{
-    colors,
-    views::{
-        about::AboutView, config::ConfigView, home::HomeView, logs::LogsView,
-        passkeys::PasskeysEvent, passkeys::PasskeysView, security::SecurityView,
-    },
+use crate::ui::views::{
+    about::AboutView, config::ConfigView, home::HomeView, logs::LogsView, passkeys::PasskeysEvent,
+    passkeys::PasskeysView, security::SecurityView,
 };
 
 use gpui::prelude::*;
@@ -141,11 +138,11 @@ impl Render for ApplicationRoot {
                     v_flex()
                         .size_full()
                         .child(
-                            TitleBar::new().bg(rgba(colors::zinc::ZINC950)).child(
+                            TitleBar::new().bg(cx.theme().title_bar).child(
                                 h_flex()
                                     .w_full()
                                     .justify_between()
-                                    .bg(rgba(colors::zinc::ZINC950))
+                                    .bg(cx.theme().title_bar)
                                     .items_center()
                                     .cursor(gpui::CursorStyle::OpenHand)
                                     .child(

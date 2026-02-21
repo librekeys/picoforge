@@ -576,6 +576,7 @@ impl PasskeysView {
             .child(
                 PFButton::new(if pin_set { "Change PIN" } else { "Set PIN" })
                     .id("change-pin-btn")
+                    .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
                     .on_click(listener),
             )
     }
@@ -615,6 +616,7 @@ impl PasskeysView {
             .child(
                 PFButton::new("Update Minimum Length")
                     .id("update-min-len-btn")
+                    .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
                     .disabled(!pin_set)
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_min_pin_length_dialog(window, cx);

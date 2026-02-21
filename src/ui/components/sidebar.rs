@@ -1,5 +1,4 @@
 use crate::device::types::DeviceMethod;
-use crate::ui::colors;
 use crate::ui::components::button::PFIconButton;
 use crate::ui::types::{ActiveView, GlobalDeviceState};
 use gpui::*;
@@ -59,6 +58,8 @@ impl<V: 'static> AppSidebar<V> {
         let collapsed = self.collapsed;
         let state = self.state.clone();
 
+        let sidebar_bg = cx.theme().sidebar;
+        let sidebar_fg = cx.theme().sidebar_foreground;
         let border_color = cx.theme().sidebar_border;
         let muted_foreground = cx.theme().muted_foreground;
 
@@ -67,7 +68,7 @@ impl<V: 'static> AppSidebar<V> {
 
         v_flex()
             .h_full()
-            .bg(rgb(colors::zinc::ZINC900))
+            .bg(sidebar_bg)
             .border_r_1()
             .border_color(border_color)
             .w(width)
@@ -75,7 +76,7 @@ impl<V: 'static> AppSidebar<V> {
                 let header = h_flex()
                     .w_full()
                     .items_center()
-                    .bg(rgb(colors::zinc::ZINC900))
+                    .bg(sidebar_bg)
                     // .border_r_1()
                     // .border_color(border_color)
                     .pt_4();
@@ -114,7 +115,7 @@ impl<V: 'static> AppSidebar<V> {
                                 .opacity(text_opacity)
                                 .child("PicoForge")
                                 .font_weight(gpui::FontWeight::EXTRA_BOLD)
-                                .text_color(rgb(colors::zinc::ZINC100)),
+                                .text_color(sidebar_fg),
                         )
                     } else {
                         None
@@ -127,7 +128,7 @@ impl<V: 'static> AppSidebar<V> {
                     .h_auto()
                     .w_full()
                     .flex_grow()
-                    .bg(rgb(colors::zinc::ZINC900))
+                    .bg(sidebar_bg)
                     .border_color(gpui::transparent_white())
                     .child(
                         SidebarGroup::new("Menu").child(
