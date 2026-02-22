@@ -57,7 +57,7 @@ fn main() {
                     title: Some("PicoForge".into()),
                     appears_transparent: true,
                     // TODO: This option needs to be tested and adjusted on macos
-                    traffic_light_position: Some(gpui::point(px(12.0), px(12.0))),
+                    traffic_light_position: Some(gpui::point(px(9.0), px(9.0))),
                 }),
 
                 // Render our own window decorations(shadows and resize attack area) for linux/bsd.
@@ -82,5 +82,12 @@ fn main() {
             Ok::<_, anyhow::Error>(())
         })
         .detach();
+
+        // Quit the application when the window is closed (specifically needed for macOS)
+        #[cfg(target_os = "macos")]
+        {
+            cx.on_window_closed(|cx| cx.quit())
+                .detach();
+        }
     });
 }

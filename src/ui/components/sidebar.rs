@@ -73,13 +73,7 @@ impl<V: 'static> AppSidebar<V> {
             .border_color(border_color)
             .w(width)
             .child({
-                let header = h_flex()
-                    .w_full()
-                    .items_center()
-                    .bg(sidebar_bg)
-                    // .border_r_1()
-                    // .border_color(border_color)
-                    .pt_4();
+                let header = h_flex().w_full().items_center().bg(sidebar_bg).pt_4();
 
                 let current_width = width;
                 let t = ((current_width - px(48.)) / (px(255.) - px(48.))).clamp(0.0, 1.0);
