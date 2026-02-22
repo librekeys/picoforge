@@ -22,7 +22,6 @@ impl AboutView {
                             Card::new().child(
                                 v_flex()
                                     .items_center()
-                                    .justify_center()
                                     .gap_4()
                                     .py_8()
                                     .text_center()
@@ -61,12 +60,16 @@ impl AboutView {
                                             .child(
                                                 h_flex()
                                                     .justify_between()
+                                                    .items_start()
                                                     .child("Code By:")
                                                     .child(
-                                                        div()
+                                                        v_flex()
                                                             .font_medium()
                                                             .text_color(theme.foreground)
-                                                            .child("Suyog Tandel, Fabrice Bellamy"),
+                                                            .items_end()
+                                                            .child("Suyog Tandel")
+                                                            .child("Fabrice Bellamy")
+                                                            .child("Jetcookies"),
                                                     ),
                                             )
                                             .child(

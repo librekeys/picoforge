@@ -737,3 +737,128 @@ pub fn open_change_pin(
             .close_button(false)
     });
 }
+
+pub struct StatusContent {
+    phase: DialogPhase,
+    title: SharedString,
+}
+
+impl StatusContent {
+    pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Success(msg);
+        cx.notify();
+    }
+
+    pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Error(msg);
+        cx.notify();
+    }
+}
+
+impl Render for StatusContent {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let phase = self.phase.clone();
+
+        match &phase {
+            DialogPhase::Success(msg) => v_flex()
+                .gap_4()
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
+                                .text_color(cx.theme().green)
+                                .with_size(gpui_component::Size::Large),
+                        )
+                        .child(self.title.clone()),
+                )
+                .child(msg.clone())
+                .child(
+                    h_flex().justify_end().child(
+                        Button::new("done")
+                            .primary()
+                            .label("Done")
+                            .on_click(|_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                    ),
+                )
+                .into_any_element(),
+
+            DialogPhase::Error(err_msg) => {
+                v_flex()
+                    .gap_4()
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(
+                                gpui_component::Icon::new(gpui_component::IconName::CircleX)
+                                    .text_color(cx.theme().danger)
+                                    .with_size(gpui_component::Size::Large),
+                            )
+                            .child(self.title.clone()),
+                    )
+                    .child(
+                        div()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(cx.theme().danger.opacity(0.1))
+                            .text_color(cx.theme().danger)
+                            .text_sm()
+                            .child(err_msg.clone()),
+                    )
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .child(Button::new("close").label("Close").on_click(
+                                |_, window, cx| {
+                                    window.close_dialog(cx);
+                                },
+                            )),
+                    )
+                    .into_any_element()
+            }
+
+            _ => v_flex()
+                .gap_4()
+                .items_center()
+                .child("Applying configuration...")
+                .child(
+                    Button::new("loading")
+                        .primary()
+                        .label("Applying...")
+                        .loading(true),
+                )
+                .into_any_element(),
+        }
+    }
+}
+
+pub fn open_status_dialog(
+    title: &str,
+    window: &mut Window,
+    cx: &mut App,
+) -> WeakEntity<StatusContent> {
+    let title_str = SharedString::from(title.to_string());
+    let dialog_title = title_str.clone();
+
+    let content = cx.new(|_cx| StatusContent {
+        phase: DialogPhase::Loading,
+        title: title_str,
+    });
+
+    let handle = content.downgrade();
+
+    window.open_dialog(cx, move |dialog, _, _| {
+        dialog
+            .title(dialog_title.clone())
+            .child(content.clone())
+            .overlay_closable(false)
+            .close_button(false)
+    });
+
+    handle
+}
