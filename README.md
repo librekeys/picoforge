@@ -251,7 +251,7 @@ See [LICENSE](LICENSE) for full details.
 ## Repository Maintainers
 
 - **Suyog Tandel** ([@lockedmutex](https://github.com/lockedmutex))
-- **Lab-8916100448256** ([@Lab-8916100448256](https://github.com/Lab-8916100448256)) - Co-Maintainer
+- **Fabrice Bellamy** ([@Lab-8916100448256](https://github.com/Lab-8916100448256)) - Co-Maintainer
 
 ## Package Maintainers
 

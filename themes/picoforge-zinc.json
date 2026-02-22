@@ -7,8 +7,8 @@
         {
             "name": "PicoForge Zinc Light",
             "mode": "light",
-            "radius": 10,
-            "radius.lg": 12,
+            "radius": 8,
+            "radius.lg": 10,
             "colors": {
                 "accent.background": "#f4f4f5",
                 "accent.foreground": "#27272a",
@@ -117,8 +117,8 @@
         {
             "name": "PicoForge Zinc Dark",
             "mode": "dark",
-            "radius": 10,
-            "radius.lg": 12,
+            "radius": 8,
+            "radius.lg": 10,
             "colors": {
                 "accent.background": "#27272a",
                 "accent.foreground": "#fafafa",
