@@ -4,7 +4,7 @@ use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
     dialog,
-    dialog::{ChangePinContent, ConfirmContent, PinPromptContent},
+    dialog::{ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent},
     page_view::PageView,
 };
 use gpui::*;
@@ -245,6 +245,61 @@ impl PasskeysView {
                 this.change_pin(current, new, dialog_handle, cx);
             });
         });
+    }
+
+    fn open_setup_pin_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let view_handle = cx.entity().downgrade();
+
+        dialog::open_setup_pin(window, cx, move |new_pin, dialog_handle, cx| {
+            let _ = view_handle.update(cx, |this, cx| {
+                this.setup_pin(new_pin, dialog_handle, cx);
+            });
+        });
+    }
+
+    fn setup_pin(
+        &mut self,
+        new: String,
+        dialog_handle: WeakEntity<SetPinContent>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.loading {
+            return;
+        }
+        self.loading = true;
+        cx.notify();
+
+        log::info!("Setting up FIDO PIN...");
+        let entity = cx.entity().downgrade();
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::change_fido_pin(None, new) })
+                .await;
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+                match result {
+                    Ok(msg) => {
+                        log::info!("PIN configured: {}", msg);
+                        if let Ok(info) = io::get_fido_info() {
+                            this.fido_info = Some(info);
+                        }
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_success("PIN configured successfully.".to_string(), cx);
+                        });
+                    }
+                    Err(e) => {
+                        log::error!("PIN setup failed: {}", e);
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_error(format!("Error: {}", e), cx);
+                        });
+                    }
+                }
+                cx.notify();
+            });
+        }));
     }
 
     fn open_min_pin_length_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -545,8 +600,12 @@ impl PasskeysView {
             .and_then(|f| f.options.get("clientPin").copied())
             .unwrap_or(false);
 
-        let listener = cx.listener(|this, _, window, cx| {
-            this.open_change_pin_dialog(window, cx);
+        let listener = cx.listener(move |this, _, window, cx| {
+            if pin_set {
+                this.open_change_pin_dialog(window, cx);
+            } else {
+                this.open_setup_pin_dialog(window, cx);
+            }
         });
 
         let theme = cx.theme();
@@ -574,7 +633,7 @@ impl PasskeysView {
                     ),
             )
             .child(
-                PFButton::new(if pin_set { "Change PIN" } else { "Set PIN" })
+                PFButton::new(if pin_set { "Change PIN" } else { "Set up PIN" })
                     .id("change-pin-btn")
                     .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
                     .on_click(listener),

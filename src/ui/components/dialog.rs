@@ -738,6 +738,292 @@ pub fn open_change_pin(
     });
 }
 
+pub struct SetPinContent {
+    phase: DialogPhase,
+    new_pin: Entity<InputState>,
+    confirm_pin: Entity<InputState>,
+    on_confirm: std::rc::Rc<dyn Fn(String, WeakEntity<SetPinContent>, &mut App)>,
+    _subscriptions: Vec<Subscription>,
+}
+
+impl SetPinContent {
+    fn set_loading(&mut self, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Loading;
+        cx.notify();
+    }
+
+    pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Success(msg);
+        cx.notify();
+    }
+
+    pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Error(msg);
+        cx.notify();
+    }
+
+    fn trigger_confirm(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.phase, DialogPhase::Loading | DialogPhase::Success(_)) {
+            return;
+        }
+
+        let new_val = self.new_pin.read(cx).text().to_string();
+        let confirm_val = self.confirm_pin.read(cx).text().to_string();
+
+        if new_val != confirm_val {
+            self.set_error("PINs do not match".to_string(), cx);
+            return;
+        }
+
+        if new_val.len() < 4 {
+            self.set_error("PIN must be at least 4 characters".to_string(), cx);
+            return;
+        }
+
+        let handle = cx.entity().downgrade();
+        self.set_loading(cx);
+        (self.on_confirm)(new_val, handle, cx);
+    }
+}
+
+impl Render for SetPinContent {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let phase = self.phase.clone();
+
+        match &phase {
+            DialogPhase::Success(msg) => v_flex()
+                .gap_4()
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
+                                .text_color(cx.theme().green)
+                                .with_size(gpui_component::Size::Large),
+                        )
+                        .child("Set Up PIN"),
+                )
+                .child(msg.clone())
+                .child(
+                    h_flex().justify_end().child(
+                        Button::new("done")
+                            .primary()
+                            .label("Done")
+                            .on_click(|_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                    ),
+                )
+                .into_any_element(),
+
+            DialogPhase::Loading => v_flex()
+                .gap_4()
+                .child("Choose a PIN for your pico-key.")
+                .child(
+                    v_flex()
+                        .gap_4()
+                        .child("New PIN")
+                        .child(Input::new(&self.new_pin).disabled(true))
+                        .child("Confirm New PIN")
+                        .child(Input::new(&self.confirm_pin).disabled(true)),
+                )
+                .child(
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child(Button::new("cancel").label("Cancel").disabled(true))
+                        .child(
+                            Button::new("confirm")
+                                .primary()
+                                .label("Setting PIN...")
+                                .loading(true),
+                        ),
+                )
+                .into_any_element(),
+
+            DialogPhase::Error(err_msg) => {
+                let new = self.new_pin.clone();
+                let confirm = self.confirm_pin.clone();
+                let on_confirm = self.on_confirm.clone();
+                let handle = cx.entity().downgrade();
+
+                v_flex()
+                    .gap_4()
+                    .child("Choose a PIN for your pico-key.")
+                    .child(
+                        div()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(cx.theme().danger.opacity(0.1))
+                            .text_color(cx.theme().danger)
+                            .text_sm()
+                            .child(err_msg.clone()),
+                    )
+                    .child(
+                        v_flex()
+                            .gap_4()
+                            .child("New PIN")
+                            .child(Input::new(&new))
+                            .child("Confirm New PIN")
+                            .child(Input::new(&confirm)),
+                    )
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(
+                                Button::new("cancel")
+                                    .label("Cancel")
+                                    .on_click(|_, window, cx| window.close_dialog(cx)),
+                            )
+                            .child(Button::new("confirm").primary().label("Confirm").on_click(
+                                move |_, _, cx| {
+                                    let new_val = new.read(cx).text().to_string();
+                                    let confirm_val = confirm.read(cx).text().to_string();
+
+                                    if new_val != confirm_val {
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| {
+                                                this.set_error("PINs do not match".to_string(), cx);
+                                            });
+                                        }
+                                        return;
+                                    }
+
+                                    if new_val.len() < 4 {
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| {
+                                                this.set_error(
+                                                    "PIN must be at least 4 characters".to_string(),
+                                                    cx,
+                                                );
+                                            });
+                                        }
+                                        return;
+                                    }
+
+                                    if let Some(h) = handle.upgrade() {
+                                        h.update(cx, |this, cx| this.set_loading(cx));
+                                    }
+                                    on_confirm(new_val, handle.clone(), cx);
+                                },
+                            )),
+                    )
+                    .into_any_element()
+            }
+
+            DialogPhase::Input => {
+                let new = self.new_pin.clone();
+                let confirm = self.confirm_pin.clone();
+                let on_confirm = self.on_confirm.clone();
+                let handle = cx.entity().downgrade();
+
+                v_flex()
+                    .gap_4()
+                    .child("Choose a PIN for your pico-key.")
+                    .child(
+                        v_flex()
+                            .gap_4()
+                            .child("New PIN")
+                            .child(Input::new(&new))
+                            .child("Confirm New PIN")
+                            .child(Input::new(&confirm)),
+                    )
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(
+                                Button::new("cancel")
+                                    .label("Cancel")
+                                    .on_click(|_, window, cx| window.close_dialog(cx)),
+                            )
+                            .child(Button::new("confirm").primary().label("Confirm").on_click(
+                                move |_, _, cx| {
+                                    let new_val = new.read(cx).text().to_string();
+                                    let confirm_val = confirm.read(cx).text().to_string();
+
+                                    if new_val != confirm_val {
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| {
+                                                this.set_error("PINs do not match".to_string(), cx);
+                                            });
+                                        }
+                                        return;
+                                    }
+
+                                    if new_val.len() < 4 {
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| {
+                                                this.set_error(
+                                                    "PIN must be at least 4 characters".to_string(),
+                                                    cx,
+                                                );
+                                            });
+                                        }
+                                        return;
+                                    }
+
+                                    if let Some(h) = handle.upgrade() {
+                                        h.update(cx, |this, cx| this.set_loading(cx));
+                                    }
+                                    on_confirm(new_val, handle.clone(), cx);
+                                },
+                            )),
+                    )
+                    .into_any_element()
+            }
+        }
+    }
+}
+
+pub fn open_setup_pin(
+    window: &mut Window,
+    cx: &mut App,
+    on_confirm: impl Fn(String, WeakEntity<SetPinContent>, &mut App) + 'static,
+) {
+    let new_pin = cx.new(|cx| {
+        InputState::new(window, cx)
+            .placeholder("Enter new PIN")
+            .masked(true)
+    });
+    let confirm_pin = cx.new(|cx| {
+        InputState::new(window, cx)
+            .placeholder("Confirm new PIN")
+            .masked(true)
+    });
+
+    let confirm_for_sub = confirm_pin.clone();
+
+    let content = cx.new(|cx| {
+        let sub = cx.subscribe(
+            &confirm_for_sub,
+            |this: &mut SetPinContent, _, event, cx| {
+                if matches!(event, InputEvent::PressEnter { .. }) {
+                    this.trigger_confirm(cx);
+                }
+            },
+        );
+
+        SetPinContent {
+            phase: DialogPhase::Input,
+            new_pin,
+            confirm_pin: confirm_for_sub,
+            on_confirm: std::rc::Rc::new(on_confirm),
+            _subscriptions: vec![sub],
+        }
+    });
+
+    window.open_dialog(cx, move |dialog, _, _| {
+        dialog
+            .title("Set Up PIN")
+            .child(content.clone())
+            .overlay_closable(false)
+            .close_button(false)
+    });
+}
 pub struct StatusContent {
     phase: DialogPhase,
     title: SharedString,

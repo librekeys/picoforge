@@ -86,8 +86,7 @@ fn main() {
         // Quit the application when the window is closed (specifically needed for macOS)
         #[cfg(target_os = "macos")]
         {
-            cx.on_window_closed(|cx| cx.quit())
-                .detach();
+            cx.on_window_closed(|cx| cx.quit()).detach();
         }
     });
 }
