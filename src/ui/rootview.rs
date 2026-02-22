@@ -115,6 +115,7 @@ impl Render for ApplicationRoot {
         }
 
         let dialog_layer = Root::render_dialog_layer(window, cx);
+        let sheet_layer = Root::render_sheet_layer(window, cx);
 
         div().size_full().overflow_hidden().child(
             h_flex()
@@ -230,7 +231,8 @@ impl Render for ApplicationRoot {
                                 }),
                         ),
                 )
-                .children(dialog_layer),
+                .children(dialog_layer)
+                .children(sheet_layer),
         )
     }
 }

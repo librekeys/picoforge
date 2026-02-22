@@ -10,7 +10,7 @@ use crate::ui::components::{
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_component::{
-    ActiveTheme, Icon, Sizable, StyledExt, Theme, WindowExt,
+    ActiveTheme, Icon, Placement, Sizable, StyledExt, Theme, WindowExt,
     badge::Badge,
     h_flex,
     input::{Input, InputState},
@@ -792,14 +792,25 @@ impl PasskeysView {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let cred_clone = cred.clone();
+        let cred_for_click = cred.clone();
 
         let delete_listener = cx.listener(move |this, _, window, cx| {
             this.open_ask_delete_pin(cred_clone.clone(), window, cx);
         });
 
+        let click_listener = cx.listener(move |this, _, window, cx| {
+            this.open_credential_details(&cred_for_click, window, cx);
+        });
+
         let theme = cx.theme();
 
         div()
+            .id(SharedString::from(format!(
+                "cred-card-{}",
+                cred.credential_id
+            )))
+            .cursor_pointer()
+            .on_click(click_listener)
             .border_1()
             .border_color(theme.border)
             .rounded_xl()
@@ -872,6 +883,141 @@ impl PasskeysView {
                             .on_click(delete_listener),
                     ),
             )
+    }
+
+    fn open_credential_details(
+        &mut self,
+        cred: &StoredCredential,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let title = if !cred.rp_name.is_empty() {
+            cred.rp_name.clone()
+        } else if !cred.rp_id.is_empty() {
+            cred.rp_id.clone()
+        } else {
+            "Passkey Details".to_string()
+        };
+        let rp_id = cred.rp_id.clone();
+        let user_name = cred.user_name.clone();
+        let display_name = if cred.user_display_name.is_empty() {
+            "N/A".to_string()
+        } else {
+            cred.user_display_name.clone()
+        };
+        let user_id = cred.user_id.clone();
+        let credential_id = cred.credential_id.clone();
+
+        window.open_sheet_at(Placement::Bottom, cx, move |sheet, _, cx| {
+            let theme = cx.theme();
+
+            let header_row = h_flex()
+                .gap_3()
+                .p_4()
+                .bg(theme.muted.opacity(0.3))
+                .border_1()
+                .border_color(theme.border)
+                .rounded_lg()
+                .child(
+                    div()
+                        .size_12()
+                        .rounded_full()
+                        .bg(theme.primary.opacity(0.1))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(
+                            Icon::default()
+                                .path("icons/key-round.svg")
+                                .text_color(theme.primary)
+                                .size_6(),
+                        ),
+                )
+                .child(
+                    v_flex()
+                        .child(div().font_semibold().child(rp_id.clone()))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(theme.muted_foreground)
+                                .font_family("monospace")
+                                .child(user_name.clone()),
+                        ),
+                );
+
+            let separator = div().w_full().h(px(1.)).bg(theme.border);
+
+            let detail_field = |label: &str, value: String, mono: bool| {
+                let mut value_el = div().text_sm().font_medium().child(value.clone());
+                if mono {
+                    value_el = div()
+                        .text_xs()
+                        .font_family("monospace")
+                        .bg(theme.muted)
+                        .p_2()
+                        .rounded_md()
+                        .overflow_hidden()
+                        .child(value);
+                }
+                v_flex()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_sm()
+                            .font_medium()
+                            .text_color(theme.muted_foreground)
+                            .child(label.to_string()),
+                    )
+                    .child(value_el)
+            };
+
+            let description = h_flex()
+                .gap_1()
+                .child(
+                    div()
+                        .text_sm()
+                        .text_color(theme.muted_foreground)
+                        .child("Credential details for user"),
+                )
+                .child(
+                    div()
+                        .text_sm()
+                        .font_semibold()
+                        .text_color(theme.foreground)
+                        .child(user_name.clone()),
+                );
+
+            sheet
+                .title(
+                    div().w_full().child(
+                        v_flex()
+                            .mx_auto()
+                            .max_w(px(512.))
+                            .px_4()
+                            .gap_0p5()
+                            .child(div().text_2xl().font_bold().child(title.clone()))
+                            .child(description),
+                    ),
+                )
+                .size(px(500.))
+                .resizable(false)
+                .margin_top(px(0.))
+                .child(
+                    div().mx_auto().max_w(px(512.)).w_full().px_4().child(
+                        v_flex()
+                            .gap_4()
+                            .child(header_row)
+                            .child(separator)
+                            .child(detail_field("Display Name", display_name.clone(), false))
+                            .child(detail_field("User ID (Hex)", user_id.clone(), true))
+                            .child(detail_field(
+                                "Credential ID (Hex)",
+                                credential_id.clone(),
+                                true,
+                            )),
+                    ),
+                )
+        });
     }
 
     fn open_ask_delete_pin(
