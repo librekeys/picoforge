@@ -205,7 +205,9 @@ impl Render for ApplicationRoot {
         #[cfg(target_os = "macos")]
         let body = v_flex().size_full().child(title_bar).child(
             h_flex()
-                .size_full()
+                .w_full()
+                .flex_1()
+                .min_h(px(0.))
                 .child(sidebar.render(cx))
                 .child(content_area),
         );
