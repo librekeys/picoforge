@@ -6,6 +6,7 @@
 - [oshenyang](https://github.com/oshenyang): Fixed application freezing issue on macos.
 - [Lab-8916100448256](https://github.com/Lab-8916100448256): Contributed `shell.nix` file for dev env setup using nix package manager/nixos and worked on the backend of the application.
 - [jetcookies](https://github.com/jetcookies): Contributed `package.nix` file for nix packaging of the application and maintains the nix flake of the application.
+- [phoeagon](https://github.com/phoeagon): Contributed the Linux installation instructions and the Homebrew formula.
 
 **Third-party Libraries**
 
