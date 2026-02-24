@@ -21,6 +21,13 @@ fn main() {
         gpui_component::init(cx);
         Theme::change(ThemeMode::Dark, None, cx);
 
+        // Register sidebar toggle keybinding
+        cx.bind_keys([gpui::KeyBinding::new(
+            "ctrl-shift-d",
+            ui::rootview::ToggleSidebar,
+            None,
+        )]);
+
         let theme_json = include_str!("../themes/picoforge-zinc.json");
         if let Ok(theme_set) = serde_json::from_str::<ThemeSet>(theme_json) {
             for config in theme_set.themes {
@@ -76,6 +83,7 @@ fn main() {
 
             cx.open_window(window_options, |window, cx| {
                 let view = cx.new(ApplicationRoot::new);
+                window.focus(&view.read(cx).focus_handle());
                 cx.new(|cx| Root::new(view, window, cx))
             })?;
 
