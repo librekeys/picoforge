@@ -46,4 +46,18 @@ opt-level = 3     # Prioritizes speed. Use `z` if you prefer small binary size.
 strip = true      # Ensures debug symbols are removed.
 
 [package.metadata.packager]
-# before-packaging-command = "cargo build --release"
+icons = ["./static/appIcons/icon.icns", "./static/appIcons/icon.png", "./static/appIcons/icon.ico"]
+
+[package.metadata.packager.macos]
+info_plist_path = "Info.plist"
+
+[package.metadata.packager.linux]
+generate_desktop_entry = false
+
+[package.metadata.packager.appimage]
+excluded_libraries = ["libpcsclite*.so*"]
+files = { "data/in.suyogtandel.picoforge.desktop" = "usr/share/applications/in.suyogtandel.picoforge.desktop", "static/appIcons/in.suyogtandel.picoforge-symbolic.svg" = "usr/share/icons/hicolor/symbolic/apps/in.suyogtandel.picoforge-symbolic.svg", "static/appIcons/in.suyogtandel.picoforge.svg" = "usr/share/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg" }
+
+[package.metadata.packager.deb]
+files = { "data/in.suyogtandel.picoforge.desktop" = "usr/share/applications/in.suyogtandel.picoforge.desktop", "static/appIcons/in.suyogtandel.picoforge-symbolic.svg" = "usr/share/icons/hicolor/symbolic/apps/in.suyogtandel.picoforge-symbolic.svg", "static/appIcons/in.suyogtandel.picoforge.svg" = "usr/share/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg" }
+
