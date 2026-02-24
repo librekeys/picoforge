@@ -10,16 +10,15 @@ use gpui::prelude::*;
 use gpui::*;
 use gpui_component::Root;
 use gpui_component::{
-    ActiveTheme, IconName, TitleBar, WindowExt,
-    button::{Button, ButtonVariants},
-    h_flex,
-    scroll::ScrollableElement,
-    v_flex,
+    ActiveTheme, Icon, TitleBar, WindowExt, h_flex, scroll::ScrollableElement, v_flex,
 };
+
+gpui::actions!(picoforge, [ToggleSidebar]);
 
 pub struct ApplicationRoot {
     active_view: ActiveView,
     is_sidebar_collapsed: bool,
+    sidebar_toggle_hovered: bool,
     state: GlobalDeviceState,
     device_loading: bool,
     // Umm, why did my past self do this? This does not belong here.
@@ -27,6 +26,7 @@ pub struct ApplicationRoot {
     config_view: Option<Entity<ConfigView>>,
     passkeys_view: Option<Entity<PasskeysView>>,
     logs_view: Option<Entity<LogsView>>,
+    focus_handle: FocusHandle,
 }
 
 impl ApplicationRoot {
@@ -34,15 +34,21 @@ impl ApplicationRoot {
         let mut this = Self {
             active_view: ActiveView::Home,
             is_sidebar_collapsed: false,
+            sidebar_toggle_hovered: false,
             state: GlobalDeviceState::new(),
             device_loading: false,
             sidebar_width: px(255.),
             config_view: None,
             passkeys_view: None,
             logs_view: None,
+            focus_handle: cx.focus_handle(),
         };
         this.refresh_device_status(None, cx);
         this
+    }
+
+    pub fn focus_handle(&self) -> FocusHandle {
+        self.focus_handle.clone()
     }
 
     fn refresh_device_status(&mut self, window: Option<&mut Window>, cx: &mut Context<Self>) {
@@ -93,6 +99,11 @@ impl ApplicationRoot {
         self.device_loading = false;
         cx.notify();
     }
+
+    pub fn toggle_sidebar(&mut self, cx: &mut Context<Self>) {
+        self.is_sidebar_collapsed = !self.is_sidebar_collapsed;
+        cx.notify();
+    }
 }
 
 impl Render for ApplicationRoot {
@@ -114,8 +125,8 @@ impl Render for ApplicationRoot {
             self.sidebar_width = target_width;
         }
 
-        let dialog_layer = Root::render_dialog_layer(window, cx);
-        let sheet_layer = Root::render_sheet_layer(window, cx);
+        let dialog_layer = Root::render_dialog_layer(window, &mut **cx);
+        let sheet_layer = Root::render_sheet_layer(window, &mut **cx);
 
         let title_bar = TitleBar::new().bg(cx.theme().title_bar).child(
             h_flex()
@@ -123,16 +134,7 @@ impl Render for ApplicationRoot {
                 .justify_between()
                 .bg(cx.theme().title_bar)
                 .items_center()
-                .cursor(gpui::CursorStyle::OpenHand)
-                .child(
-                    Button::new("sidebar_toggle")
-                        .ghost()
-                        .icon(IconName::PanelLeft)
-                        .on_click(cx.listener(|this, _, _, _| {
-                            this.is_sidebar_collapsed = !this.is_sidebar_collapsed;
-                        }))
-                        .tooltip("Toggle Sidebar"),
-                ),
+                .cursor(gpui::CursorStyle::OpenHand),
         );
 
         let content_area = v_flex()
@@ -202,25 +204,103 @@ impl Render for ApplicationRoot {
             this.refresh_device_status(Some(window), cx);
         });
 
+        // Toggle button absolutely positioned at the sidebar's right edge.
+        // It fades in on hover when the sidebar is collapsed.
+        let sidebar_bg = cx.theme().sidebar;
+        let border_color = cx.theme().sidebar_border;
+        let sidebar_fg = cx.theme().sidebar_foreground;
+        let is_toggle_visible = !is_sidebar_collapsed || self.sidebar_toggle_hovered;
+        let sidebar_width = self.sidebar_width;
+        let toggle_icon = if is_sidebar_collapsed {
+            "icons/chevron-right.svg"
+        } else {
+            "icons/chevron-left.svg"
+        };
+        let toggle_tooltip = if is_sidebar_collapsed {
+            "Expand"
+        } else {
+            "Collapse"
+        };
+        let toggle_btn = div()
+            .id("sidebar-toggle-zone")
+            .absolute()
+            .left(sidebar_width - px(14.))
+            .top_0()
+            .bottom_0()
+            .w(px(28.))
+            .flex()
+            .items_center()
+            .justify_center()
+            .on_hover(cx.listener(|this, hovered, _, cx| {
+                this.sidebar_toggle_hovered = *hovered;
+                cx.notify();
+            }))
+            .child(
+                div()
+                    .id("sidebar-toggle-btn")
+                    .w(px(24.))
+                    .h(px(24.))
+                    .rounded_full()
+                    .bg(sidebar_bg)
+                    .border_1()
+                    .border_color(border_color)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .cursor(gpui::CursorStyle::PointingHand)
+                    .opacity(if is_toggle_visible { 1.0 } else { 0.0 })
+                    .tooltip(move |window, cx| {
+                        gpui_component::tooltip::Tooltip::new(toggle_tooltip)
+                            .action(&ToggleSidebar, None)
+                            .build(window, cx)
+                    })
+                    .on_click(cx.listener(|this, _, _, _| {
+                        this.is_sidebar_collapsed = !this.is_sidebar_collapsed;
+                    }))
+                    .child(Icon::default().path(toggle_icon).text_color(sidebar_fg)),
+            );
+
         #[cfg(target_os = "macos")]
-        let body = v_flex().size_full().child(title_bar).child(
-            h_flex()
-                .w_full()
-                .flex_1()
-                .min_h(px(0.))
-                .child(sidebar.render(cx))
-                .child(content_area),
-        );
+        let content_column = content_area;
+        #[cfg(not(target_os = "macos"))]
+        let content_column = v_flex().size_full().child(title_bar).child(content_area);
+
+        let main_area = h_flex()
+            .id("main-area")
+            .relative()
+            .items_start()
+            .map(|this| {
+                if cfg!(target_os = "macos") {
+                    this.flex_1().min_h(px(0.))
+                } else {
+                    this.size_full()
+                }
+            })
+            .child(
+                div()
+                    .h_full()
+                    .w(sidebar_width)
+                    .flex_shrink_0()
+                    .child(sidebar.render(cx)),
+            )
+            .child(content_column.h_full().flex_1().w_0())
+            .child(toggle_btn);
+
+        #[cfg(target_os = "macos")]
+        let body = v_flex().size_full().child(title_bar).child(main_area);
 
         #[cfg(not(target_os = "macos"))]
-        let body = h_flex()
-            .size_full()
-            .child(sidebar.render(cx))
-            .child(v_flex().size_full().child(title_bar).child(content_area));
+        let body = main_area;
 
         div()
+            .id("application-root")
+            .track_focus(&self.focus_handle)
+            .key_context("ApplicationRoot")
             .size_full()
             .overflow_hidden()
+            .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| {
+                this.toggle_sidebar(cx);
+            }))
             .child(body)
             .children(dialog_layer)
             .children(sheet_layer)
