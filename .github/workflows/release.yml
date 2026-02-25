@@ -83,13 +83,9 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          # Define the path to your Cargo.toml file
           cargo_file="Cargo.toml"
-          # Extract ONLY the version number using a more precise regex
           version=$(grep -m 1 '^version' "$cargo_file" | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
-          # Output for debugging
           echo "Version found: $version"
-          # Set the output correctly for GitHub Actions
           echo "version=$version" >> $GITHUB_ENV
 
       - name: install cargo-packager

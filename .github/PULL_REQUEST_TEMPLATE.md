@@ -1,4 +1,4 @@
-# Pull Request Process
+<!--# Pull Request Process-->
 
 <!--
 ## Before submitting a pull request
@@ -37,7 +37,7 @@ Please check the relevant types of changes this PR introduces:
 - [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] Documentation update
 - [ ] Refactoring / Code style change
-- [ ] Add packaging for a new platform in the release workflows
+- [ ] Add packaging for a new platform
 
 ### UI Changes (Optional)
 

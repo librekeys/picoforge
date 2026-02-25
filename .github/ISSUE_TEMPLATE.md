@@ -1,7 +1,7 @@
-# Submitting an issue
+<!--Submitting an issue-->
+<!--Thank you for taking the time to report an issue or suggest a feature for PicoForge! -->
 
-Thank you for taking the time to report an issue or suggest a feature for PicoForge! 
-
+> [!NOTE]
 Please read our [Contributing Guidelines](CONTRIBUTING.md) to understand how to get involved. If you want to work on an existing issue or a new feature, it is highly recommended to discuss it beforehand to ensure there is no conflicting code or duplicate effort.
 
 <!--
@@ -55,12 +55,13 @@ Matrix is our most preferred option for direct communication, followed by Discor
 
 ## Logs
 
-<!-- Please provide any relevant application logs. To get console logs, you must run the application directly from your terminal. -->
+<!-- 
+Please provide any relevant application logs. 
+To get logs, go to the application's logs view and click on copy logs button at the very bottom, then paste the logs as a text file here.
 
-### Console Logs
-```text
-Paste terminal output here
-```
+On Linux, copy logs will not work, instead run the application from the termial and paste the logs here as text file.
+-->
 
-### In-App Logs
-<!-- Upload screenshots of the in-app logs view here. -->
+## Screenshots/Videos
+
+<!-- If problem is related to the application's UI then please provide screenshots or videos of the bug. -->
