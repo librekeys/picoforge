@@ -106,6 +106,14 @@ jobs:
           chmod +x .github/scripts/build_appimage.sh
           ./.github/scripts/build_appimage.sh
 
+      - name: Build Flatpak
+        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream
+          chmod +x .github/scripts/build_flatpak.sh
+          ./.github/scripts/build_flatpak.sh ${{ matrix.platform }}
+
       - name: Build and Package
         if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
         run: cargo packager --release ${{ matrix.args }}
@@ -122,6 +130,7 @@ jobs:
             #### Check the Installation guide for the Application on the wiki: https://github.com/librekeys/picoforge/wiki/Installation
           prerelease: false
           files: |
+            *.flatpak
             target/release/*.deb
             target/release/*.appimage
             target/release/*.AppImage
@@ -135,10 +144,13 @@ jobs:
             target/aarch64-apple-darwin/release/*.app
             target/x86_64-pc-windows-msvc/release/*.msi
             target/x86_64-pc-windows-msvc/release/*.exe
+            !target/x86_64-pc-windows-msvc/release/picoforge.exe
             target/i686-pc-windows-msvc/release/*.msi
             target/i686-pc-windows-msvc/release/*.exe
+            !target/i686-pc-windows-msvc/release/picoforge.exe
             target/aarch64-pc-windows-msvc/release/*.msi
             target/aarch64-pc-windows-msvc/release/*.exe
+            !target/aarch64-pc-windows-msvc/release/picoforge.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
