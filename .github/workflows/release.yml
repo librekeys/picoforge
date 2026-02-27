@@ -15,20 +15,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: "macos-latest" # for Arm based macs (M1 and above)
+          - platform: "macos-latest"
             args: "--target aarch64-apple-darwin"
-          - platform: "macos-latest" # for Intel based macs
+            build_type: "standard"
+          - platform: "macos-latest"
             args: "--target x86_64-apple-darwin"
+            build_type: "standard"
           - platform: "ubuntu-22.04"
             args: ""
+            build_type: "standard"
+          - platform: "ubuntu-latest"
+            args: ""
+            build_type: "flatpak"
           - platform: "ubuntu-24.04-arm"
             args: ""
-          - platform: "windows-latest" # Windows x64
+            build_type: "standard"
+          - platform: "ubuntu-24.04-arm"
+            args: ""
+            build_type: "flatpak"
+          - platform: "windows-latest"
             args: "--target x86_64-pc-windows-msvc"
-          - platform: "windows-latest" # Windows x86 (32-bit)
+            build_type: "standard"
+          - platform: "windows-latest"
             args: "--target i686-pc-windows-msvc"
-          - platform: "windows-latest" # Windows ARM64
+            build_type: "standard"
+          - platform: "windows-latest"
             args: "--target aarch64-pc-windows-msvc"
+            build_type: "standard"
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -37,6 +50,7 @@ jobs:
           fetch-depth: 0
 
       - name: install Rust stable
+        if: matrix.build_type == 'standard'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: >
@@ -44,6 +58,7 @@ jobs:
             matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc,i686-pc-windows-msvc,aarch64-pc-windows-msvc' || '' }}
 
       - name: Cache Cargo registry and target
+        if: matrix.build_type == 'standard'
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.platform }}-${{ matrix.args }}
@@ -89,26 +104,36 @@ jobs:
           echo "version=$version" >> $GITHUB_ENV
 
       - name: install cargo-packager
+        if: matrix.build_type == 'standard'
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-packager
 
       - name: Build Binary
+        if: matrix.build_type == 'standard'
         run: cargo build --release ${{ matrix.args }}
 
+      - name: Build and Package
+        if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm' && matrix.build_type == 'standard'
+        run: cargo packager --release ${{ matrix.args }}
+
       - name: Build and Package (Linux)
-        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        if: (matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm') && matrix.build_type == 'standard'
         run: cargo packager --release --formats deb,pacman
 
       - name: Build AppImage
-        if: matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm'
+        if: (matrix.platform == 'ubuntu-22.04' || matrix.platform == 'ubuntu-24.04-arm') && matrix.build_type == 'standard'
         run: |
           chmod +x .github/scripts/build_appimage.sh
           ./.github/scripts/build_appimage.sh
 
-      - name: Build and Package
-        if: matrix.platform != 'ubuntu-22.04' && matrix.platform != 'ubuntu-24.04-arm'
-        run: cargo packager --release ${{ matrix.args }}
+      - name: Build Flatpak
+        if: matrix.build_type == 'flatpak'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flatpak flatpak-builder appstream
+          chmod +x .github/scripts/build_flatpak.sh
+          ./.github/scripts/build_flatpak.sh ${{ matrix.platform }}
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
@@ -122,6 +147,7 @@ jobs:
             #### Check the Installation guide for the Application on the wiki: https://github.com/librekeys/picoforge/wiki/Installation
           prerelease: false
           files: |
+            *.flatpak
             target/release/*.deb
             target/release/*.appimage
             target/release/*.AppImage
@@ -134,16 +160,16 @@ jobs:
             target/x86_64-apple-darwin/release/*.app
             target/aarch64-apple-darwin/release/*.app
             target/x86_64-pc-windows-msvc/release/*.msi
-            target/x86_64-pc-windows-msvc/release/*.exe
+            target/x86_64-pc-windows-msvc/release/*-setup.exe
             target/i686-pc-windows-msvc/release/*.msi
-            target/i686-pc-windows-msvc/release/*.exe
+            target/i686-pc-windows-msvc/release/*-setup.exe
             target/aarch64-pc-windows-msvc/release/*.msi
-            target/aarch64-pc-windows-msvc/release/*.exe
+            target/aarch64-pc-windows-msvc/release/*-setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Sync Spec Version & Tag
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-22.04' && matrix.build_type == 'standard'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

@@ -17,6 +17,12 @@ vite.config.ts.timestamp-*
 result
 .direnv
 
+# Flatpak
+.flatpak
+.flatpak-builder
+repo
+picoforge.flatpak
+
 # misc
 docs-gpui-components
 src-svelte
