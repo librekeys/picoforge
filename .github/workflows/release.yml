@@ -160,14 +160,11 @@ jobs:
             target/x86_64-apple-darwin/release/*.app
             target/aarch64-apple-darwin/release/*.app
             target/x86_64-pc-windows-msvc/release/*.msi
-            target/x86_64-pc-windows-msvc/release/*.exe
-            !target/x86_64-pc-windows-msvc/release/picoforge.exe
+            target/x86_64-pc-windows-msvc/release/*-setup.exe
             target/i686-pc-windows-msvc/release/*.msi
-            target/i686-pc-windows-msvc/release/*.exe
-            !target/i686-pc-windows-msvc/release/picoforge.exe
+            target/i686-pc-windows-msvc/release/*-setup.exe
             target/aarch64-pc-windows-msvc/release/*.msi
-            target/aarch64-pc-windows-msvc/release/*.exe
-            !target/aarch64-pc-windows-msvc/release/picoforge.exe
+            target/aarch64-pc-windows-msvc/release/*-setup.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
