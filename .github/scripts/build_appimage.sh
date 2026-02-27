@@ -1,11 +1,15 @@
 #!/bin/bash
 set -e
 
+VERSION=${version:-"0.0.0"}
+
 ARCH=$(uname -m)
 if [ "$ARCH" == "x86_64" ]; then
     LINUXDEPLOY_ARCH="x86_64"
+    APPIMAGE_ARCH="x86-64"
 elif [ "$ARCH" == "aarch64" ]; then
     LINUXDEPLOY_ARCH="aarch64"
+    APPIMAGE_ARCH="arm64"
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
@@ -50,7 +54,7 @@ echo "Running linuxdeploy..."
 rm "linuxdeploy-${LINUXDEPLOY_ARCH}.AppImage"
 
 mkdir -p target/release
-mv *.AppImage target/release/
+mv *.AppImage "target/release/picoforge_${VERSION}_${APPIMAGE_ARCH}.AppImage"
 
 echo "AppImage build complete. Artifacts moved to target/release/"
 ls -l target/release/*.AppImage
