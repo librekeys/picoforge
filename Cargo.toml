@@ -5,14 +5,15 @@ description = "An open source commissioning tool for Pico FIDO security keys. De
 authors = ["Suyog Tandel", "PicoForge Contributers"]
 license = "AGPL-3.0"
 edition = "2024"
+build = "build.rs"
 
 [dependencies]
 # tokio = { version = "1.49", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-log = "0.4"            # Logging facade
-log4rs = "1"           # For logging to output (like stdout)
-directories = "6"      # For Applcation config/data dir handling
+log = "0.4"                                      # Logging facade
+log4rs = "1"                                     # For logging to output (like stdout)
+directories = "6"                                # For Applcation config/data dir handling
 
 # For device management backend:
 pcsc = "2"             # Standard Smart Card API (connect to the key)
@@ -43,10 +44,34 @@ codegen-units = 1 # Allows LLVM to perform better optimization.
 lto = true        # Enables link-time-optimizations however is not stable.
 opt-level = 3     # Prioritizes speed. Use `z` if you prefer small binary size.
 # panic = "abort"   # Higher performance by disabling panic handlers.
-strip = true      # Ensures debug symbols are removed.
+strip = true # Ensures debug symbols are removed.
 
+[target.'cfg(windows)'.build-dependencies]
+tauri-winres = "0.3"
+
+# Tauri winres config:g
+[package.metadata.tauri-winres]
+FileDescription = "An open source commissioning tool for Pico FIDO security keys."
+ProductName = "PicoForge"
+OriginalFilename = "picoforge.exe"
+LegalCopyright = "Copyright © 2026 Suyog Tandel"
+
+# Cargo-Packager config:
 [package.metadata.packager]
-icons = ["./static/appIcons/icon.icns", "./static/appIcons/icon.png", "./static/appIcons/icon.ico"]
+name = "picoforge"
+productName = "picoforge"
+description = "An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI."
+category = "Utility"
+version = "0.4.0"
+authors = ["Suyog Tandel", "PicoForge Contributers"]
+identifier = "in.suyogtandel.picoforge"
+license_file = "LICENSE"
+
+icons = [
+    "./static/appIcons/icon.icns",
+    "./static/appIcons/icon.png",
+    "./static/appIcons/icon.ico",
+]
 
 [package.metadata.packager.macos]
 info_plist_path = "Info.plist"
@@ -60,4 +85,3 @@ files = { "data/in.suyogtandel.picoforge.desktop" = "usr/share/applications/in.s
 
 [package.metadata.packager.deb]
 files = { "data/in.suyogtandel.picoforge.desktop" = "usr/share/applications/in.suyogtandel.picoforge.desktop", "static/appIcons/in.suyogtandel.picoforge-symbolic.svg" = "usr/share/icons/hicolor/symbolic/apps/in.suyogtandel.picoforge-symbolic.svg", "static/appIcons/in.suyogtandel.picoforge.svg" = "usr/share/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg" }
-
