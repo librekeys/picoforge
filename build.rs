@@ -1,3 +1,4 @@
+#[cfg(windows)]
 use tauri_winres;
 
 // Configures windows application resource.( fix for app icon and launching app as admin)
