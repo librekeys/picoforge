@@ -138,6 +138,11 @@ impl Render for ApplicationRoot {
         );
 
         let content_area = v_flex()
+            .track_focus(&self.focus_handle)
+            .key_context("ApplicationRoot")
+            .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| {
+                this.toggle_sidebar(cx);
+            }))
             .min_h(px(0.))
             .min_w(px(0.))
             .overflow_y_scrollbar()
@@ -294,13 +299,8 @@ impl Render for ApplicationRoot {
 
         div()
             .id("application-root")
-            .track_focus(&self.focus_handle)
-            .key_context("ApplicationRoot")
             .size_full()
             .overflow_hidden()
-            .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| {
-                this.toggle_sidebar(cx);
-            }))
             .child(body)
             .children(dialog_layer)
             .children(sheet_layer)
