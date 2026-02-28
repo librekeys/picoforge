@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>in.suyogtandel.picoforge</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-only</project_license>
+
+  <name>PicoForge</name>
+  <summary>pico fido key commissioning tool</summary>
+  <description>
+    <p>PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust and GPUI, it provides an intuitive interface for reading device information, configuring USB identifiers, adjusting LED settings, managing security features, and monitoring real-time system logs.</p>
+  </description>
+
+  <developer id="in.suyogtandel">
+    <name>Suyog Tandel</name>
+  </developer>
+
+  <url type="homepage">https://github.com/librekeys/picoforge</url>
+  <url type="vcs-browser">https://github.com/librekeys/picoforge</url>
+  <url type="bugtracker">https://github.com/librekeys/picoforge/issues</url>
+  <url type="help">https://github.com/librekeys/picoforge/wiki</url>
+  <url type="donation">https://ko-fi.com/lockedmutex</url>
+  <url type="contact">https://matrix.to/#/%23librekeys:matrix.org</url>
+  <url type="contribute">https://github.com/librekeys/picoforge/blob/main/.github/CONTRIBUTING.md</url>
+
+  <launchable type="desktop-id">in.suyogtandel.picoforge.desktop</launchable>
+  <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#fafafa</color>
+    <color type="primary" scheme_preference="dark">#18181b</color>
+  </branding>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-1.webp</image>
+      <caption>Main Interface</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-2.webp</image>
+      <caption>PassKeys Management</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-3.webp</image>
+      <caption>Configuration Interface</caption>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.4.1" date="2026-02-22">
+      <url type="details">https://github.com/librekeys/picoforge/releases/tag/v0.4.1</url>
+      <description translate="no">
+        <p>Release 0.4.1</p>
+      </description>
+    </release>
+  </releases>
+
+</component>

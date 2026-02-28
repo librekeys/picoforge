@@ -1,0 +1,68 @@
+{
+    "id": "in.suyogtandel.picoforge",
+    "runtime": "org.freedesktop.Platform",
+    "runtime-version": "25.08",
+    "sdk": "org.freedesktop.Sdk",
+    "sdk-extensions": [
+        "org.freedesktop.Sdk.Extension.rust-stable"
+    ],
+    "command": "picoforge",
+    "finish-args": [
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--device=dri",
+        "--share=ipc",
+        "--device=all",
+        "--socket=pcsc"
+    ],
+    "build-options": {
+        "append-path": "/usr/lib/sdk/rust-stable/bin",
+        "prepend-path": "/run/build/picoforge/cargo/bin",
+        "append-ld-library-path": "/usr/lib/sdk/rust-stable/lib",
+        "env": {
+            "CARGO_HOME": "/run/build/picoforge/cargo",
+            "RUST_BACKTRACE": "1"
+        },
+        "build-args": [
+            "--share=network"
+        ]
+    },
+    "modules": [
+        {
+            "name": "pcsc-lite",
+            "buildsystem": "meson",
+            "config-opts": [
+                "--libdir=lib",
+                "-Dlibsystemd=false",
+                "-Dlibudev=false",
+                "-Dpolkit=false",
+                "-Dusb=false",
+                "-Dserial=false"
+            ],
+            "sources": [
+                {
+                    "type": "archive",
+                    "url": "https://github.com/LudovicRousseau/PCSC/archive/refs/tags/2.4.1.tar.gz",
+                    "sha256": "e7b6737f68c3b9a763fb0b0370d899cea091cced9d762ca8a6032c959576d5be"
+                }
+            ]
+        },
+        {
+            "name": "picoforge",
+            "buildsystem": "simple",
+            "build-commands": [
+                "cargo build --release --manifest-path Cargo.toml",
+                "install -Dm755 target/release/picoforge /app/bin/picoforge",
+                "install -Dm644 static/appIcons/in.suyogtandel.picoforge.svg /app/share/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg",
+                "install -Dm644 data/in.suyogtandel.picoforge.desktop /app/share/applications/in.suyogtandel.picoforge.desktop",
+                "install -Dm644 data/in.suyogtandel.picoforge.metainfo.xml /app/share/metainfo/in.suyogtandel.picoforge.metainfo.xml"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "../.."
+                }
+            ]
+        }
+    ]
+}
