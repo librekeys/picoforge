@@ -182,6 +182,54 @@ impl VendorConfigCommand {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FidoCertification {
+    AuthEncryption,
+    AuthEncryptionLock,
+    EnterpriseAttestation,
+    PinComplexity,
+    PhysicalVidPid,
+    LedBrightness,
+    LedGpio,
+    PhysicalOptions,
+}
+
+impl FidoCertification {
+    pub fn from_u64(val: u64) -> Option<Self> {
+        match val {
+            0x03E43F56B34285E2 => Some(Self::AuthEncryption),
+            0x1831A40F04A25ED9 => Some(Self::AuthEncryptionLock),
+            0x66F2A674C29A8DCF => Some(Self::EnterpriseAttestation),
+            0x6C07D70FE96C3897 => Some(Self::PinComplexity),
+            0x6FCB19B0CBE3ACFA => Some(Self::PhysicalVidPid),
+            0x76A85945985D02FD => Some(Self::LedBrightness),
+            0x7B392A394DE9F948 => Some(Self::LedGpio),
+            0x269F3B09ECEB805F => Some(Self::PhysicalOptions),
+            _ => None,
+        }
+    }
+
+    pub fn from_str(val: &str) -> Option<Self> {
+        let val = val.strip_prefix("0x").unwrap_or(val);
+        u64::from_str_radix(val, 16).ok().and_then(Self::from_u64)
+    }
+}
+
+impl fmt::Display for FidoCertification {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AuthEncryption => write!(f, "Auth Encryption"),
+            Self::AuthEncryptionLock => write!(f, "Auth Encryption (Lock)"),
+            Self::EnterpriseAttestation => write!(f, "Enterprise Attestation"),
+            Self::PinComplexity => write!(f, "PIN Complexity"),
+            Self::PhysicalVidPid => write!(f, "Physical VID/PID"),
+            Self::LedBrightness => write!(f, "LED Brightness"),
+            Self::LedGpio => write!(f, "LED GPIO"),
+            Self::PhysicalOptions => write!(f, "Physical Options"),
+        }
+    }
+}
+
 impl fmt::Display for VendorConfigCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -286,6 +334,55 @@ pub enum CoseAlgorithm {
     ESB256 = -265,
     ESB384 = -267,
     ESB512 = -268,
+}
+
+impl CoseAlgorithm {
+    pub fn from_i128(val: i128) -> Option<Self> {
+        match val as i32 {
+            -7 => Some(Self::ES256),
+            -8 => Some(Self::EdDSA),
+            -9 => Some(Self::ESP256),
+            -19 => Some(Self::Ed25519),
+            -25 => Some(Self::EcdhEsHkdf256),
+            -35 => Some(Self::ES384),
+            -36 => Some(Self::ES512),
+            -47 => Some(Self::ES256K),
+            -51 => Some(Self::ESP384),
+            -52 => Some(Self::ESP512),
+            -53 => Some(Self::Ed448),
+            -257 => Some(Self::RS256),
+            -258 => Some(Self::RS384),
+            -259 => Some(Self::RS512),
+            -265 => Some(Self::ESB256),
+            -267 => Some(Self::ESB384),
+            -268 => Some(Self::ESB512),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for CoseAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ES256 => write!(f, "ES256"),
+            Self::EdDSA => write!(f, "EdDSA"),
+            Self::ESP256 => write!(f, "ESP256"),
+            Self::Ed25519 => write!(f, "Ed25519"),
+            Self::EcdhEsHkdf256 => write!(f, "ECDH-ES-HKDF-256"),
+            Self::ES384 => write!(f, "ES384"),
+            Self::ES512 => write!(f, "ES512"),
+            Self::ES256K => write!(f, "ES256K"),
+            Self::ESP384 => write!(f, "ESP384"),
+            Self::ESP512 => write!(f, "ESP512"),
+            Self::Ed448 => write!(f, "Ed448"),
+            Self::RS256 => write!(f, "RS256"),
+            Self::RS384 => write!(f, "RS384"),
+            Self::RS512 => write!(f, "RS512"),
+            Self::ESB256 => write!(f, "ESB256"),
+            Self::ESB384 => write!(f, "ESB384"),
+            Self::ESB512 => write!(f, "ESB512"),
+        }
+    }
 }
 
 #[repr(u8)]

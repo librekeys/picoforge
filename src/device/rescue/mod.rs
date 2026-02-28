@@ -228,8 +228,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     Ok(FullDeviceStatus {
         info: DeviceInfo {
             serial: serial_str,
-            flash_used: used / 1024,
-            flash_total: total / 1024,
+            flash_used: Some(used / 1024),
+            flash_total: Some(total / 1024),
             firmware_version: format!("{}.{}", version_major, version_minor),
         },
         config,
