@@ -351,10 +351,7 @@ impl HidTransport {
         // 0x01: vendorCommandId (u64)
         // 0x02/0x03/0x04: param
         let mut sub_params_inner = BTreeMap::new();
-        sub_params_inner.insert(
-            Value::Integer(0x01),
-            Value::Integer(vendor_cmd.to_u64() as i128),
-        );
+        sub_params_inner.insert(Value::Integer(0x01), Value::Integer(vendor_cmd as i128));
 
         match param {
             Value::Bytes(_) => {

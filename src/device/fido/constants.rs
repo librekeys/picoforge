@@ -141,32 +141,20 @@ pub enum ConfigSubCommandParam {
     ForceChangePin = 0x03,
 }
 
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VendorConfigCommand {
-    AuthEncryptionEnable,
-    AuthEncryptionDisable,
-    EnterpriseAttestationUpload,
-    PinComplexityPolicy,
-    PhysicalVidPid,
-    PhysicalLedBrightness,
-    PhysicalLedGpio,
-    PhysicalOptions,
+    AuthEncryptionEnable = 0x03e43f56b34285e2,
+    AuthEncryptionDisable = 0x1831a40f04a25ed9,
+    EnterpriseAttestationUpload = 0x66f2a674c29a8dcf,
+    PinComplexityPolicy = 0x6c07d70fe96c3897,
+    PhysicalVidPid = 0x6fcb19b0cbe3acfa,
+    PhysicalLedBrightness = 0x76a85945985d02fd,
+    PhysicalLedGpio = 0x7b392a394de9f948,
+    PhysicalOptions = 0x269f3b09eceb805f,
 }
 
 impl VendorConfigCommand {
-    pub fn to_u64(self) -> u64 {
-        match self {
-            Self::AuthEncryptionEnable => 0x03e43f56b34285e2,
-            Self::AuthEncryptionDisable => 0x1831a40f04a25ed9,
-            Self::EnterpriseAttestationUpload => 0x66f2a674c29a8dcf,
-            Self::PinComplexityPolicy => 0x6c07d70fe96c3897,
-            Self::PhysicalVidPid => 0x6fcb19b0cbe3acfa,
-            Self::PhysicalLedBrightness => 0x76a85945985d02fd,
-            Self::PhysicalLedGpio => 0x7b392a394de9f948,
-            Self::PhysicalOptions => 0x269f3b09eceb805f,
-        }
-    }
-
     pub fn from_u64(val: u64) -> Option<Self> {
         match val {
             0x03e43f56b34285e2 => Some(Self::AuthEncryptionEnable),
@@ -182,16 +170,17 @@ impl VendorConfigCommand {
     }
 }
 
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FidoCertification {
-    AuthEncryption,
-    AuthEncryptionLock,
-    EnterpriseAttestation,
-    PinComplexity,
-    PhysicalVidPid,
-    LedBrightness,
-    LedGpio,
-    PhysicalOptions,
+    AuthEncryption = 0x03E43F56B34285E2,
+    AuthEncryptionLock = 0x1831A40F04A25ED9,
+    EnterpriseAttestation = 0x66F2A674C29A8DCF,
+    PinComplexity = 0x6C07D70FE96C3897,
+    PhysicalVidPid = 0x6FCB19B0CBE3ACFA,
+    LedBrightness = 0x76A85945985D02FD,
+    LedGpio = 0x7B392A394DE9F948,
+    PhysicalOptions = 0x269F3B09ECEB805F,
 }
 
 impl FidoCertification {
