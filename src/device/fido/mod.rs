@@ -141,14 +141,13 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
             0x0A => {
                 if let Value::Array(arr) = val {
                     for v in arr {
-                        if let Value::Map(m) = v {
-                            if let Some(Value::Integer(alg_id)) = m.get(&Value::Text("alg".into()))
-                            {
-                                if let Some(alg) = CoseAlgorithm::from_i128(*alg_id) {
-                                    algorithms.push(alg.to_string());
-                                } else {
-                                    algorithms.push(format!("Unknown ({})", alg_id));
-                                }
+                        if let Value::Map(m) = v
+                            && let Some(Value::Integer(alg_id)) = m.get(&Value::Text("alg".into()))
+                        {
+                            if let Some(alg) = CoseAlgorithm::from_i128(*alg_id) {
+                                algorithms.push(alg.to_string());
+                            } else {
+                                algorithms.push(format!("Unknown ({})", alg_id));
                             }
                         }
                     }
@@ -429,10 +428,10 @@ pub(crate) fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, Stri
             }
 
             // Parse Credential ID Descriptor
-            if let Value::Map(m) = &cred.credential_id {
-                if let Some(Value::Bytes(b)) = m.get(&Value::Text("id".into())) {
-                    stored_cred.credential_id = hex::encode(b);
-                }
+            if let Value::Map(m) = &cred.credential_id
+                && let Some(Value::Bytes(b)) = m.get(&Value::Text("id".into()))
+            {
+                stored_cred.credential_id = hex::encode(b);
             }
 
             all_credentials.push(stored_cred);

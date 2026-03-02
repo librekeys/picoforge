@@ -1506,12 +1506,11 @@ impl HidTransport {
         // 4. For others, sign the subcommand byte followed by the CBOR-encoded SubCommandParams map.
 
         let mut message = vec![sub_cmd];
-        if let Some(params) = sub_params_bytes {
-            if sub_cmd != CredentialMgmtSubCommand::GetCredsMetadata as u8
-                && sub_cmd != CredentialMgmtSubCommand::EnumerateRpsBegin as u8
-            {
-                message.extend(params);
-            }
+        if let Some(params) = sub_params_bytes
+            && sub_cmd != CredentialMgmtSubCommand::GetCredsMetadata as u8
+            && sub_cmd != CredentialMgmtSubCommand::EnumerateRpsBegin as u8
+        {
+            message.extend(params);
         }
 
         log::debug!(
