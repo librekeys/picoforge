@@ -9,26 +9,11 @@ use crate::{
     error::PFError,
 };
 use constants::*;
-use ctap_hid_fido2::{
-    Cfg, FidoKeyHidFactory,
-    fidokey::{FidoKeyHid, pin::Permission},
-    public_key_credential_descriptor::PublicKeyCredentialDescriptor,
-};
 use hid::*;
 use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::BTreeMap;
 
-// Fido functions that require pin: ( Uses ctap_hid_fido2 crate)
-
-fn get_device() -> Result<FidoKeyHid, String> {
-    let cfg = Cfg::init();
-    FidoKeyHidFactory::create(&cfg).map_err(|e| {
-        format!(
-            "Could not connect to FIDO device. Is it plugged in? Error: {:?}",
-            e
-        )
-    })
-}
+// Fido functions that require pin:
 
 pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
     log::info!("Reading FIDO device info via custom GetInfo...");
@@ -326,19 +311,20 @@ pub(crate) fn change_fido_pin(
     current_pin: Option<String>,
     new_pin: String,
 ) -> Result<String, String> {
-    let device = get_device()?;
+    log::info!("Starting change_fido_pin (custom implementation)...");
+
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
 
     match current_pin {
         Some(old) => {
-            device
+            transport
                 .change_pin(&old, &new_pin)
-                .map_err(|e| format!("Failed to change PIN: {:?}", e))?;
+                .map_err(|e| e.to_string())?;
             Ok("PIN Changed Successfully".into())
         }
         Option::None => {
-            device
-                .set_new_pin(&new_pin)
-                .map_err(|e| format!("Failed to set PIN: {:?}", e))?;
+            transport.set_pin(&new_pin).map_err(|e| e.to_string())?;
             Ok("PIN Set Successfully".into())
         }
     }
@@ -350,30 +336,27 @@ pub(crate) fn set_min_pin_length(
 ) -> Result<String, String> {
     log::info!("Starting set_min_pin_length (custom implementation)...");
 
-    // 1. Obtain PIN token using the library handle
-    let pin_token = {
-        let device = get_device()?;
-
-        // Obtain a token with AuthenticatorConfiguration permission (CTAP 2.1)
-        match device.get_pinuv_auth_token_with_permission(
-            &current_pin,
-            Permission::AuthenticatorConfiguration,
-        ) {
-            Ok(token) => {
-                log::debug!("Successfully obtained PIN token with ACFG permission.");
-                token.key
-            }
-            Err(e) => {
-                log::error!("Failed to get PIN token with ACFG permission: {:?}", e);
-                return Err(format!("Failed to obtain PIN token: {:?}", e));
-            }
-        }
-        // Library handle 'device' is dropped here, closing the HID session.
-    };
-
-    // 2. Open custom HidTransport and send command using the token because ctap-hid-fido2 has a bug where it sends CBOR map keys out of order (0x01, 0x03, 0x04, 0x02) instead of the required ascending order (0x01, 0x02, 0x03, 0x04). The pico-fido firmware strictly requires ascending order.
+    // 1. Open custom HidTransport
     let transport =
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    // 2. Obtain PIN token using the custom implementation
+    let pin_token = transport
+        .get_pin_token_with_permission(
+            &current_pin,
+            PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
+            None,
+        )
+        .map_err(|e| {
+            let err_str = e.to_string();
+            log::error!("Failed to get PIN token with ACFG permission: {}", err_str);
+            if err_str.contains("0x2B") {
+                return "The device does not support FIDO 2.1 advanced configuration (Error 0x2B). Ensure your device firmware is up to date and supports this feature.".to_string();
+            }
+            format!("Failed to obtain PIN token: {}", err_str)
+        })?;
+
+    // 3. Send command using the token because ctap-hid-fido2 has a bug where it sends CBOR map keys out of order (0x01, 0x03, 0x04, 0x02) instead of the required ascending order (0x01, 0x02, 0x03, 0x04). The pico-fido firmware strictly requires ascending order.
 
     transport
         .send_config_set_min_pin_length(&pin_token, min_pin_length)
@@ -386,42 +369,73 @@ pub(crate) fn set_min_pin_length(
 }
 
 pub(crate) fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, String> {
-    let device = get_device()?;
+    log::info!("Listing FIDO credentials via custom implementation...");
 
-    let rps = match device.credential_management_enumerate_rps(Some(&pin)) {
-        Ok(rps) => rps,
-        Err(e) => {
-            // CTAP2_ERR_NO_CREDENTIALS (0x2E) means no credentials exist - return empty list
-            let err_str = format!("{:?}", e);
-            if err_str.contains("0x2E") || err_str.contains("NO_CREDENTIALS") {
-                log::info!("No credentials stored on device (CTAP2_ERR_NO_CREDENTIALS)");
-                return Ok(Vec::new());
-            }
-            return Err(format!("Failed to enumerate Relying Parties: {:?}", e));
-        }
-    };
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let rps = transport
+        .credential_management_enumerate_rps(&pin)
+        .map_err(|e| format!("Failed to enumerate Relying Parties: {}", e))?;
 
     let mut all_credentials = Vec::new();
 
-    for rp in rps {
-        let creds = device
-            .credential_management_enumerate_credentials(Some(&pin), &rp.rpid_hash)
-            .map_err(|e| {
-                format!(
-                    "Failed to enumerate credentials for RP {}: {:?}",
-                    rp.public_key_credential_rp_entity.id, e
-                )
-            })?;
+    for rp_res in rps {
+        let rp_id = if let Value::Map(m) = &rp_res.rp {
+            match m.get(&Value::Text("id".into())) {
+                Some(Value::Text(s)) => s.clone(),
+                _ => "Unknown".to_string(),
+            }
+        } else {
+            "Unknown".to_string()
+        };
+
+        let rp_name = if let Value::Map(m) = &rp_res.rp {
+            match m.get(&Value::Text("name".into())) {
+                Some(Value::Text(s)) => s.clone(),
+                _ => rp_id.clone(),
+            }
+        } else {
+            rp_id.clone()
+        };
+
+        log::debug!("Enumerating credentials for RP: {}", rp_id);
+
+        let creds = transport
+            .credential_management_enumerate_credentials(&pin, &rp_res.rp_id_hash)
+            .map_err(|e| format!("Failed to enumerate credentials for RP {}: {}", rp_id, e))?;
 
         for cred in creds {
-            all_credentials.push(StoredCredential {
-                credential_id: hex::encode(&cred.public_key_credential_descriptor.id),
-                rp_id: rp.public_key_credential_rp_entity.id.clone(),
-                rp_name: rp.public_key_credential_rp_entity.name.clone(),
-                user_name: cred.public_key_credential_user_entity.name.clone(),
-                user_display_name: cred.public_key_credential_user_entity.display_name.clone(),
-                user_id: hex::encode(&cred.public_key_credential_user_entity.id).clone(),
-            });
+            let mut stored_cred = StoredCredential {
+                credential_id: "".to_string(),
+                rp_id: rp_id.clone(),
+                rp_name: rp_name.clone(),
+                user_name: "".to_string(),
+                user_display_name: "".to_string(),
+                user_id: "".to_string(),
+            };
+
+            // Parse User Map
+            if let Value::Map(m) = &cred.user {
+                if let Some(Value::Text(s)) = m.get(&Value::Text("name".into())) {
+                    stored_cred.user_name = s.clone();
+                }
+                if let Some(Value::Text(s)) = m.get(&Value::Text("displayName".into())) {
+                    stored_cred.user_display_name = s.clone();
+                }
+                if let Some(Value::Bytes(b)) = m.get(&Value::Text("id".into())) {
+                    stored_cred.user_id = hex::encode(b);
+                }
+            }
+
+            // Parse Credential ID Descriptor
+            if let Value::Map(m) = &cred.credential_id {
+                if let Some(Value::Bytes(b)) = m.get(&Value::Text("id".into())) {
+                    stored_cred.credential_id = hex::encode(b);
+                }
+            }
+
+            all_credentials.push(stored_cred);
         }
     }
 
@@ -429,19 +443,22 @@ pub(crate) fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, Stri
 }
 
 pub(crate) fn delete_credential(pin: String, credential_id_hex: String) -> Result<String, String> {
-    let device = get_device()?;
+    log::info!("Deleting FIDO credential via custom implementation...");
+
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
 
     let cred_id_bytes = hex::decode(&credential_id_hex)
         .map_err(|_| "Invalid Credential ID Hex string".to_string())?;
 
-    let descriptor = PublicKeyCredentialDescriptor {
-        ctype: "public-key".to_string(),
-        id: cred_id_bytes,
-    };
+    // Create PublicKeyCredentialDescriptor map: { "type": "public-key", "id": <bytes> }
+    let mut descriptor = BTreeMap::new();
+    descriptor.insert(Value::Text("type".into()), Value::Text("public-key".into()));
+    descriptor.insert(Value::Text("id".into()), Value::Bytes(cred_id_bytes));
 
-    device
-        .credential_management_delete_credential(Some(&pin), descriptor)
-        .map_err(|e| format!("Failed to delete credential: {:?}", e))?;
+    transport
+        .credential_management_delete_credential(&pin, Value::Map(descriptor))
+        .map_err(|e| format!("Failed to delete credential: {}", e))?;
 
     Ok("Credential deleted successfully".into())
 }
@@ -674,17 +691,21 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
         )
     })?;
 
-    // 1. Obtain PIN token using the library handle
-    let pin_token = {
-        let device = get_device().map_err(PFError::Device)?;
+    // 1. Open custom HidTransport and obtain PIN token
+    let transport = HidTransport::open().map_err(|e| {
+        log::error!("Failed to open HID transport: {}", e);
+        PFError::Device(format!("Could not open HID transport: {}", e))
+    })?;
 
-        // Try to obtain a token with AuthenticatorConfiguration permission (CTAP 2.1)
-        match device
-            .get_pinuv_auth_token_with_permission(pin_val, Permission::AuthenticatorConfiguration)
-        {
+    let get_fresh_token = || -> Result<Vec<u8>, PFError> {
+        match transport.get_pin_token_with_permission(
+            pin_val,
+            PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
+            None,
+        ) {
             Ok(token) => {
                 log::debug!("Successfully obtained PIN token with ACFG permission.");
-                token.key
+                Ok(token)
             }
             Err(e) => {
                 log::warn!(
@@ -692,22 +713,17 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
                     e
                 );
                 // Fallback to standard PIN token (Subcommand 0x05)
-                let token = device.get_pin_token(pin_val).map_err(|e2| {
+                let token = transport.get_pin_token(pin_val).map_err(|e2| {
                     log::error!("Failed to obtain even a standard PIN token: {:?}", e2);
                     PFError::Device(format!("PIN token acquisition failed: {:?}", e2))
                 })?;
                 log::debug!("Successfully obtained standard PIN token (fallback).");
-                token.key
+                Ok(token)
             }
         }
-        // Library handle 'device' is dropped here, closing the HID session.
     };
 
-    // 2. Open custom HidTransport and send vendor commands using the token
-    let transport = HidTransport::open().map_err(|e| {
-        log::error!("Failed to open HID transport: {}", e);
-        PFError::Device(format!("Could not open HID transport: {}", e))
-    })?;
+    // 2. Send vendor commands using the token
 
     // VID/PID config
     if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
@@ -715,7 +731,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
         let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
         let vidpid = ((vid as u32) << 16) | (pid as u32);
         transport.send_vendor_config(
-            &pin_token,
+            &get_fresh_token()?,
             VendorConfigCommand::PhysicalVidPid,
             Value::Integer(vidpid as i128),
         )?;
@@ -726,7 +742,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
     // LED GPIO config
     if let Some(gpio) = config.led_gpio {
         transport.send_vendor_config(
-            &pin_token,
+            &get_fresh_token()?,
             VendorConfigCommand::PhysicalLedGpio,
             Value::Integer(gpio as i128),
         )?;
@@ -737,7 +753,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
     // LED brightness config
     if let Some(brightness) = config.led_brightness {
         transport.send_vendor_config(
-            &pin_token,
+            &get_fresh_token()?,
             VendorConfigCommand::PhysicalLedBrightness,
             Value::Integer(brightness as i128),
         )?;
@@ -760,7 +776,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
     if let Some(timeout) = config.touch_timeout {
         transport
             .send_vendor_config(
-                &pin_token,
+                &get_fresh_token()?,
                 VendorConfigCommand::PhysicalOptions,
                 Value::Integer(timeout as i128),
             )
@@ -770,7 +786,7 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
     }
 
     transport.send_vendor_config(
-        &pin_token,
+        &get_fresh_token()?,
         VendorConfigCommand::PhysicalOptions,
         Value::Integer(opts as i128),
     )?;

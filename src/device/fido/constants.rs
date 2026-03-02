@@ -54,7 +54,7 @@ pub enum ClientPinSubCommand {
     GetPinToken = 0x05,
     GetPinUvAuthTokenUsingUvWithPermissions = 0x06,
     GetUvRetries = 0x07,
-    GetPinUvAuthTokenUsingPinWithPermissions = 0x08,
+    GetPinUvAuthTokenUsingPinWithPermissions = 0x09, // TODO: per fido spec, this should be 0x08? Needs to confirm and fix the firmware if true.
 }
 
 #[repr(u8)]
@@ -99,6 +99,16 @@ pub enum ClientPinParam {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClientPinResponseParam {
+    KeyAgreement = 0x01,
+    PinToken = 0x02,
+    PinRetries = 0x03,
+    NextMsg = 0x04,
+    UvRetries = 0x05,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigParam {
     SubCommand = 0x01,
     SubCommandParams = 0x02,
@@ -131,6 +141,39 @@ pub enum VendorSubParam {
     CoseKey = 0x02,
     VendorParamInt = 0x03,
     VendorParamText = 0x04,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtSubCommand {
+    GetCredsMetadata = 0x01,
+    EnumerateRpsBegin = 0x02,
+    EnumerateRpsGetNextRp = 0x03,
+    EnumerateCredentialsBegin = 0x04,
+    EnumerateCredentialsGetNextCredential = 0x05,
+    DeleteCredential = 0x06,
+    UpdateUserInformation = 0x07,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtParam {
+    SubCommand = 0x01,
+    SubCommandParams = 0x02,
+    PinUvAuthProtocol = 0x03,
+    PinUvAuthParam = 0x04,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtResponseParam {
+    Rp = 0x03,
+    RpIdHash = 0x04,
+    TotalRps = 0x05,
+    User = 0x06,
+    CredentialId = 0x07,
+    PublicKey = 0x08,
+    TotalCredentials = 0x09,
 }
 
 #[repr(u8)]
@@ -276,6 +319,7 @@ pub enum MemoryResponseKey {
 }
 
 bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct PinUvAuthTokenPermissions: u8 {
         const MAKE_CREDENTIAL = 0x01;
         const GET_ASSERTION = 0x02;
