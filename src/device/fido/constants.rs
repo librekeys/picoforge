@@ -54,7 +54,7 @@ pub enum ClientPinSubCommand {
     GetPinToken = 0x05,
     GetPinUvAuthTokenUsingUvWithPermissions = 0x06,
     GetUvRetries = 0x07,
-    GetPinUvAuthTokenUsingPinWithPermissions = 0x08,
+    GetPinUvAuthTokenUsingPinWithPermissions = 0x09, // TODO: per fido spec, this should be 0x08? Needs to confirm and fix the firmware if true.
 }
 
 #[repr(u8)]
@@ -99,6 +99,16 @@ pub enum ClientPinParam {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClientPinResponseParam {
+    KeyAgreement = 0x01,
+    PinToken = 0x02,
+    PinRetries = 0x03,
+    NextMsg = 0x04,
+    UvRetries = 0x05,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigParam {
     SubCommand = 0x01,
     SubCommandParams = 0x02,
@@ -135,38 +145,59 @@ pub enum VendorSubParam {
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtSubCommand {
+    GetCredsMetadata = 0x01,
+    EnumerateRpsBegin = 0x02,
+    EnumerateRpsGetNextRp = 0x03,
+    EnumerateCredentialsBegin = 0x04,
+    EnumerateCredentialsGetNextCredential = 0x05,
+    DeleteCredential = 0x06,
+    UpdateUserInformation = 0x07,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtParam {
+    SubCommand = 0x01,
+    SubCommandParams = 0x02,
+    PinUvAuthProtocol = 0x03,
+    PinUvAuthParam = 0x04,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CredentialMgmtResponseParam {
+    Rp = 0x03,
+    RpIdHash = 0x04,
+    TotalRps = 0x05,
+    User = 0x06,
+    CredentialId = 0x07,
+    PublicKey = 0x08,
+    TotalCredentials = 0x09,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfigSubCommandParam {
     NewMinPinLength = 0x01,
     MinPinLengthRPIDs = 0x02,
     ForceChangePin = 0x03,
 }
 
+#[repr(u64)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VendorConfigCommand {
-    AuthEncryptionEnable,
-    AuthEncryptionDisable,
-    EnterpriseAttestationUpload,
-    PinComplexityPolicy,
-    PhysicalVidPid,
-    PhysicalLedBrightness,
-    PhysicalLedGpio,
-    PhysicalOptions,
+    AuthEncryptionEnable = 0x03e43f56b34285e2,
+    AuthEncryptionDisable = 0x1831a40f04a25ed9,
+    EnterpriseAttestationUpload = 0x66f2a674c29a8dcf,
+    PinComplexityPolicy = 0x6c07d70fe96c3897,
+    PhysicalVidPid = 0x6fcb19b0cbe3acfa,
+    PhysicalLedBrightness = 0x76a85945985d02fd,
+    PhysicalLedGpio = 0x7b392a394de9f948,
+    PhysicalOptions = 0x269f3b09eceb805f,
 }
 
 impl VendorConfigCommand {
-    pub fn to_u64(self) -> u64 {
-        match self {
-            Self::AuthEncryptionEnable => 0x03e43f56b34285e2,
-            Self::AuthEncryptionDisable => 0x1831a40f04a25ed9,
-            Self::EnterpriseAttestationUpload => 0x66f2a674c29a8dcf,
-            Self::PinComplexityPolicy => 0x6c07d70fe96c3897,
-            Self::PhysicalVidPid => 0x6fcb19b0cbe3acfa,
-            Self::PhysicalLedBrightness => 0x76a85945985d02fd,
-            Self::PhysicalLedGpio => 0x7b392a394de9f948,
-            Self::PhysicalOptions => 0x269f3b09eceb805f,
-        }
-    }
-
     pub fn from_u64(val: u64) -> Option<Self> {
         match val {
             0x03e43f56b34285e2 => Some(Self::AuthEncryptionEnable),
@@ -178,6 +209,55 @@ impl VendorConfigCommand {
             0x7b392a394de9f948 => Some(Self::PhysicalLedGpio),
             0x269f3b09eceb805f => Some(Self::PhysicalOptions),
             _ => None,
+        }
+    }
+}
+
+#[repr(u64)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FidoCertification {
+    AuthEncryption = 0x03E43F56B34285E2,
+    AuthEncryptionLock = 0x1831A40F04A25ED9,
+    EnterpriseAttestation = 0x66F2A674C29A8DCF,
+    PinComplexity = 0x6C07D70FE96C3897,
+    PhysicalVidPid = 0x6FCB19B0CBE3ACFA,
+    LedBrightness = 0x76A85945985D02FD,
+    LedGpio = 0x7B392A394DE9F948,
+    PhysicalOptions = 0x269F3B09ECEB805F,
+}
+
+impl FidoCertification {
+    pub fn from_u64(val: u64) -> Option<Self> {
+        match val {
+            0x03E43F56B34285E2 => Some(Self::AuthEncryption),
+            0x1831A40F04A25ED9 => Some(Self::AuthEncryptionLock),
+            0x66F2A674C29A8DCF => Some(Self::EnterpriseAttestation),
+            0x6C07D70FE96C3897 => Some(Self::PinComplexity),
+            0x6FCB19B0CBE3ACFA => Some(Self::PhysicalVidPid),
+            0x76A85945985D02FD => Some(Self::LedBrightness),
+            0x7B392A394DE9F948 => Some(Self::LedGpio),
+            0x269F3B09ECEB805F => Some(Self::PhysicalOptions),
+            _ => None,
+        }
+    }
+
+    pub fn from_str(val: &str) -> Option<Self> {
+        let val = val.strip_prefix("0x").unwrap_or(val);
+        u64::from_str_radix(val, 16).ok().and_then(Self::from_u64)
+    }
+}
+
+impl fmt::Display for FidoCertification {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AuthEncryption => write!(f, "Auth Encryption"),
+            Self::AuthEncryptionLock => write!(f, "Auth Encryption (Lock)"),
+            Self::EnterpriseAttestation => write!(f, "Enterprise Attestation"),
+            Self::PinComplexity => write!(f, "PIN Complexity"),
+            Self::PhysicalVidPid => write!(f, "Physical VID/PID"),
+            Self::LedBrightness => write!(f, "LED Brightness"),
+            Self::LedGpio => write!(f, "LED GPIO"),
+            Self::PhysicalOptions => write!(f, "Physical Options"),
         }
     }
 }
@@ -239,6 +319,7 @@ pub enum MemoryResponseKey {
 }
 
 bitflags::bitflags! {
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub struct PinUvAuthTokenPermissions: u8 {
         const MAKE_CREDENTIAL = 0x01;
         const GET_ASSERTION = 0x02;
@@ -286,6 +367,55 @@ pub enum CoseAlgorithm {
     ESB256 = -265,
     ESB384 = -267,
     ESB512 = -268,
+}
+
+impl CoseAlgorithm {
+    pub fn from_i128(val: i128) -> Option<Self> {
+        match val as i32 {
+            -7 => Some(Self::ES256),
+            -8 => Some(Self::EdDSA),
+            -9 => Some(Self::ESP256),
+            -19 => Some(Self::Ed25519),
+            -25 => Some(Self::EcdhEsHkdf256),
+            -35 => Some(Self::ES384),
+            -36 => Some(Self::ES512),
+            -47 => Some(Self::ES256K),
+            -51 => Some(Self::ESP384),
+            -52 => Some(Self::ESP512),
+            -53 => Some(Self::Ed448),
+            -257 => Some(Self::RS256),
+            -258 => Some(Self::RS384),
+            -259 => Some(Self::RS512),
+            -265 => Some(Self::ESB256),
+            -267 => Some(Self::ESB384),
+            -268 => Some(Self::ESB512),
+            _ => None,
+        }
+    }
+}
+
+impl fmt::Display for CoseAlgorithm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ES256 => write!(f, "ES256"),
+            Self::EdDSA => write!(f, "EdDSA"),
+            Self::ESP256 => write!(f, "ESP256"),
+            Self::Ed25519 => write!(f, "Ed25519"),
+            Self::EcdhEsHkdf256 => write!(f, "ECDH-ES-HKDF-256"),
+            Self::ES384 => write!(f, "ES384"),
+            Self::ES512 => write!(f, "ES512"),
+            Self::ES256K => write!(f, "ES256K"),
+            Self::ESP384 => write!(f, "ESP384"),
+            Self::ESP512 => write!(f, "ESP512"),
+            Self::Ed448 => write!(f, "Ed448"),
+            Self::RS256 => write!(f, "RS256"),
+            Self::RS384 => write!(f, "RS384"),
+            Self::RS512 => write!(f, "RS512"),
+            Self::ESB256 => write!(f, "ESB256"),
+            Self::ESB384 => write!(f, "ESB384"),
+            Self::ESB512 => write!(f, "ESB512"),
+        }
+    }
 }
 
 #[repr(u8)]

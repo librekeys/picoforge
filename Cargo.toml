@@ -21,12 +21,13 @@ hex = "0.4"            # For parsing VID/PID strings
 byteorder = "1.5"      # Required for writing Big-Endian numbers (firmware requirement)
 thiserror = "2"        # Makes custom error handling much easier
 anyhow = "1"           # For easy error propagation
-ctap-hid-fido2 = "3.5" # For fido2 interface operations
 hidapi = "2.6"         # For fido2 interface operations but non-standard commands
 serde_cbor_2 = "0.13"
 rand = "0.10"
 bitflags = "2.11"
 ring = "0.17"          # For signing fido2 messages with pin token
+aes = "0.8"
+cbc = "0.1"
 
 # For Application UI:
 gpui = { version = "0.2.2", features = [] }

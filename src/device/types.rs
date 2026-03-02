@@ -10,8 +10,8 @@ struct PForgeState {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceInfo {
     pub serial: String,
-    pub flash_used: u32,
-    pub flash_total: u32,
+    pub flash_used: Option<u32>,
+    pub flash_total: Option<u32>,
     pub firmware_version: String,
 }
 
@@ -74,11 +74,21 @@ pub struct FidoDeviceInfo {
     pub extensions: Vec<String>,
     pub aaguid: String,
     pub options: std::collections::HashMap<String, bool>,
-    pub max_msg_size: i32,
+    pub max_msg_size: i128,
     pub pin_protocols: Vec<u32>,
-    // pub remaining_disc_creds: u32,
-    pub min_pin_length: u32,
+    pub remaining_discoverable_credentials: Option<i128>,
+    pub min_pin_length: i128,
     pub firmware_version: String,
+    /// Supported vendor config commands (human-readable names), parsed from CTAP GetInfo key 0x13
+    pub vendor_config_commands: Vec<String>,
+    /// Device certifications, parsed from CTAP GetInfo key 0x15
+    pub certifications: std::collections::HashMap<String, bool>,
+    pub max_credential_count_in_list: Option<i128>,
+    pub max_credential_id_length: Option<i128>,
+    pub algorithms: Vec<String>,
+    pub max_serialized_large_blob_array: Option<i128>,
+    pub force_pin_change: Option<bool>,
+    pub max_cred_blob_length: Option<i128>,
 }
 
 #[derive(Debug, Clone, Serialize)]

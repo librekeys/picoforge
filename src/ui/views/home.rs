@@ -1,6 +1,7 @@
 use crate::device::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::types::GlobalDeviceState;
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::StyledExt;
 use gpui_component::{Icon, IconName, Theme, h_flex, progress::Progress, v_flex};
@@ -86,8 +87,6 @@ impl HomeView {
         let info = &status.info;
         let config = &status.config;
 
-        let flash_percent = (info.flash_used as f32 / info.flash_total as f32) * 100.0;
-
         Card::new()
             .title("Device Information")
             .icon(Icon::default().path("icons/cpu.svg"))
@@ -137,12 +136,25 @@ impl HomeView {
                                             .text_color(theme.muted_foreground)
                                             .child("Flash Memory"),
                                     )
-                                    .child(div().text_color(theme.foreground).child(format!(
-                                        "{:.0} / {:.0} KB",
-                                        info.flash_used, info.flash_total
-                                    ))),
+                                    .child(div().text_color(theme.foreground).child(
+                                        if let (Some(used), Some(total)) =
+                                            (info.flash_used, info.flash_total)
+                                        {
+                                            format!("{:.0} / {:.0} KB", used, total)
+                                        } else {
+                                            "Not Available".to_string()
+                                        },
+                                    )),
                             )
-                            .child(Progress::new().value(flash_percent)),
+                            .when(
+                                info.flash_used.is_some() && info.flash_total.is_some(),
+                                |this| {
+                                    let used = info.flash_used.unwrap();
+                                    let total = info.flash_total.unwrap();
+                                    let flash_percent = (used as f32 / total as f32) * 100.0;
+                                    this.child(Progress::new().value(flash_percent))
+                                },
+                            ),
                     ),
             )
     }
@@ -190,10 +202,56 @@ impl HomeView {
                                 },
                                 theme,
                                 false,
-                            )),
+                            ))
+                            .when(fido.remaining_discoverable_credentials.is_some(), |this| {
+                                this.child(Self::render_kv(
+                                    "Remaining Credentials",
+                                    fido.remaining_discoverable_credentials
+                                        .unwrap_or(0)
+                                        .to_string(),
+                                    theme,
+                                    false,
+                                ))
+                            }),
                     )
                     .child(div().h_px().bg(theme.border))
                     .child(Self::render_kv("AAGUID", fido.aaguid.clone(), theme, true))
+                    // .when(!fido.vendor_config_commands.is_empty(), |this| {
+                    //     this.child(div().h_px().bg(theme.border)).child(
+                    //         v_flex()
+                    //             .gap_2()
+                    //             .child(
+                    //                 div()
+                    //                     .text_sm()
+                    //                     .text_color(theme.muted_foreground)
+                    //                     .child("Vendor Config Commands"),
+                    //             )
+                    //             .child(
+                    //                 h_flex().gap_2().flex_wrap().children(
+                    //                     fido.vendor_config_commands
+                    //                         .iter()
+                    //                         .map(|cmd| Tag::new(cmd.clone()).active(true)),
+                    //                 ),
+                    //             ),
+                    //     )
+                    // })
+                    // .when(!fido.certifications.is_empty(), |this| {
+                    //     this.child(div().h_px().bg(theme.border)).child(
+                    //         v_flex()
+                    //             .gap_2()
+                    //             .child(
+                    //                 div()
+                    //                     .text_sm()
+                    //                     .text_color(theme.muted_foreground)
+                    //                     .child("Certifications"),
+                    //             )
+                    //             .child(h_flex().gap_2().flex_wrap().children(
+                    //                 fido.certifications.iter().map(|(name, _enabled)| {
+                    //                     Tag::new(name.clone()).active(true)
+                    //                 }),
+                    //             )),
+                    //     )
+                    // })
                     .into_any_element()
             } else {
                 div()

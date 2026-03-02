@@ -15,6 +15,33 @@ enum DialogPhase {
     Error(String),
 }
 
+fn render_error_message(msg: String) -> impl IntoElement {
+    let troubleshooting_phrase = "troubleshooting guide";
+    let url = "https://github.com/librekeys/picoforge/wiki/Troubleshooting#1-my-key-is-not-detected-by-picoforge-or-picoforge-displays-a-device-status-of-online---fido-and-there-are-some-settings-that-i-cannot-configure";
+
+    if msg.contains(troubleshooting_phrase) {
+        v_flex()
+            .child("The device firmware does not support being configured in fido only communication mode.")
+            .child(
+                h_flex()
+                    .gap_1()
+                    .child("Have a look at the")
+                    .child(
+                        div()
+                            .text_color(rgb(0x3b82f6))
+                            .cursor_pointer()
+                            .on_mouse_down(MouseButton::Left, move |_, _, cx| {
+                                cx.open_url(url);
+                            })
+                            .child(troubleshooting_phrase.to_string()),
+                    )
+                    .child("to fix this"),
+            )
+    } else {
+        div().child(msg)
+    }
+}
+
 pub struct PinPromptContent {
     phase: DialogPhase,
     title: SharedString,
@@ -120,7 +147,7 @@ impl Render for PinPromptContent {
                             .bg(cx.theme().danger.opacity(0.1))
                             .text_color(cx.theme().danger)
                             .text_sm()
-                            .child(err_msg.clone()),
+                            .child(render_error_message(err_msg.clone())),
                     )
                     .child(Input::new(&pin_input))
                     .child(
@@ -329,7 +356,7 @@ impl Render for ConfirmContent {
                             .bg(cx.theme().danger.opacity(0.1))
                             .text_color(cx.theme().danger)
                             .text_sm()
-                            .child(err_msg.clone()),
+                            .child(render_error_message(err_msg.clone())),
                     )
                     .child(
                         h_flex()
@@ -551,7 +578,7 @@ impl Render for ChangePinContent {
                             .bg(cx.theme().danger.opacity(0.1))
                             .text_color(cx.theme().danger)
                             .text_sm()
-                            .child(err_msg.clone()),
+                            .child(render_error_message(err_msg.clone())),
                     )
                     .child(
                         v_flex()
@@ -859,7 +886,7 @@ impl Render for SetPinContent {
                             .bg(cx.theme().danger.opacity(0.1))
                             .text_color(cx.theme().danger)
                             .text_sm()
-                            .child(err_msg.clone()),
+                            .child(render_error_message(err_msg.clone())),
                     )
                     .child(
                         v_flex()
@@ -1094,7 +1121,7 @@ impl Render for StatusContent {
                             .bg(cx.theme().danger.opacity(0.1))
                             .text_color(cx.theme().danger)
                             .text_sm()
-                            .child(err_msg.clone()),
+                            .child(render_error_message(err_msg.clone())),
                     )
                     .child(
                         h_flex()
