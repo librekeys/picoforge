@@ -170,9 +170,6 @@ impl Render for ApplicationRoot {
                                 PasskeysEvent::Notification(msg) => {
                                     window.push_notification(msg.to_string(), cx);
                                 }
-                                PasskeysEvent::CloseDialog => {
-                                    window.close_dialog(cx);
-                                }
                             },
                         )
                         .detach();

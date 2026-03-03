@@ -4,7 +4,7 @@ use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
     dialog,
-    dialog::{ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent},
+    dialog::{ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent, StatusContent},
     page_view::PageView,
 };
 use gpui::*;
@@ -42,7 +42,6 @@ pub struct PasskeysView {
 
 pub enum PasskeysEvent {
     Notification(String),
-    CloseDialog,
 }
 
 impl EventEmitter<PasskeysEvent> for PasskeysView {}
@@ -333,19 +332,64 @@ impl PasskeysView {
                 .masked(true)
         });
 
-        // Create the label view
         let label_view = cx.new(|_cx| SliderLabel {
             slider: slider.clone(),
         });
 
         let view_handle = cx.entity().downgrade();
 
-        window.open_dialog(cx, move |dialog, _, _| {
-            let view = view_handle.clone();
+        // Shared submit closure used by both the Enter key (on_ok) and the Update button.
+        let submit = {
+            let current_pin2 = current_pin.clone();
+            let new_pin2 = new_pin.clone();
+            let confirm_pin2 = confirm_pin.clone();
+            let slider2 = slider.clone();
+            let view2 = view_handle.clone();
+            std::rc::Rc::new(move |window: &mut Window, cx: &mut App| {
+                let current_val = current_pin2.read(cx).text().to_string();
+                let new_val = new_pin2.read(cx).text().to_string();
+                let confirm_val = confirm_pin2.read(cx).text().to_string();
+                let min_len = slider2.read(cx).value().start() as u8;
+
+                if current_val.is_empty() {
+                    return;
+                }
+
+                if !new_val.is_empty() {
+                    if new_val != confirm_val {
+                        let _ = view2.update(cx, |_, cx| {
+                            cx.emit(PasskeysEvent::Notification("PINs do not match".to_string()));
+                        });
+                        return;
+                    }
+                    if new_val.len() < min_len as usize {
+                        let _ = view2.update(cx, |_, cx| {
+                            cx.emit(PasskeysEvent::Notification(format!(
+                                "PIN must be at least {} characters",
+                                min_len
+                            )));
+                        });
+                        return;
+                    }
+                }
+                // Close the input dialog and open a status dialog for loading feedback.
+                window.close_dialog(cx);
+                let status_handle =
+                    dialog::open_status_dialog("Update Minimum PIN Length", window, cx);
+                let _ = view2.update(cx, |this, cx| {
+                    this.update_min_length(current_val, min_len, new_val, status_handle, cx);
+                });
+            })
+        };
+
+        window.open_dialog(cx, move |dialog, window, _| {
             let current = current_pin.clone();
             let new = new_pin.clone();
             let confirm = confirm_pin.clone();
             let slider_handle = slider.clone();
+            let submit_for_ok = submit.clone();
+            let submit_for_btn = submit.clone();
+            let _ = window;
 
             dialog
                 .title("Update Minimum PIN Length")
@@ -367,19 +411,20 @@ impl PasskeysView {
                         .child(
                              v_flex()
                                  .gap_2()
-                                 .child(format!("New PIN (min {} chars)", current_min)) 
+                                 .child(format!("New PIN (min {} chars)", current_min))
                                  .child(Input::new(&new))
                         )
                         .child("Confirm New PIN")
                         .child(Input::new(&confirm)),
                 )
+                // on_ok is triggered by the Enter key (dialog binds Enter → Confirm action → on_ok).
+                // Return false so the dialog stays open; our submit closes it and opens a status dialog.
+                .on_ok(move |_, window, cx| {
+                    submit_for_ok(window, cx);
+                    false
+                })
                 .footer(move |_, _window, _cx, _| {
-                    let view = view.clone();
-                    let current = current.clone();
-                    let new = new.clone();
-                    let confirm = confirm.clone();
-                    let slider = slider_handle.clone();
-
+                    let s = submit_for_btn.clone();
                     vec![
                         Button::new("cancel")
                             .label("Cancel")
@@ -387,33 +432,8 @@ impl PasskeysView {
                         Button::new("update")
                             .primary()
                             .label("Update")
-                            .on_click(move |_, _, cx| {
-                                let current_val = current.read(cx).text().to_string();
-                                let new_val = new.read(cx).text().to_string();
-                                let confirm_val = confirm.read(cx).text().to_string();
-                                let min_len = slider.read(cx).value().start() as u8;
-
-                                if current_val.is_empty() {
-                                    return;
-                                }
-
-                                if !new_val.is_empty() {
-                                    if new_val != confirm_val {
-                                        let _ = view.update(cx, |_, cx| {
-                                            cx.emit(PasskeysEvent::Notification("PINs do not match".to_string()));
-                                        });
-                                        return;
-                                    }
-                                    if new_val.len() < min_len as usize {
-                                        let _ = view.update(cx, |_, cx| {
-                                            cx.emit(PasskeysEvent::Notification(format!("PIN must be at least {} characters", min_len)));
-                                        });
-                                        return;
-                                    }
-                                }
-                                let _ = view.update(cx, |this, cx| {
-                                    this.update_min_length(current_val, min_len, new_val, cx);
-                                });
+                            .on_click(move |_, window, cx| {
+                                s(window, cx);
                             }),
                     ]
                 })
@@ -471,6 +491,7 @@ impl PasskeysView {
         current: String,
         min_len: u8,
         new_pin: String,
+        status_handle: WeakEntity<StatusContent>,
         cx: &mut Context<Self>,
     ) {
         if self.loading {
@@ -493,10 +514,9 @@ impl PasskeysView {
                 log::error!("Failed to set minimum PIN length: {}", e);
                 let _ = entity.update(cx, |this, cx| {
                     this.loading = false;
-                    cx.emit(PasskeysEvent::Notification(format!(
-                        "Failed to set length: {}",
-                        e
-                    )));
+                    let _ = status_handle.update(cx, |s, cx| {
+                        s.set_error(format!("Failed to set length: {}", e), cx);
+                    });
                     cx.notify();
                 });
                 return;
@@ -512,20 +532,21 @@ impl PasskeysView {
                     match res_pin {
                         Ok(_) => {
                             log::info!("Minimum length and PIN updated successfully.");
-                            cx.emit(PasskeysEvent::CloseDialog);
-                            cx.emit(PasskeysEvent::Notification(
-                                "Minimum length and PIN updated".to_string(),
-                            ));
                             if let Ok(info) = io::get_fido_info() {
                                 this.fido_info = Some(info);
                             }
+                            let _ = status_handle.update(cx, |s, cx| {
+                                s.set_success("Minimum length and PIN updated.".to_string(), cx);
+                            });
                         }
                         Err(e) => {
                             log::error!("Length set, but PIN change failed: {}", e);
-                            cx.emit(PasskeysEvent::Notification(format!(
-                                "Length set, but PIN change failed: {}",
-                                e
-                            )));
+                            let _ = status_handle.update(cx, |s, cx| {
+                                s.set_error(
+                                    format!("Length set, but PIN change failed: {}", e),
+                                    cx,
+                                );
+                            });
                         }
                     }
                     cx.notify();
@@ -534,14 +555,12 @@ impl PasskeysView {
                 let _ = entity.update(cx, |this, cx| {
                     this.loading = false;
                     log::info!("Minimum PIN length updated to {}.", min_len);
-                    cx.emit(PasskeysEvent::CloseDialog);
-                    cx.emit(PasskeysEvent::Notification(format!(
-                        "Minimum length updated to {}",
-                        min_len
-                    )));
                     if let Ok(info) = io::get_fido_info() {
                         this.fido_info = Some(info);
                     }
+                    let _ = status_handle.update(cx, |s, cx| {
+                        s.set_success(format!("Minimum length updated to {}.", min_len), cx);
+                    });
                     cx.notify();
                 });
             }
