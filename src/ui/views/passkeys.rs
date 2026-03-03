@@ -949,16 +949,22 @@ impl PasskeysView {
                             ),
                     )
                     .child(
-                        Button::new("delete-cred-btn")
-                            .ghost()
-                            .small()
+                        div()
+                            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                                cx.stop_propagation();
+                            })
                             .child(
-                                Icon::default()
-                                    .path("icons/trash-2.svg")
-                                    .size_4()
-                                    .text_color(theme.muted_foreground),
-                            )
-                            .on_click(delete_listener),
+                                Button::new("delete-cred-btn")
+                                    .ghost()
+                                    .small()
+                                    .child(
+                                        Icon::default()
+                                            .path("icons/trash-2.svg")
+                                            .size_4()
+                                            .text_color(theme.muted_foreground),
+                                    )
+                                    .on_click(delete_listener),
+                            ),
                     ),
             )
     }
