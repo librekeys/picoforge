@@ -125,6 +125,8 @@ impl Render for LogsView {
                                                     rgb(0xfde047)
                                                 } else if log.contains("INFO") {
                                                     rgb(0x4ade80)
+                                                } else if log.contains("TRACE") {
+                                                    rgb(0x3b82f6)
                                                 } else {
                                                     theme.foreground.to_rgb()
                                                 };
