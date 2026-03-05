@@ -1,11 +1,10 @@
 use crate::device::io;
 use crate::ui::components::sidebar::AppSidebar;
-use crate::ui::types::{ActiveView, DeviceConnectionState};
+use crate::ui::types::{ActiveView, DeviceConnectionState, LayoutState, ViewCache};
 use crate::ui::views::{
     about::AboutView, config::ConfigView, home::HomeView, passkeys::PasskeysEvent,
     passkeys::PasskeysView, security::SecurityView,
 };
-
 use gpui::prelude::*;
 use gpui::*;
 use gpui_component::Root;
@@ -16,31 +15,21 @@ use gpui_component::{
 gpui::actions!(picoforge, [ToggleSidebar]);
 
 pub struct ApplicationRoot {
-    active_view: ActiveView,
-    is_sidebar_collapsed: bool,
-    sidebar_toggle_hovered: bool,
-    state: DeviceConnectionState,
-    device_loading: bool,
-    // Umm, why did my past self do this? This does not belong here.
-    sidebar_width: Pixels,
-    config_view: Option<Entity<ConfigView>>,
-    passkeys_view: Option<Entity<PasskeysView>>,
-    focus_handle: FocusHandle,
+    pub device: DeviceConnectionState,
+    pub layout: LayoutState,
+    pub views: ViewCache,
+    pub focus_handle: FocusHandle,
 }
 
 impl ApplicationRoot {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let mut this = Self {
-            active_view: ActiveView::Home,
-            is_sidebar_collapsed: false,
-            sidebar_toggle_hovered: false,
-            state: DeviceConnectionState::new(),
-            device_loading: false,
-            sidebar_width: px(255.),
-            config_view: None,
-            passkeys_view: None,
+            device: DeviceConnectionState::new(),
+            layout: LayoutState::new(),
+            views: ViewCache::new(),
             focus_handle: cx.focus_handle(),
         };
+
         this.refresh_device_status(None, cx);
         this
     }
@@ -50,30 +39,30 @@ impl ApplicationRoot {
     }
 
     fn refresh_device_status(&mut self, window: Option<&mut Window>, cx: &mut Context<Self>) {
-        if self.device_loading {
+        if self.device.loading {
             return;
         }
 
-        self.device_loading = true;
-        self.state.error = None;
+        self.device.loading = true;
+        self.device.error = None;
         cx.notify();
 
         match io::read_device_details() {
             Ok(status) => {
-                self.state.device_status = Some(status.clone());
-                self.state.error = None;
+                self.device.status = Some(status.clone());
+                self.device.error = None;
 
                 match io::get_fido_info() {
                     Ok(fido) => {
-                        self.state.fido_info = Some(fido);
+                        self.device.fido_info = Some(fido);
                     }
                     Err(e) => {
                         log::error!("FIDO Info fetch failed: {}", e);
-                        self.state.fido_info = None;
+                        self.device.fido_info = None;
                     }
                 }
 
-                if let Some(config_view) = &self.config_view
+                if let Some(config_view) = &self.views.config
                     && let Some(window) = window
                 {
                     config_view.update(cx, |view, cx| {
@@ -81,25 +70,25 @@ impl ApplicationRoot {
                     });
                 }
 
-                if let Some(passkeys_view) = &self.passkeys_view {
-                    let fido = self.state.fido_info.clone();
+                if let Some(passkeys_view) = &self.views.passkeys {
+                    let fido = self.device.fido_info.clone();
                     passkeys_view.update(cx, |view, cx| {
                         view.update_device_status(Some(status.clone()), fido, cx);
                     });
                 }
             }
             Err(e) => {
-                self.state.device_status = None;
-                self.state.error = Some(format!("{}", e));
-                self.state.fido_info = None;
+                self.device.status = None;
+                self.device.error = Some(format!("{}", e));
+                self.device.fido_info = None;
             }
         }
-        self.device_loading = false;
+        self.device.loading = false;
         cx.notify();
     }
 
     pub fn toggle_sidebar(&mut self, cx: &mut Context<Self>) {
-        self.is_sidebar_collapsed = !self.is_sidebar_collapsed;
+        self.layout.is_sidebar_collapsed = !self.layout.is_sidebar_collapsed;
         cx.notify();
     }
 }
@@ -108,7 +97,7 @@ impl Render for ApplicationRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let window_width = window.bounds().size.width;
         let is_window_wide = window_width > px(800.0);
-        let is_sidebar_collapsed = self.is_sidebar_collapsed || !is_window_wide;
+        let is_sidebar_collapsed = self.layout.is_sidebar_collapsed || !is_window_wide;
 
         let target_width = if is_sidebar_collapsed {
             px(48.)
@@ -116,11 +105,12 @@ impl Render for ApplicationRoot {
             px(255.)
         };
 
-        if (self.sidebar_width - target_width).abs() > px(0.1) {
-            self.sidebar_width = self.sidebar_width + (target_width - self.sidebar_width) * 0.2;
+        if (self.layout.sidebar_width - target_width).abs() > px(0.1) {
+            self.layout.sidebar_width =
+                self.layout.sidebar_width + (target_width - self.layout.sidebar_width) * 0.2;
             window.request_animation_frame();
         } else {
-            self.sidebar_width = target_width;
+            self.layout.sidebar_width = target_width;
         }
 
         let dialog_layer = Root::render_dialog_layer(window, cx);
@@ -146,19 +136,19 @@ impl Render for ApplicationRoot {
             .overflow_y_scrollbar()
             .flex_grow()
             .bg(cx.theme().background)
-            .child(match self.active_view {
+            .child(match self.layout.active_view {
                 ActiveView::Home => {
-                    HomeView::build(&self.state, cx.theme(), window.bounds().size.width)
+                    HomeView::build(&self.device, cx.theme(), window.bounds().size.width)
                         .into_any_element()
                 }
                 ActiveView::Passkeys => {
-                    let view = self.passkeys_view.get_or_insert_with(|| {
+                    let view = self.views.passkeys.get_or_insert_with(|| {
                         let view = cx.new(|cx| {
                             PasskeysView::new(
                                 window,
                                 cx,
-                                self.state.device_status.clone(),
-                                self.state.fido_info.clone(),
+                                self.device.status.clone(),
+                                self.device.fido_info.clone(),
                             )
                         });
                         cx.subscribe_in(
@@ -176,8 +166,8 @@ impl Render for ApplicationRoot {
                     view.clone().into_any_element()
                 }
                 ActiveView::Configuration => {
-                    let view = self.config_view.get_or_insert_with(|| {
-                        cx.new(|cx| ConfigView::new(window, cx, self.state.device_status.clone()))
+                    let view = self.views.config.get_or_insert_with(|| {
+                        cx.new(|cx| ConfigView::new(window, cx, self.device.status.clone()))
                     });
                     view.clone().into_any_element()
                 }
@@ -186,13 +176,13 @@ impl Render for ApplicationRoot {
             });
 
         let sidebar = AppSidebar::new(
-            self.active_view,
-            self.sidebar_width,
+            self.layout.active_view,
+            self.layout.sidebar_width,
             is_sidebar_collapsed,
-            self.state.clone(),
+            self.device.clone(),
         )
         .on_select(|this: &mut Self, view, _, _| {
-            this.active_view = view;
+            this.layout.active_view = view;
         })
         .on_refresh(|this, window, cx| {
             this.refresh_device_status(Some(window), cx);
@@ -203,8 +193,8 @@ impl Render for ApplicationRoot {
         let sidebar_bg = cx.theme().sidebar;
         let border_color = cx.theme().sidebar_border;
         let sidebar_fg = cx.theme().sidebar_foreground;
-        let is_toggle_visible = !is_sidebar_collapsed || self.sidebar_toggle_hovered;
-        let sidebar_width = self.sidebar_width;
+        let is_toggle_visible = !is_sidebar_collapsed || self.layout.sidebar_toggle_hovered;
+        let sidebar_width = self.layout.sidebar_width;
         let toggle_icon = if is_sidebar_collapsed {
             "icons/chevron-right.svg"
         } else {
@@ -226,7 +216,7 @@ impl Render for ApplicationRoot {
             .items_center()
             .justify_center()
             .on_hover(cx.listener(|this, hovered, _, cx| {
-                this.sidebar_toggle_hovered = *hovered;
+                this.layout.sidebar_toggle_hovered = *hovered;
                 cx.notify();
             }))
             .child(
@@ -249,7 +239,7 @@ impl Render for ApplicationRoot {
                             .build(window, cx)
                     })
                     .on_click(cx.listener(|this, _, _, _| {
-                        this.is_sidebar_collapsed = !this.is_sidebar_collapsed;
+                        this.layout.is_sidebar_collapsed = !this.layout.is_sidebar_collapsed;
                     }))
                     .child(Icon::default().path(toggle_icon).text_color(sidebar_fg)),
             );

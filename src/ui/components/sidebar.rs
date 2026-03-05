@@ -191,7 +191,7 @@ impl<V: 'static> AppSidebar<V> {
                                     .w_full(),
                             )
                             .child(div().w(px(8.)).h(px(8.)).rounded_full().bg(
-                                if let Some(status) = &state.device_status {
+                                if let Some(status) = &state.status {
                                     if status.method == DeviceMethod::Fido {
                                         rgb(0xf59e0b)
                                     } else {
@@ -220,7 +220,7 @@ impl<V: 'static> AppSidebar<V> {
                                     )
                                     .child({
                                         let (text, color_bg, color_text) =
-                                            if let Some(status) = &state.device_status {
+                                            if let Some(status) = &state.status {
                                                 if status.method == DeviceMethod::Fido {
                                                     ("Online - Fido", rgb(0xf59e0b), rgb(0xffffff))
                                                 } else {

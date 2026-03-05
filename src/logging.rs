@@ -58,20 +58,28 @@ pub fn logger_init() {
         )))
         .build();
 
-    let (app_level, root_level) = if cfg!(debug_assertions) {
-        (LevelFilter::Trace, LevelFilter::Debug)
+    let app_level = if cfg!(debug_assertions) {
+        LevelFilter::Trace
     } else {
-        (LevelFilter::Info, LevelFilter::Error)
+        LevelFilter::Info
     };
 
     let config = log4rs::Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("logfile", Box::new(logfile)))
-        .logger(Logger::builder().build("picoforge", app_level))
+        .logger(
+            Logger::builder()
+                .appenders(["stdout", "logfile"])
+                .additive(false)
+                .build("picoforge", app_level),
+        )
+        .logger(Logger::builder().build("gpui", LevelFilter::Error))
+        .logger(Logger::builder().build("gpui_component", LevelFilter::Error))
+        .logger(Logger::builder().build("blade_graphics", LevelFilter::Error))
         .build(
             Root::builder()
                 .appenders(vec!["logfile", "stdout"])
-                .build(root_level),
+                .build(LevelFilter::Error),
         )
         .unwrap();
 

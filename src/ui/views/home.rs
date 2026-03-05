@@ -14,7 +14,7 @@ impl HomeView {
         theme: &Theme,
         window_width: Pixels,
     ) -> impl IntoElement {
-        let connected = state.device_status.is_some();
+        let connected = state.status.is_some();
         let is_wide = window_width > px(1100.0);
         let columns = if is_wide { 2 } else { 1 };
 
@@ -83,7 +83,7 @@ impl HomeView {
     }
 
     fn render_device_info(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+        let status = state.status.as_ref().unwrap();
         let info = &status.info;
         let config = &status.config;
 
@@ -278,7 +278,7 @@ impl HomeView {
     }
 
     fn render_led_config(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+        let status = state.status.as_ref().unwrap();
         let config = &status.config;
         Card::new()
             .title("LED Configuration")
@@ -366,7 +366,7 @@ impl HomeView {
     }
 
     fn render_security_status(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+        let status = state.status.as_ref().unwrap();
         Card::new()
             .title("Security Status")
             .icon(Icon::default().path("icons/shield-check.svg"))
