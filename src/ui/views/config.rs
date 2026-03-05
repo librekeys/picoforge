@@ -1,12 +1,13 @@
 use crate::device::io;
-use crate::device::types::{AppConfigInput, FullDeviceStatus};
+use crate::device::types::AppConfigInput;
 use crate::ui::components::{
     card::Card,
     dialog,
     dialog::{PinPromptContent, StatusContent},
     page_view::PageView,
 };
-use crate::ui::types::{LedDriverType, UsbIdentityPreset};
+use crate::ui::rootview::ApplicationRoot;
+use crate::ui::types::{DeviceConnectionState, LedDriverType, UsbIdentityPreset};
 use gpui::*;
 use gpui_component::button::{ButtonCustomVariant, ButtonVariants};
 use gpui_component::{
@@ -61,6 +62,7 @@ enum StatusDialogHandle {
 }
 
 pub struct ConfigView {
+    root: WeakEntity<ApplicationRoot>,
     vendor_select: Entity<SelectState<Vec<VendorSelectOption>>>,
     vid_input: Entity<InputState>,
     pid_input: Entity<InputState>,
@@ -74,7 +76,6 @@ pub struct ConfigView {
     power_cycle: bool,
     enable_secp256k1: bool,
     loading: bool,
-    device_status: Option<FullDeviceStatus>,
     is_custom_vendor: bool,
     _task: Option<Task<()>>,
 }
@@ -83,9 +84,10 @@ impl ConfigView {
     pub fn new(
         window: &mut Window,
         cx: &mut Context<Self>,
-        device_status: Option<FullDeviceStatus>,
+        root: WeakEntity<ApplicationRoot>,
+        device: DeviceConnectionState,
     ) -> Self {
-        let config = device_status.as_ref().map(|s| &s.config);
+        let config = device.status.as_ref().map(|s| &s.config);
 
         let vendors: Vec<VendorSelectOption> = UsbIdentityPreset::all()
             .iter()
@@ -197,6 +199,7 @@ impl ConfigView {
             cx.new(|cx| InputState::new(window, cx).default_value(current_touch_timeout.clone()));
 
         Self {
+            root,
             vendor_select,
             vid_input,
             pid_input,
@@ -210,7 +213,6 @@ impl ConfigView {
             power_cycle: config.map(|c| c.power_cycle_on_reset).unwrap_or(false),
             enable_secp256k1: config.map(|c| c.enable_secp256k1).unwrap_or(true),
             loading: false,
-            device_status: device_status.clone(),
             is_custom_vendor,
             _task: None,
         }
@@ -224,6 +226,14 @@ impl ConfigView {
         dialog_handle: StatusDialogHandle,
         cx: &mut Context<Self>,
     ) {
+        let expected_serial = self.root.upgrade().and_then(|r| {
+            r.read(cx)
+                .device
+                .status
+                .as_ref()
+                .map(|s| s.info.serial.clone())
+        });
+
         self.loading = true;
         cx.notify();
 
@@ -254,19 +264,28 @@ impl ConfigView {
                         log::info!("Success: {}", msg);
 
                         if let Some(Ok(new_status)) = new_status_result {
-                            log::info!(
-                                "Refreshed device status. LED Steady: {}",
-                                new_status.config.led_steady
-                            );
+                            let serial_matches = expected_serial.as_deref()
+                                                        == Some(new_status.info.serial.as_str());
 
-                            let config = &new_status.config;
+                            if serial_matches {
+                                log::info!(
+                                    "Refreshed device status. LED Steady: {}",
+                                    new_status.config.led_steady
+                                );
 
-                            this.led_dimmable = config.led_dimmable;
-                            this.led_steady = config.led_steady;
-                            this.power_cycle = config.power_cycle_on_reset;
-                            this.enable_secp256k1 = config.enable_secp256k1;
+                                let config = &new_status.config;
+                                this.led_dimmable = config.led_dimmable;
+                                this.led_steady = config.led_steady;
+                                this.power_cycle = config.power_cycle_on_reset;
+                                this.enable_secp256k1 = config.enable_secp256k1;
 
-                            this.device_status = Some(new_status);
+                                let _ = this.root.update(cx, |root, cx| {
+                                    root.device.status = Some(new_status);
+                                    cx.notify();
+                                });
+                            } else {
+                                log::warn!("Device changed during config write, discarding stale status");
+                            }
                         }
 
                         match &dialog_handle {
@@ -349,11 +368,11 @@ impl ConfigView {
     }
 
     fn apply_changes(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let status = if let Some(s) = &self.device_status {
-            s
-        } else {
+        let Some(root) = self.root.upgrade() else {
             return;
         };
+        let device = root.read(cx).device.clone();
+        let Some(status) = &device.status else { return };
 
         let current_config = &status.config;
         let mut changes = AppConfigInput {
@@ -397,7 +416,8 @@ impl ConfigView {
             && let Some(driver) = LedDriverType::all().get(idx.row)
         {
             let val = driver.value();
-            if Some(val) != current_config.led_driver {
+            let current_val = current_config.led_driver.unwrap_or(1);
+            if val != current_val {
                 changes.led_driver = Some(val);
             }
         }
@@ -460,17 +480,13 @@ impl ConfigView {
         }
     }
 
-    pub(crate) fn update_device_status(
+    pub fn sync_from_device(
         &mut self,
-        status: Option<FullDeviceStatus>,
+        device: &DeviceConnectionState,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.device_status == status {
-            return;
-        }
-        self.device_status = status.clone();
-        let config = status.as_ref().map(|s| &s.config);
+        let config = device.status.as_ref().map(|s| &s.config);
 
         let vid = config
             .map(|c| c.vid.clone())
@@ -510,6 +526,19 @@ impl ConfigView {
         let brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
         self.led_brightness_slider
             .update(cx, |slider, cx| slider.set_value(brightness, window, cx));
+
+        let new_driver_val = config.and_then(|c| c.led_driver).unwrap_or(1);
+        let new_driver_idx = LedDriverType::all()
+            .iter()
+            .position(|d| d.value() == new_driver_val)
+            .unwrap_or(0);
+        self.led_driver_select.update(cx, |select, cx| {
+            select.set_selected_index(
+                Some(gpui_component::IndexPath::default().row(new_driver_idx)),
+                window,
+                cx,
+            );
+        });
 
         cx.notify();
     }
@@ -727,7 +756,13 @@ impl ConfigView {
 impl Render for ConfigView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
-        if self.device_status.is_none() {
+        let has_device = self
+            .root
+            .upgrade()
+            .map(|r| r.read(cx).device.status.is_some())
+            .unwrap_or(false);
+
+        if !has_device {
             return PageView::build(
                 "Configuration",
                 "Customize device settings and behavior.",

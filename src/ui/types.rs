@@ -1,6 +1,8 @@
-use gpui::SharedString;
-
-use crate::device::types::{FidoDeviceInfo, FullDeviceStatus};
+use crate::{
+    device::types::{FidoDeviceInfo, FullDeviceStatus},
+    ui::views::{config::ConfigView, passkeys::PasskeysView},
+};
+use gpui::{Entity, Pixels, SharedString, px};
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum ActiveView {
@@ -12,18 +14,53 @@ pub enum ActiveView {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct GlobalDeviceState {
-    pub device_status: Option<FullDeviceStatus>,
+pub struct DeviceConnectionState {
+    pub status: Option<FullDeviceStatus>,
     pub fido_info: Option<FidoDeviceInfo>,
     pub error: Option<String>,
+    pub loading: bool,
 }
 
-impl GlobalDeviceState {
+impl DeviceConnectionState {
     pub fn new() -> Self {
         Self {
-            device_status: None,
+            status: None,
             fido_info: None,
             error: None,
+            loading: false,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct LayoutState {
+    pub active_view: ActiveView,
+    pub is_sidebar_collapsed: bool,
+    pub sidebar_toggle_hovered: bool,
+    pub sidebar_width: Pixels,
+}
+
+impl LayoutState {
+    pub fn new() -> Self {
+        Self {
+            active_view: ActiveView::Home,
+            is_sidebar_collapsed: false,
+            sidebar_toggle_hovered: false,
+            sidebar_width: px(255.),
+        }
+    }
+}
+
+pub struct ViewCache {
+    pub passkeys: Option<Entity<PasskeysView>>,
+    pub config: Option<Entity<ConfigView>>,
+}
+
+impl ViewCache {
+    pub fn new() -> Self {
+        Self {
+            passkeys: None,
+            config: None,
         }
     }
 }

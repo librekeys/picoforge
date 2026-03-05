@@ -1,5 +1,5 @@
 use crate::device::io;
-use crate::device::types::{FidoDeviceInfo, FullDeviceStatus, StoredCredential};
+use crate::device::types::StoredCredential;
 use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
@@ -7,6 +7,8 @@ use crate::ui::components::{
     dialog::{ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent, StatusContent},
     page_view::PageView,
 };
+use crate::ui::rootview::ApplicationRoot;
+use crate::ui::types::DeviceConnectionState;
 use gpui::*;
 use gpui_component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_component::{
@@ -30,13 +32,11 @@ impl Render for SliderLabel {
 }
 
 pub struct PasskeysView {
-    device_status: Option<FullDeviceStatus>,
-    fido_info: Option<FidoDeviceInfo>,
+    root: WeakEntity<ApplicationRoot>,
     credentials: Vec<StoredCredential>,
     unlocked: bool,
     cached_pin: Option<String>,
     loading: bool,
-
     _task: Option<Task<()>>,
 }
 
@@ -50,32 +50,16 @@ impl PasskeysView {
     pub fn new(
         _window: &mut Window,
         _cx: &mut Context<Self>,
-        device_status: Option<FullDeviceStatus>,
-        fido_info: Option<FidoDeviceInfo>,
+        root: WeakEntity<ApplicationRoot>,
     ) -> Self {
         Self {
-            device_status,
-            fido_info,
+            root,
             credentials: Vec::new(),
             unlocked: false,
             cached_pin: None,
             loading: false,
             _task: None,
         }
-    }
-
-    pub fn update_device_status(
-        &mut self,
-        status: Option<FullDeviceStatus>,
-        fido_info: Option<FidoDeviceInfo>,
-        cx: &mut Context<Self>,
-    ) {
-        if self.device_status == status && self.fido_info == fido_info {
-            return;
-        }
-        self.device_status = status;
-        self.fido_info = fido_info;
-        cx.notify();
     }
 
     fn unlock_storage(
@@ -283,7 +267,10 @@ impl PasskeysView {
                     Ok(msg) => {
                         log::info!("PIN configured: {}", msg);
                         if let Ok(info) = io::get_fido_info() {
-                            this.fido_info = Some(info);
+                            let _ = this.root.update(cx, |root, cx| {
+                                root.device.fido_info = Some(info);
+                                cx.notify();
+                            });
                         }
                         let _ = dialog_handle.update(cx, |d, cx| {
                             d.set_success("PIN configured successfully.".to_string(), cx);
@@ -303,9 +290,15 @@ impl PasskeysView {
 
     fn open_min_pin_length_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let current_min = self
-            .fido_info
-            .as_ref()
-            .map(|f| f.min_pin_length)
+            .root
+            .upgrade()
+            .and_then(|r| {
+                r.read(cx)
+                    .device
+                    .fido_info
+                    .as_ref()
+                    .map(|f| f.min_pin_length)
+            })
             .unwrap_or(4);
 
         let slider = cx.new(|_| {
@@ -468,7 +461,10 @@ impl PasskeysView {
                     Ok(msg) => {
                         log::info!("PIN changed: {}", msg);
                         if let Ok(info) = io::get_fido_info() {
-                            this.fido_info = Some(info);
+                            let _ = this.root.update(cx, |root, cx| {
+                                root.device.fido_info = Some(info);
+                                cx.notify();
+                            });
                         }
                         let _ = dialog_handle.update(cx, |d, cx| {
                             d.set_success("PIN changed successfully.".to_string(), cx);
@@ -533,7 +529,10 @@ impl PasskeysView {
                         Ok(_) => {
                             log::info!("Minimum length and PIN updated successfully.");
                             if let Ok(info) = io::get_fido_info() {
-                                this.fido_info = Some(info);
+                                let _ = this.root.update(cx, |root, cx| {
+                                    root.device.fido_info = Some(info);
+                                    cx.notify();
+                                });
                             }
                             let _ = status_handle.update(cx, |s, cx| {
                                 s.set_success("Minimum length and PIN updated.".to_string(), cx);
@@ -556,7 +555,10 @@ impl PasskeysView {
                     this.loading = false;
                     log::info!("Minimum PIN length updated to {}.", min_len);
                     if let Ok(info) = io::get_fido_info() {
-                        this.fido_info = Some(info);
+                        let _ = this.root.update(cx, |root, cx| {
+                            root.device.fido_info = Some(info);
+                            cx.notify();
+                        });
                     }
                     let _ = status_handle.update(cx, |s, cx| {
                         s.set_success(format!("Minimum length updated to {}.", min_len), cx);
@@ -613,8 +615,11 @@ impl PasskeysView {
     }
 
     fn render_pin_status_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let pin_set = self
-            .fido_info
+        let fido_info = self
+            .root
+            .upgrade()
+            .and_then(|r| r.read(cx).device.fido_info.clone());
+        let pin_set = fido_info
             .as_ref()
             .and_then(|f| f.options.get("clientPin").copied())
             .unwrap_or(false);
@@ -660,13 +665,12 @@ impl PasskeysView {
     }
 
     fn render_min_pin_length_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        let min_len = self
-            .fido_info
-            .as_ref()
-            .map(|f| f.min_pin_length)
-            .unwrap_or(4);
-        let pin_set = self
-            .fido_info
+        let fido_info = self
+            .root
+            .upgrade()
+            .and_then(|r| r.read(cx).device.fido_info.clone());
+        let min_len = fido_info.as_ref().map(|f| f.min_pin_length).unwrap_or(4);
+        let pin_set = fido_info
             .as_ref()
             .and_then(|f| f.options.get("clientPin").copied())
             .unwrap_or(false);
@@ -1121,7 +1125,14 @@ impl PasskeysView {
 
 impl Render for PasskeysView {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let device_connected = self.device_status.is_some();
+        let device = self
+            .root
+            .upgrade()
+            .map(|r| r.read(cx).device.clone())
+            .unwrap_or_else(DeviceConnectionState::new);
+
+        let device_connected = device.status.is_some();
+
         if !device_connected {
             let theme = cx.theme();
             return PageView::build(
@@ -1133,12 +1144,12 @@ impl Render for PasskeysView {
             .into_any_element();
         }
 
-        let has_fido = self
-            .device_status
+        let has_fido = device
+            .status
             .as_ref()
             .map(|s| s.method == crate::device::types::DeviceMethod::Fido)
             .unwrap_or(false)
-            || self.fido_info.is_some();
+            || device.fido_info.is_some();
 
         if !has_fido {
             let theme = cx.theme();

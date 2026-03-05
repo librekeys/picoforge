@@ -1,6 +1,6 @@
 use crate::device::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
-use crate::ui::types::GlobalDeviceState;
+use crate::ui::types::DeviceConnectionState;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 use gpui_component::StyledExt;
@@ -10,11 +10,11 @@ pub struct HomeView;
 
 impl HomeView {
     pub fn build(
-        state: &GlobalDeviceState,
+        state: &DeviceConnectionState,
         theme: &Theme,
         window_width: Pixels,
     ) -> impl IntoElement {
-        let connected = state.device_status.is_some();
+        let connected = state.status.is_some();
         let is_wide = window_width > px(1100.0);
         let columns = if is_wide { 2 } else { 1 };
 
@@ -82,8 +82,8 @@ impl HomeView {
             )
     }
 
-    fn render_device_info(state: &GlobalDeviceState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+    fn render_device_info(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
+        let status = state.status.as_ref().unwrap();
         let info = &status.info;
         let config = &status.config;
 
@@ -159,7 +159,7 @@ impl HomeView {
             )
     }
 
-    fn render_fido_info(state: &GlobalDeviceState, theme: &Theme) -> impl IntoElement {
+    fn render_fido_info(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
         Card::new()
             .title("FIDO2 Information")
             .icon(Icon::default().path("icons/shield.svg"))
@@ -277,8 +277,8 @@ impl HomeView {
             })
     }
 
-    fn render_led_config(state: &GlobalDeviceState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+    fn render_led_config(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
+        let status = state.status.as_ref().unwrap();
         let config = &status.config;
         Card::new()
             .title("LED Configuration")
@@ -365,8 +365,8 @@ impl HomeView {
             })
     }
 
-    fn render_security_status(state: &GlobalDeviceState, theme: &Theme) -> impl IntoElement {
-        let status = state.device_status.as_ref().unwrap();
+    fn render_security_status(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
+        let status = state.status.as_ref().unwrap();
         Card::new()
             .title("Security Status")
             .icon(Icon::default().path("icons/shield-check.svg"))
