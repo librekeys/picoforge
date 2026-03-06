@@ -72,6 +72,44 @@ install -m 644 static/appIcons/in.suyogtandel.picoforge.svg %{buildroot}%{_datad
 %{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %changelog
+* Fri Mar 06 2026 Suyog Tandel <git@suyogtandel.in> 0.5.0-1
+- chore: sync spec to 0.5.0 [skip ci] (git@suyogtandel.in)
+- chore: bump app version to 0.5.0 (git@suyogtandel.in)
+- fix(ui): migrate views to read device state from ApplicationRoot
+  (git@suyogtandel.in)
+- refactor: ApplicationRoot restructure (git@suyogtandel.in)
+- refactor: rename GlobalDeviceState to DeviceConnectionState
+  (git@suyogtandel.in)
+- fix: clippy errors and remove logs view (git@suyogtandel.in)
+- feat(ui): Add LibreKeys One Vendor Config to PicoForge (git@suyogtandel.in)
+- fix(ui): bottom drawer issue when deleting a passkey (git@suyogtandel.in)
+- fix(ui): Fido version displayed in fido information (git@suyogtandel.in)
+- fix:(ui): set min pin length dialog : the enter key is triggering cancel
+  instead of update (git@suyogtandel.in)
+- fix(ui): error message colors in dialogs (git@suyogtandel.in)
+- fix(ui): logs terminal overflowing to the right of the window
+  (git@suyogtandel.in)
+- fix clippy warings in fido code (fabrice.bellamy@distrilab.fr)
+- remove dependency on ctap-hid-fido2 and use our own implementation of fido
+  commands to avoid picoforge freeze with som bad firmwares
+  (fabrice.bellamy@distrilab.fr)
+- refactor: replace to_u64 match blocks with explicit enum discriminants
+  (git@suyogtandel.in)
+- support pico-fido version 7.4 (fabrice.bellamy@distrilab.fr)
+- fix(ui): Application icon on macos and windows (#74)
+  (38373466+Lab-8916100448256@users.noreply.github.com)
+- fix(ui): window handling broken on windows due to interactive config on
+  first(root) element (git@suyogtandel.in)
+- chore(docs): update readme.md and PR template (git@suyogtandel.in)
+- feat(pkg): add flatpak build manifest and workflow (#75) (git@suyogtandel.in)
+- chore: Update funding.yml with donation links (git@suyogtandel.in)
+- chore: delete old issue template (git@suyogtandel.in)
+- chore: Update issue and feature templates (suyogtandel12@gmail.com)
+- Update issue templates (suyogtandel12@gmail.com)
+- chore: update github PR and ISSUE templates (git@suyogtandel.in)
+- fix #72 : sidebar toggle button redesign (fabrice.bellamy@distrilab.fr)
+- picoforge: 0.4.0 -> 0.4.1 (github-actions[bot]@users.noreply.github.com)
+
 * Sun Feb 22 2026 Suyog Tandel <git@suyogtandel.in> 0.4.1-1
 - chore: sync spec to 0.4.1 [skip ci] (git@suyogtandel.in)
 - chore: bump app version to 0.4.1 (git@suyogtandel.in)
