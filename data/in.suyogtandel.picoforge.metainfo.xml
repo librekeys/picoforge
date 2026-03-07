@@ -5,9 +5,9 @@
   <project_license>AGPL-3.0-only</project_license>
 
   <name>PicoForge</name>
-  <summary>pico fido key commissioning tool</summary>
+  <summary>Security keys configuration tool</summary>
   <description>
-    <p>PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust and GPUI, it provides an intuitive interface for reading device information, configuring USB identifiers, adjusting LED settings, managing security features, and monitoring real-time system logs.</p>
+    <p>PicoForge is a modern desktop application for configuring and managing pico-fido and LibreKeys security keys. Built with Rust and GPUI, it provides an intuitive interface for reading device information, configuring USB identifiers, adjusting LED settings, managing security features, and monitoring stored credentials.</p>
   </description>
 
   <developer id="in.suyogtandel">
@@ -35,26 +35,33 @@
   </requires>
 
   <branding>
-    <color type="primary" scheme_preference="light">#fafafa</color>
-    <color type="primary" scheme_preference="dark">#18181b</color>
+    <color type="primary" scheme_preference="light">#9088a0</color>
+    <color type="primary" scheme_preference="dark">#3d3846</color>
   </branding>
 
   <screenshots>
     <screenshot type="default">
-      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-1.webp</image>
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/refs/tags/v0.5.0/data/screenshots/screenshot-1.webp</image>
       <caption>Main Interface</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-2.webp</image>
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/refs/tags/v0.5.0/data/screenshots/screenshot-2.webp</image>
       <caption>PassKeys Management</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/librekeys/picoforge/main/data/screenshots/screenshot-3.webp</image>
+      <image>https://raw.githubusercontent.com/librekeys/picoforge/refs/tags/v0.5.0/data/screenshots/screenshot-3.webp</image>
       <caption>Configuration Interface</caption>
     </screenshot>
   </screenshots>
 
   <releases>
+    <release version="0.5.0" date="2026-03-06">
+      <url type="details">https://github.com/librekeys/picoforge/releases/tag/v0.5.0</url>
+        <description translate="no">
+          <p>Release 0.5.0</p>
+        </description>
+      </release>
+    </releases>
     <release version="0.4.1" date="2026-02-22">
       <url type="details">https://github.com/librekeys/picoforge/releases/tag/v0.4.1</url>
       <description translate="no">
