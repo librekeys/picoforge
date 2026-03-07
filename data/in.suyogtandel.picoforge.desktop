@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=picoforge
+Name=PicoForge
 Exec=picoforge
 Icon=in.suyogtandel.picoforge
 Terminal=false
