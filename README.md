@@ -62,6 +62,12 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 
 ## Installation
 
+### Linux:
+
+[![Get it on Flathub](https://flathub.org/api/badge?locale=en)](https://flathub.org/en-GB/apps/in.suyogtandel.picoforge)
+
+### Other OS:
+
 Check the official [PicoForge Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation info of the application.
 
 ## Usage
@@ -245,6 +251,8 @@ Please check the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file for the full co
 
 ## License
 
+![AGPL3-Image](https://www.gnu.org/graphics/agplv3-155x51.png)
+
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0-only)**.
 
 See [LICENSE](LICENSE) for full details.
@@ -252,7 +260,7 @@ See [LICENSE](LICENSE) for full details.
 ## Repository Maintainers
 
 - **Suyog Tandel** ([@lockedmutex](https://github.com/lockedmutex))
-- **Fabrice Bellamy** ([@Lab-8916100448256](https://github.com/Lab-8916100448256)) - Co-Maintainer
+- **Fabrice Bellamy** ([@Lab-8916100448256](https://github.com/Lab-8916100448256))
 
 ## Package Maintainers
 

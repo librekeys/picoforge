@@ -8,7 +8,7 @@
   <summary>Security keys configuration tool</summary>
   <description>
     <p
-    >PicoForge is a modern desktop application for configuring and managing pico-fido and LibreKeys security keys. Built with Rust and GPUI, it provides an intuitive interface for reading device information, configuring USB identifiers, adjusting LED settings, managing security features, and monitoring stored credentials.</p>
+    >PicoForge is a desktop application for configuring and managing pico-fido and LibreKeys security keys. Built with Rust and GPUI, it provides an intuitive interface for reading device information, configuring USB identifiers, adjusting LED settings, managing security features, and monitoring stored credentials.</p>
   </description>
 
   <developer id="in.suyogtandel">
@@ -63,12 +63,22 @@
       <url type="details">https://github.com/librekeys/picoforge/releases/tag/v0.5.0</url>
         <description translate="no">
           <p>Release 0.5.0</p>
+          <ul>
+            <li>Add support for LibreKeys One firmware version 7.4.2</li>
+            <li>Add support for pico-fido firmware version 7.4</li>
+            <li>Improve Sidebar handling</li>
+            <li>Fix application crashing while parsing stored passkeys</li>
+          </ul>
         </description>
       </release>
     <release version="0.4.1" date="2026-02-22">
       <url type="details">https://github.com/librekeys/picoforge/releases/tag/v0.4.1</url>
       <description translate="no">
         <p>Release 0.4.1</p>
+        <ul>
+          <li>Drop tauri in favor of GPUI for the GUI of the application</li>
+          <li>Improve Passkeys Management UI</li>
+        </ul>
       </description>
     </release>
   </releases>

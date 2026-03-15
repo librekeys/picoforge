@@ -5,7 +5,7 @@ on:
       - release-nightly
 
 jobs:
-  publish-tauri:
+  build-and-release:
     permissions:
       contents: write
       issues: write

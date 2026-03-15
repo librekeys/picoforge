@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish-tauri:
+  build-and-release:
     permissions:
       contents: write
       issues: write
