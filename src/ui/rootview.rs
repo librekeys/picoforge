@@ -60,6 +60,7 @@ impl ApplicationRoot {
 
                 if device_changed {
                     self.views.passkeys = None;
+                    self.views.security = None;
                 }
 
                 match io::get_fido_info() {
@@ -172,7 +173,17 @@ impl Render for ApplicationRoot {
                     }
                     self.views.config.clone().unwrap().into_any_element()
                 }
-                ActiveView::Security => SecurityView::build(cx).into_any_element(),
+                ActiveView::Security => {
+                    if self.views.security.is_none() {
+                        let root = cx.entity().downgrade();
+                        let view = cx.new(|cx| SecurityView::new(window, cx, root));
+                        view.update(cx, |view, cx| {
+                            view.refresh_status(None, cx);
+                        });
+                        self.views.security = Some(view);
+                    }
+                    self.views.security.clone().unwrap().into_any_element()
+                }
                 ActiveView::About => AboutView::build(cx.theme()).into_any_element(),
             });
 

@@ -3,15 +3,15 @@ pub mod hid;
 
 use crate::{
     device::types::{
-        AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FullDeviceStatus,
-        StoredCredential,
+        AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo,
+        FingerprintEnrollResult, FingerprintStatus, FullDeviceStatus, StoredCredential,
     },
     error::PFError,
 };
 use constants::*;
 use hid::*;
 use serde_cbor_2::{Value, from_slice, to_vec};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 // Fido functions that require pin:
 
@@ -365,6 +365,125 @@ pub(crate) fn set_min_pin_length(
         "Minimum PIN length successfully set to {}",
         min_pin_length
     ))
+}
+
+pub(crate) fn get_fingerprint_status(pin: Option<String>) -> Result<FingerprintStatus, String> {
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let info = get_fido_info()?;
+    let options: HashMap<String, bool> = info.options.into_iter().collect();
+    let supported = options.get("bioEnroll").copied().unwrap_or(false);
+    let pin_configured = options.get("clientPin").copied().unwrap_or(false);
+    let templates_loaded = pin.is_some();
+
+    if !supported {
+        return Ok(FingerprintStatus {
+            supported: false,
+            pin_configured,
+            templates_loaded: false,
+            sensor: None,
+            templates: Vec::new(),
+        });
+    }
+
+    let sensor = transport
+        .bio_enrollment_get_fingerprint_sensor_info()
+        .map_err(|e| format!("Failed to read fingerprint sensor info: {}", e))?;
+
+    let templates = if let Some(pin) = pin {
+        transport
+            .bio_enrollment_enumerate_enrollments(&pin)
+            .map_err(|e| format!("Failed to enumerate fingerprints: {}", e))?
+    } else {
+        Vec::new()
+    };
+
+    Ok(FingerprintStatus {
+        supported,
+        pin_configured,
+        templates_loaded,
+        sensor: Some(sensor),
+        templates,
+    })
+}
+
+pub(crate) fn enroll_fingerprint(
+    pin: String,
+    timeout_ms: Option<u16>,
+) -> Result<FingerprintEnrollResult, String> {
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let sensor = transport
+        .bio_enrollment_get_fingerprint_sensor_info()
+        .map_err(|e| format!("Failed to read fingerprint sensor info: {}", e))?;
+
+    let (template_id, mut step) = transport
+        .bio_enrollment_begin(&pin, timeout_ms)
+        .map_err(|e| format!("Failed to start fingerprint enrollment: {}", e))?;
+
+    let max_steps = sensor.max_capture_samples_required_for_enroll.max(1) + 4;
+    let mut attempts = 0;
+
+    while step.remaining_samples.unwrap_or(0) > 0 && attempts < max_steps {
+        step = transport
+            .bio_enrollment_next(&pin, timeout_ms)
+            .map_err(|e| format!("Fingerprint enrollment failed: {}", e))?;
+        attempts += 1;
+    }
+
+    let remaining_samples = step.remaining_samples.unwrap_or(0);
+    let status = step.status.unwrap_or(0xff);
+
+    if remaining_samples > 0 {
+        return Err(format!(
+            "Fingerprint enrollment did not complete after {} capture steps",
+            attempts
+        ));
+    }
+
+    Ok(FingerprintEnrollResult {
+        template_id: hex::encode_upper(template_id),
+        status,
+        message: if status == 0 {
+            "Enrollment complete".to_string()
+        } else {
+            format!("Enrollment status 0x{:02X}", status)
+        },
+        remaining_samples,
+        finished: remaining_samples == 0 && status == 0,
+    })
+}
+
+pub(crate) fn rename_fingerprint(
+    pin: String,
+    template_id: String,
+    friendly_name: String,
+) -> Result<String, String> {
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+    let template_id = hex::decode(&template_id)
+        .map_err(|e| format!("Invalid template id '{}': {}", template_id, e))?;
+
+    transport
+        .bio_enrollment_set_friendly_name(&pin, &template_id, &friendly_name)
+        .map_err(|e| format!("Failed to update fingerprint name: {}", e))?;
+
+    Ok("Fingerprint name updated successfully".to_string())
+}
+
+pub(crate) fn remove_fingerprint(pin: String, template_id: String) -> Result<String, String> {
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+    let template_id = hex::decode(&template_id)
+        .map_err(|e| format!("Invalid template id '{}': {}", template_id, e))?;
+
+    transport
+        .bio_enrollment_remove(&pin, &template_id)
+        .map_err(|e| format!("Failed to remove fingerprint: {}", e))?;
+
+    Ok("Fingerprint removed successfully".to_string())
 }
 
 pub(crate) fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, String> {

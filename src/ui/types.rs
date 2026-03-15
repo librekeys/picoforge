@@ -1,6 +1,6 @@
 use crate::{
     device::types::{FidoDeviceInfo, FullDeviceStatus},
-    ui::views::{config::ConfigView, passkeys::PasskeysView},
+    ui::views::{config::ConfigView, passkeys::PasskeysView, security::SecurityView},
 };
 use gpui::{Entity, Pixels, SharedString, px};
 
@@ -54,6 +54,7 @@ impl LayoutState {
 pub struct ViewCache {
     pub passkeys: Option<Entity<PasskeysView>>,
     pub config: Option<Entity<ConfigView>>,
+    pub security: Option<Entity<SecurityView>>,
 }
 
 impl ViewCache {
@@ -61,6 +62,7 @@ impl ViewCache {
         Self {
             passkeys: None,
             config: None,
+            security: None,
         }
     }
 }

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use crate::device::fido::constants::*;
+use crate::device::types::{FingerprintSensorInfo, FingerprintTemplate};
 use crate::error::PFError;
 
 // HID Transport Constants
@@ -49,6 +50,13 @@ pub struct EnumerateCredentialResponse {
     pub public_key: Value,
     #[allow(dead_code)]
     pub total_credentials: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct BioEnrollmentResponse {
+    pub template_id: Option<Vec<u8>>,
+    pub status: Option<u8>,
+    pub remaining_samples: Option<u32>,
 }
 
 impl HidTransport {
@@ -1491,6 +1499,337 @@ impl HidTransport {
         self.send_cbor(CTAPHID_CBOR, &payload)?;
 
         Ok(())
+    }
+
+    pub fn bio_enrollment_get_fingerprint_sensor_info(
+        &self,
+    ) -> Result<FingerprintSensorInfo, PFError> {
+        let response = self.send_bio_enrollment(
+            None,
+            BioEnrollmentSubCommand::GetFingerprintSensorInfo,
+            None,
+        )?;
+
+        let map = match response {
+            Value::Map(m) => m,
+            _ => {
+                return Err(PFError::Device(
+                    "Unexpected bio sensor info response format".into(),
+                ));
+            }
+        };
+
+        let fingerprint_kind = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::FingerprintKind as i128,
+        )) {
+            Some(Value::Integer(1)) => "touch".to_string(),
+            Some(Value::Integer(2)) => "swipe".to_string(),
+            Some(Value::Integer(v)) => format!("unknown ({})", v),
+            _ => "unknown".to_string(),
+        };
+
+        let max_capture_samples_required_for_enroll = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::MaxCaptureSamplesRequiredForEnroll as i128,
+        )) {
+            Some(Value::Integer(v)) => *v as u32,
+            _ => 0,
+        };
+
+        let max_template_friendly_name = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::MaxTemplateFriendlyName as i128,
+        )) {
+            Some(Value::Integer(v)) => *v as u32,
+            _ => 0,
+        };
+
+        Ok(FingerprintSensorInfo {
+            modality: "fingerprint".to_string(),
+            fingerprint_kind,
+            max_capture_samples_required_for_enroll,
+            max_template_friendly_name,
+        })
+    }
+
+    pub fn bio_enrollment_enumerate_enrollments(
+        &self,
+        pin: &str,
+    ) -> Result<Vec<FingerprintTemplate>, PFError> {
+        let pin_token = self.get_pin_token_with_permission(
+            pin,
+            PinUvAuthTokenPermissions::BIO_ENROLLMENT,
+            None,
+        )?;
+
+        let response = self.send_bio_enrollment(
+            Some(&pin_token),
+            BioEnrollmentSubCommand::EnumerateEnrollments,
+            None,
+        )?;
+
+        let map = match response {
+            Value::Map(m) => m,
+            _ => {
+                return Err(PFError::Device(
+                    "Unexpected fingerprint enumeration response format".into(),
+                ));
+            }
+        };
+
+        let templates = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::TemplateInfos as i128,
+        )) {
+            Some(Value::Array(items)) => items
+                .iter()
+                .filter_map(|item| match item {
+                    Value::Map(template_map) => {
+                        let template_id = match template_map
+                            .get(&Value::Integer(BioEnrollmentSubParam::TemplateId as i128))
+                        {
+                            Some(Value::Bytes(bytes)) => hex::encode_upper(bytes),
+                            _ => return None,
+                        };
+
+                        let friendly_name = match template_map.get(&Value::Integer(
+                            BioEnrollmentSubParam::FriendlyName as i128,
+                        )) {
+                            Some(Value::Text(name)) if !name.is_empty() => Some(name.clone()),
+                            _ => None,
+                        };
+
+                        Some(FingerprintTemplate {
+                            template_id,
+                            friendly_name,
+                        })
+                    }
+                    _ => None,
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+
+        Ok(templates)
+    }
+
+    pub fn bio_enrollment_begin(
+        &self,
+        pin: &str,
+        timeout_ms: Option<u16>,
+    ) -> Result<(Vec<u8>, BioEnrollmentResponse), PFError> {
+        let pin_token = self.get_pin_token_with_permission(
+            pin,
+            PinUvAuthTokenPermissions::BIO_ENROLLMENT,
+            None,
+        )?;
+
+        let begin_sub_params = timeout_ms.map(|timeout| {
+            let mut sub_params = BTreeMap::new();
+            sub_params.insert(
+                Value::Integer(BioEnrollmentSubParam::TimeoutMilliseconds as i128),
+                Value::Integer(timeout as i128),
+            );
+            Value::Map(sub_params)
+        });
+
+        let response = self.send_bio_enrollment(
+            Some(&pin_token),
+            BioEnrollmentSubCommand::EnrollBegin,
+            begin_sub_params,
+        )?;
+
+        let parsed = self.parse_bio_enrollment_response(&response)?;
+        let template_id = parsed
+            .template_id
+            .clone()
+            .ok_or_else(|| PFError::Device("Enrollment did not return a template id".into()))?;
+
+        Ok((template_id, parsed))
+    }
+
+    pub fn bio_enrollment_next(
+        &self,
+        pin: &str,
+        timeout_ms: Option<u16>,
+    ) -> Result<BioEnrollmentResponse, PFError> {
+        let pin_token = self.get_pin_token_with_permission(
+            pin,
+            PinUvAuthTokenPermissions::BIO_ENROLLMENT,
+            None,
+        )?;
+
+        let next_sub_params = timeout_ms.map(|timeout| {
+            let mut sub_params = BTreeMap::new();
+            sub_params.insert(
+                Value::Integer(BioEnrollmentSubParam::TimeoutMilliseconds as i128),
+                Value::Integer(timeout as i128),
+            );
+            Value::Map(sub_params)
+        });
+
+        let response = self.send_bio_enrollment(
+            Some(&pin_token),
+            BioEnrollmentSubCommand::EnrollCaptureNextSample,
+            next_sub_params,
+        )?;
+
+        self.parse_bio_enrollment_response(&response)
+    }
+
+    pub fn bio_enrollment_set_friendly_name(
+        &self,
+        pin: &str,
+        template_id: &[u8],
+        friendly_name: &str,
+    ) -> Result<(), PFError> {
+        let pin_token = self.get_pin_token_with_permission(
+            pin,
+            PinUvAuthTokenPermissions::BIO_ENROLLMENT,
+            None,
+        )?;
+
+        let mut sub_params = BTreeMap::new();
+        sub_params.insert(
+            Value::Integer(BioEnrollmentSubParam::TemplateId as i128),
+            Value::Bytes(template_id.to_vec()),
+        );
+        sub_params.insert(
+            Value::Integer(BioEnrollmentSubParam::FriendlyName as i128),
+            Value::Text(friendly_name.to_string()),
+        );
+
+        self.send_bio_enrollment(
+            Some(&pin_token),
+            BioEnrollmentSubCommand::SetFriendlyName,
+            Some(Value::Map(sub_params)),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn bio_enrollment_remove(&self, pin: &str, template_id: &[u8]) -> Result<(), PFError> {
+        let pin_token = self.get_pin_token_with_permission(
+            pin,
+            PinUvAuthTokenPermissions::BIO_ENROLLMENT,
+            None,
+        )?;
+
+        let mut sub_params = BTreeMap::new();
+        sub_params.insert(
+            Value::Integer(BioEnrollmentSubParam::TemplateId as i128),
+            Value::Bytes(template_id.to_vec()),
+        );
+
+        self.send_bio_enrollment(
+            Some(&pin_token),
+            BioEnrollmentSubCommand::RemoveEnrollment,
+            Some(Value::Map(sub_params)),
+        )?;
+
+        Ok(())
+    }
+
+    fn send_bio_enrollment(
+        &self,
+        pin_token: Option<&[u8]>,
+        sub_cmd: BioEnrollmentSubCommand,
+        sub_params: Option<Value>,
+    ) -> Result<Value, PFError> {
+        let sub_params_bytes = sub_params
+            .as_ref()
+            .map(|params| to_vec(params).map_err(|e| PFError::Io(e.to_string())))
+            .transpose()?;
+
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(BioEnrollmentParam::Modality as i128),
+            Value::Integer(1),
+        );
+        map.insert(
+            Value::Integer(BioEnrollmentParam::SubCommand as i128),
+            Value::Integer(sub_cmd as i128),
+        );
+
+        if let Some(params) = sub_params {
+            map.insert(
+                Value::Integer(BioEnrollmentParam::SubCommandParams as i128),
+                params,
+            );
+        }
+
+        if let Some(token) = pin_token {
+            map.insert(
+                Value::Integer(BioEnrollmentParam::PinUvAuthProtocol as i128),
+                Value::Integer(1),
+            );
+            map.insert(
+                Value::Integer(BioEnrollmentParam::PinUvAuthParam as i128),
+                Value::Bytes(
+                    self.sign_bio_enrollment_command(token, 1, sub_cmd as u8, sub_params_bytes.as_deref()),
+                ),
+            );
+        }
+
+        let mut payload = vec![CtapCommand::BioEnroll as u8];
+        payload.extend(to_vec(&Value::Map(map)).map_err(|e| PFError::Io(e.to_string()))?);
+
+        let resp = self.send_cbor(CTAPHID_CBOR, &payload)?;
+        from_slice(&resp).map_err(|e| PFError::Io(e.to_string()))
+    }
+
+    fn sign_bio_enrollment_command(
+        &self,
+        pin_token: &[u8],
+        modality: u8,
+        sub_cmd: u8,
+        sub_params_bytes: Option<&[u8]>,
+    ) -> Vec<u8> {
+        let mut message = vec![modality, sub_cmd];
+        if let Some(bytes) = sub_params_bytes {
+            message.extend_from_slice(bytes);
+        }
+
+        let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
+        let sig = hmac::sign(&hmac_key, &message);
+        sig.as_ref()[0..16].to_vec()
+    }
+
+    fn parse_bio_enrollment_response(
+        &self,
+        response: &Value,
+    ) -> Result<BioEnrollmentResponse, PFError> {
+        let map = match response {
+            Value::Map(m) => m,
+            _ => {
+                return Err(PFError::Device(
+                    "Unexpected fingerprint enrollment response format".into(),
+                ));
+            }
+        };
+
+        let template_id =
+            match map.get(&Value::Integer(BioEnrollmentResponseParam::TemplateId as i128)) {
+                Some(Value::Bytes(bytes)) => Some(bytes.clone()),
+                _ => None,
+            };
+
+        let status = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::LastEnrollSampleStatus as i128,
+        )) {
+            Some(Value::Integer(v)) => Some(*v as u8),
+            _ => None,
+        };
+
+        let remaining_samples = match map.get(&Value::Integer(
+            BioEnrollmentResponseParam::RemainingSamples as i128,
+        )) {
+            Some(Value::Integer(v)) => Some(*v as u32),
+            _ => None,
+        };
+
+        Ok(BioEnrollmentResponse {
+            template_id,
+            status,
+            remaining_samples,
+        })
     }
 
     fn sign_credential_mgmt_command(

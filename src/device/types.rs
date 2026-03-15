@@ -101,3 +101,39 @@ pub struct StoredCredential {
     pub user_id: String,
     pub credential_id: String,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FingerprintTemplate {
+    pub template_id: String,
+    pub friendly_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FingerprintSensorInfo {
+    pub modality: String,
+    pub fingerprint_kind: String,
+    pub max_capture_samples_required_for_enroll: u32,
+    pub max_template_friendly_name: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FingerprintStatus {
+    pub supported: bool,
+    pub pin_configured: bool,
+    pub templates_loaded: bool,
+    pub sensor: Option<FingerprintSensorInfo>,
+    pub templates: Vec<FingerprintTemplate>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FingerprintEnrollResult {
+    pub template_id: String,
+    pub status: u8,
+    pub message: String,
+    pub remaining_samples: u32,
+    pub finished: bool,
+}

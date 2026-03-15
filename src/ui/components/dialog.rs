@@ -8,6 +8,7 @@ use gpui_component::{
 };
 
 type PinPromptCallback = std::rc::Rc<dyn Fn(String, WeakEntity<PinPromptContent>, &mut App)>;
+type TextPromptCallback = std::rc::Rc<dyn Fn(String, WeakEntity<TextPromptContent>, &mut App)>;
 type ConfirmCallback = std::rc::Rc<dyn Fn(WeakEntity<ConfirmContent>, &mut App)>;
 type ChangePinCallback =
     std::rc::Rc<dyn Fn(String, String, WeakEntity<ChangePinContent>, &mut App)>;
@@ -230,6 +231,236 @@ pub fn open_pin_prompt(
             description,
             confirm_label,
             pin_input: pin_for_sub,
+            on_confirm: std::rc::Rc::new(on_confirm),
+            _subscription: sub,
+        }
+    });
+
+    window.open_dialog(cx, move |dialog, _, _| {
+        dialog
+            .title(dialog_title.clone())
+            .child(content.clone())
+            .overlay_closable(false)
+            .close_button(false)
+    });
+}
+
+pub struct TextPromptContent {
+    phase: DialogPhase,
+    title: SharedString,
+    description: SharedString,
+    confirm_label: SharedString,
+    text_input: Entity<InputState>,
+    on_confirm: TextPromptCallback,
+    _subscription: Subscription,
+}
+
+impl TextPromptContent {
+    fn set_loading(&mut self, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Loading;
+        cx.notify();
+    }
+
+    pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Success(msg);
+        cx.notify();
+    }
+
+    pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::Error(msg);
+        cx.notify();
+    }
+
+    fn trigger_confirm(&mut self, cx: &mut Context<Self>) {
+        if matches!(self.phase, DialogPhase::Loading | DialogPhase::Success(_)) {
+            return;
+        }
+        let text = self.text_input.read(cx).text().to_string();
+        let text = text.trim().to_string();
+        if !text.is_empty() {
+            let handle = cx.entity().downgrade();
+            self.set_loading(cx);
+            (self.on_confirm)(text, handle, cx);
+        }
+    }
+}
+
+impl Render for TextPromptContent {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let phase = self.phase.clone();
+
+        match &phase {
+            DialogPhase::Success(msg) => v_flex()
+                .gap_4()
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
+                                .text_color(cx.theme().green)
+                                .with_size(gpui_component::Size::Large),
+                        )
+                        .child(self.title.clone()),
+                )
+                .child(msg.clone())
+                .child(
+                    h_flex().justify_end().child(
+                        Button::new("done")
+                            .primary()
+                            .label("Done")
+                            .on_click(|_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                    ),
+                )
+                .into_any_element(),
+
+            DialogPhase::Loading => v_flex()
+                .gap_4()
+                .child(self.description.clone())
+                .child(Input::new(&self.text_input).disabled(true))
+                .child(
+                    h_flex()
+                        .justify_end()
+                        .gap_2()
+                        .child(Button::new("cancel").label("Cancel").disabled(true))
+                        .child(
+                            Button::new("confirm")
+                                .primary()
+                                .label("Loading...")
+                                .loading(true),
+                        ),
+                )
+                .into_any_element(),
+
+            DialogPhase::Error(err_msg) => {
+                let text_input = self.text_input.clone();
+                let confirm_label = self.confirm_label.clone();
+                let on_confirm = self.on_confirm.clone();
+                let handle = cx.entity().downgrade();
+
+                v_flex()
+                    .gap_4()
+                    .child(self.description.clone())
+                    .child(
+                        div()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(rgb(0x18181b))
+                            .text_color(rgb(0xef4444))
+                            .text_sm()
+                            .child(render_error_message(err_msg.clone())),
+                    )
+                    .child(Input::new(&text_input))
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(Button::new("cancel").label("Cancel").on_click(
+                                |_, window, cx| {
+                                    window.close_dialog(cx);
+                                },
+                            ))
+                            .child(
+                                Button::new("confirm")
+                                    .primary()
+                                    .label(confirm_label)
+                                    .on_click(move |_, _, cx| {
+                                        let text = text_input.read(cx).text().to_string();
+                                        let text = text.trim().to_string();
+                                        if !text.is_empty() {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| this.set_loading(cx));
+                                            }
+                                            on_confirm(text, handle.clone(), cx);
+                                        }
+                                    }),
+                            ),
+                    )
+                    .into_any_element()
+            }
+
+            DialogPhase::Input => {
+                let text_input = self.text_input.clone();
+                let confirm_label = self.confirm_label.clone();
+                let on_confirm = self.on_confirm.clone();
+                let handle = cx.entity().downgrade();
+
+                v_flex()
+                    .gap_4()
+                    .child(self.description.clone())
+                    .child(Input::new(&text_input))
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(Button::new("cancel").label("Cancel").on_click(
+                                |_, window, cx| {
+                                    window.close_dialog(cx);
+                                },
+                            ))
+                            .child(
+                                Button::new("confirm")
+                                    .primary()
+                                    .label(confirm_label)
+                                    .on_click(move |_, _, cx| {
+                                        let text = text_input.read(cx).text().to_string();
+                                        let text = text.trim().to_string();
+                                        if !text.is_empty() {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| this.set_loading(cx));
+                                            }
+                                            on_confirm(text, handle.clone(), cx);
+                                        }
+                                    }),
+                            ),
+                    )
+                    .into_any_element()
+            }
+        }
+    }
+}
+
+pub fn open_text_prompt(
+    title: &str,
+    description: &str,
+    placeholder: &str,
+    confirm_label: &str,
+    initial_value: Option<String>,
+    window: &mut Window,
+    cx: &mut App,
+    on_confirm: impl Fn(String, WeakEntity<TextPromptContent>, &mut App) + 'static,
+) {
+    let title_str = SharedString::from(title.to_string());
+    let description = SharedString::from(description.to_string());
+    let confirm_label = SharedString::from(confirm_label.to_string());
+
+    let initial_text = initial_value.unwrap_or_default();
+    let placeholder = SharedString::from(placeholder.to_string());
+    let text_input = cx.new(|cx| {
+        InputState::new(window, cx)
+            .placeholder(placeholder.clone())
+            .default_value(initial_text.clone())
+    });
+
+    let dialog_title = title_str.clone();
+    let text_for_sub = text_input.clone();
+
+    let content = cx.new(|cx| {
+        let sub = cx.subscribe(&text_for_sub, |this: &mut TextPromptContent, _, event, cx| {
+            if matches!(event, InputEvent::PressEnter { .. }) {
+                this.trigger_confirm(cx);
+            }
+        });
+
+        TextPromptContent {
+            phase: DialogPhase::Input,
+            title: title_str,
+            description,
+            confirm_label,
+            text_input: text_for_sub,
             on_confirm: std::rc::Rc::new(on_confirm),
             _subscription: sub,
         }

@@ -47,6 +47,29 @@ pub(crate) fn set_min_pin_length(
     fido::set_min_pin_length(current_pin, min_pin_length)
 }
 
+pub(crate) fn get_fingerprint_status(pin: Option<String>) -> Result<FingerprintStatus, String> {
+    fido::get_fingerprint_status(pin)
+}
+
+pub(crate) fn enroll_fingerprint(
+    pin: String,
+    timeout_ms: Option<u16>,
+) -> Result<FingerprintEnrollResult, String> {
+    fido::enroll_fingerprint(pin, timeout_ms)
+}
+
+pub(crate) fn rename_fingerprint(
+    pin: String,
+    template_id: String,
+    friendly_name: String,
+) -> Result<String, String> {
+    fido::rename_fingerprint(pin, template_id, friendly_name)
+}
+
+pub(crate) fn remove_fingerprint(pin: String, template_id: String) -> Result<String, String> {
+    fido::remove_fingerprint(pin, template_id)
+}
+
 pub fn reboot(to_bootsel: bool) -> Result<String, PFError> {
     rescue::reboot_device(to_bootsel)
 }

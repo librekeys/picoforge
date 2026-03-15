@@ -12,6 +12,7 @@ pub enum CtapCommand {
     ClientPin = 0x06,
     Reset = 0x07,
     GetNextAssertion = 0x08,
+    BioEnroll = 0x09,
     CredentialMgmt = 0x0A,
     Selection = 0x0B,
     LargeBlobs = 0x0C,
@@ -174,6 +175,50 @@ pub enum CredentialMgmtResponseParam {
     CredentialId = 0x07,
     PublicKey = 0x08,
     TotalCredentials = 0x09,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BioEnrollmentParam {
+    Modality = 0x01,
+    SubCommand = 0x02,
+    SubCommandParams = 0x03,
+    PinUvAuthProtocol = 0x04,
+    PinUvAuthParam = 0x05,
+    GetModality = 0x06,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BioEnrollmentSubCommand {
+    EnrollBegin = 0x01,
+    EnrollCaptureNextSample = 0x02,
+    CancelCurrentEnrollment = 0x03,
+    EnumerateEnrollments = 0x04,
+    SetFriendlyName = 0x05,
+    RemoveEnrollment = 0x06,
+    GetFingerprintSensorInfo = 0x07,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BioEnrollmentSubParam {
+    TemplateId = 0x01,
+    FriendlyName = 0x02,
+    TimeoutMilliseconds = 0x03,
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BioEnrollmentResponseParam {
+    Modality = 0x01,
+    FingerprintKind = 0x02,
+    MaxCaptureSamplesRequiredForEnroll = 0x03,
+    TemplateId = 0x04,
+    LastEnrollSampleStatus = 0x05,
+    RemainingSamples = 0x06,
+    TemplateInfos = 0x07,
+    MaxTemplateFriendlyName = 0x08,
 }
 
 #[repr(u8)]
