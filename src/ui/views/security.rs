@@ -12,9 +12,7 @@ use crate::ui::rootview::ApplicationRoot;
 use crate::ui::types::DeviceConnectionState;
 use gpui::*;
 use gpui_component::button::ButtonVariant;
-use gpui_component::{
-    ActiveTheme, Icon, StyledExt, Theme, WindowExt, badge::Badge, h_flex, v_flex,
-};
+use gpui_component::{ActiveTheme, Icon, StyledExt, Theme, WindowExt, h_flex, v_flex};
 
 pub struct SecurityView {
     root: WeakEntity<ApplicationRoot>,
@@ -414,21 +412,6 @@ impl SecurityView {
                 .unwrap_or(false);
         let muted_fg = cx.theme().muted_foreground;
 
-        let header_right = if unlocked {
-            Badge::new()
-                .child(
-                    h_flex()
-                        .gap_1()
-                        .items_center()
-                        .child(Icon::default().path("icons/lock-open.svg").size_3p5())
-                        .child("Unlocked"),
-                )
-                .color(gpui::green())
-                .into_any_element()
-        } else {
-            Tag::new("PIN required").into_any_element()
-        };
-
         let sensor_chips = if let Some(sensor) = status.as_ref().and_then(|s| s.sensor.clone()) {
             h_flex()
                 .gap_2()
@@ -462,8 +445,23 @@ impl SecurityView {
             .title("Fingerprints")
             .description("Enumerate, enroll, rename, and delete fingerprints stored on the key.")
             .icon(Icon::default().path("icons/shield.svg"))
-            .header_right(header_right)
-            .child(v_flex().gap_4().child(sensor_chips).child(body))
+            .child(
+                v_flex()
+                    .gap_4()
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .items_center()
+                            .gap_3()
+                            .child(sensor_chips)
+                            .child(if unlocked {
+                                Tag::new("Unlocked").active(true).into_any_element()
+                            } else {
+                                Tag::new("Locked").into_any_element()
+                            }),
+                    )
+                    .child(body),
+            )
     }
 
     fn render_locked_state(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -531,6 +529,7 @@ impl SecurityView {
             )
             .child(
                 PFIconButton::new(Icon::default().path("icons/lock-open.svg"), "Unlock Fingerprints")
+                    .id("security-unlock-fingerprints")
                     .on_click(listener)
                     .with_colors(rgb(0xe4e4e7), rgb(0xd0d0d3), rgb(0xe4e4e7))
                     .with_text_color(rgb(0x18181b))
@@ -593,6 +592,20 @@ impl SecurityView {
         v_flex()
             .gap_6()
             .child(
+                div()
+                    .p_3()
+                    .rounded_lg()
+                    .border_1()
+                    .border_color(border)
+                    .bg(muted)
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(muted_fg)
+                            .child("Enrollment requires two fingerprint captures on the sensor."),
+                    ),
+            )
+            .child(
                 h_flex()
                     .justify_between()
                     .items_center()
@@ -615,6 +628,7 @@ impl SecurityView {
                                     Icon::default().path("icons/plus.svg").size_3p5(),
                                     "Enroll",
                                 )
+                                .id("security-enroll-fingerprint")
                                 .small()
                                 .loading(self.loading)
                                 .on_click(enroll_listener),
@@ -624,6 +638,7 @@ impl SecurityView {
                                     Icon::default().path("icons/lock.svg").size_3p5(),
                                     "Lock",
                                 )
+                                .id("security-lock-fingerprints")
                                 .small()
                                 .disabled(self.loading)
                                 .on_click(lock_listener),
@@ -642,86 +657,82 @@ impl SecurityView {
         let muted_fg = cx.theme().muted_foreground;
         let rename_template = template.clone();
         let delete_template = template.clone();
+        let template_id = template.template_id.clone();
+        let template_name = template
+            .friendly_name
+            .clone()
+            .unwrap_or_else(|| "Unnamed fingerprint".to_string());
 
         div()
             .w_full()
             .border_1()
             .border_color(border)
             .rounded_xl()
-            .p_4()
+            .px_4()
+            .py_3()
             .child(
-                v_flex()
+                h_flex()
+                    .justify_between()
+                    .items_center()
                     .gap_4()
                     .child(
                         h_flex()
-                            .justify_between()
-                            .items_start()
+                            .items_center()
+                            .gap_3()
                             .child(
-                                v_flex()
-                                    .gap_1()
-                                    .child(
-                                        div()
-                                            .font_weight(FontWeight::SEMIBOLD)
-                                            .child(
-                                                template
-                                                    .friendly_name
-                                                    .clone()
-                                                    .unwrap_or_else(|| "Unnamed fingerprint".to_string()),
-                                            ),
-                                    )
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(muted_fg)
-                                            .font_family("Mono")
-                                            .child(template.template_id.clone()),
-                                    ),
+                                div()
+                                    .font_weight(FontWeight::SEMIBOLD)
+                                    .child(template_name),
                             )
                             .child(
-                                h_flex()
-                                    .gap_2()
-                                    .child(
-                                        PFButton::new("Rename")
-                                            .small()
-                                            .disabled(self.loading)
-                                            .with_colors(
-                                                rgb(0x222225),
-                                                rgb(0x2a2a2d),
-                                                rgb(0x333336),
-                                            )
-                                            .on_click(cx.listener(move |this, _, window, cx| {
-                                                this.open_rename_dialog(
-                                                    rename_template.clone(),
-                                                    window,
-                                                    cx,
-                                                );
-                                            })),
-                                    )
-                                    .child(
-                                        PFButton::new("Delete")
-                                            .small()
-                                            .disabled(self.loading)
-                                            .with_colors(
-                                                rgb(0x7f1d1d),
-                                                rgb(0x991b1b),
-                                                rgb(0xb91c1c),
-                                            )
-                                            .with_text_color(rgb(0xfef2f2))
-                                            .on_click(cx.listener(move |this, _, window, cx| {
-                                                this.open_delete_dialog(
-                                                    delete_template.clone(),
-                                                    window,
-                                                    cx,
-                                                );
-                                            })),
-                                    ),
+                                div()
+                                    .text_sm()
+                                    .text_color(muted_fg)
+                                    .font_family("Mono")
+                                    .child(template.template_id.clone()),
                             ),
                     )
                     .child(
-                        div()
-                            .text_sm()
-                            .text_color(muted_fg)
-                            .child("Rename or delete this template. Enrollment requires two captures on the sensor."),
+                        h_flex()
+                            .gap_2()
+                            .items_center()
+                            .child(
+                                PFButton::new("Rename")
+                                    .id(format!("rename-{}", template_id))
+                                    .small()
+                                    .disabled(self.loading)
+                                    .with_colors(
+                                        rgb(0x222225),
+                                        rgb(0x2a2a2d),
+                                        rgb(0x333336),
+                                    )
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.open_rename_dialog(
+                                            rename_template.clone(),
+                                            window,
+                                            cx,
+                                        );
+                                    })),
+                            )
+                            .child(
+                                PFButton::new("Delete")
+                                    .id(format!("delete-{}", template.template_id))
+                                    .small()
+                                    .disabled(self.loading)
+                                    .with_colors(
+                                        rgb(0x7f1d1d),
+                                        rgb(0x991b1b),
+                                        rgb(0xb91c1c),
+                                    )
+                                    .with_text_color(rgb(0xfef2f2))
+                                    .on_click(cx.listener(move |this, _, window, cx| {
+                                        this.open_delete_dialog(
+                                            delete_template.clone(),
+                                            window,
+                                            cx,
+                                        );
+                                    })),
+                            ),
                     ),
             )
     }

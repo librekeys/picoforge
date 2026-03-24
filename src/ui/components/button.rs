@@ -159,6 +159,7 @@ impl RenderOnce for PFButton {
 /// A stateless Icon + Text button wrapper
 #[derive(IntoElement)]
 pub struct PFIconButton {
+    id: SharedString,
     icon: Icon,
     text: SharedString,
     on_click: ClickHandler,
@@ -174,9 +175,11 @@ pub struct PFIconButton {
 
 impl PFIconButton {
     pub fn new(icon: impl Into<Icon>, text: impl Into<SharedString>) -> Self {
+        let text = text.into();
         Self {
+            id: text.clone(),
             icon: icon.into(),
-            text: text.into(),
+            text,
             on_click: None,
             bg_color_start: rgb(0x1b1b1d),
             bg_color_hover: rgb(0x232325),
@@ -187,6 +190,11 @@ impl PFIconButton {
             loading: false,
             text_color: None,
         }
+    }
+
+    pub fn id(mut self, id: impl Into<SharedString>) -> Self {
+        self.id = id.into();
+        self
     }
 
     pub fn on_click(
@@ -232,10 +240,11 @@ impl PFIconButton {
 
 impl RenderOnce for PFIconButton {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
+        let id = self.id;
         let text = self.text;
         let icon = self.icon;
 
-        let mut btn = Button::new("pf-icon-btn")
+        let mut btn = Button::new(id)
             .custom(
                 ButtonCustomVariant::new(cx)
                     .color(self.bg_color_start.into())

@@ -177,6 +177,8 @@ impl HidTransport {
     }
 
     fn write_cbor_request(&self, cmd: u8, payload: &[u8]) -> Result<(), PFError> {
+        self.drain_pending_packets();
+
         log::debug!(
             "Sending CBOR Command: 0x{:02X}, Payload Size: {} bytes",
             cmd,
@@ -242,6 +244,30 @@ impl HidTransport {
         Ok(())
     }
 
+    fn drain_pending_packets(&self) {
+        let mut drain_buf = [0u8; HID_REPORT_SIZE];
+        let mut drained = 0usize;
+
+        loop {
+            match self.device.read_timeout(&mut drain_buf[..], HID_READ_TIMEOUT_MS) {
+                Ok(0) => break,
+                Ok(n) => {
+                    drained += 1;
+                    log::warn!(
+                        "Drained stale HID packet before request ({} bytes): {:02X?}",
+                        n,
+                        &drain_buf[..n]
+                    );
+                }
+                Err(_) => break,
+            }
+        }
+
+        if drained > 0 {
+            log::warn!("Drained {} stale HID packet(s) before sending request", drained);
+        }
+    }
+
     fn read_cbor_response(&self, cmd: u8) -> Result<Vec<u8>, PFError> {
         log::debug!("Waiting for response...");
 
@@ -263,15 +289,28 @@ impl HidTransport {
                 ));
             }
 
-            if let Err(e) = self
+            buf.fill(0);
+            let bytes_read = match self
                 .device
                 .read_timeout(&mut buf[..], HID_RESP_READ_TIMEOUT_MS)
             {
-                log::error!("Timeout reading response packet: {}", e);
-                return Err(PFError::Io(format!(
-                    "Timeout reading response packet: {}",
-                    e
-                )));
+                Ok(n) => n,
+                Err(e) => {
+                    log::error!("Timeout reading response packet: {}", e);
+                    return Err(PFError::Io(format!(
+                        "Timeout reading response packet: {}",
+                        e
+                    )));
+                }
+            };
+
+            if bytes_read < 7 {
+                log::warn!(
+                    "Ignoring short HID response packet ({} bytes): {:02X?}",
+                    bytes_read,
+                    &buf[..bytes_read]
+                );
+                continue;
             }
 
             // Check CID mismatch
@@ -324,15 +363,28 @@ impl HidTransport {
 
         // 2. Read Continuation Packets
         while read_len < expected_len {
-            if let Err(e) = self
+            buf.fill(0);
+            let bytes_read = match self
                 .device
                 .read_timeout(&mut buf[..], HID_CONT_READ_TIMEOUT_MS)
             {
-                log::error!("Timeout reading continuation packet: {}", e);
-                return Err(PFError::Io(format!(
-                    "Timeout reading continuation packet: {}",
-                    e
-                )));
+                Ok(n) => n,
+                Err(e) => {
+                    log::error!("Timeout reading continuation packet: {}", e);
+                    return Err(PFError::Io(format!(
+                        "Timeout reading continuation packet: {}",
+                        e
+                    )));
+                }
+            };
+
+            if bytes_read < 5 {
+                log::warn!(
+                    "Ignoring short HID continuation packet ({} bytes): {:02X?}",
+                    bytes_read,
+                    &buf[..bytes_read]
+                );
+                continue;
             }
 
             if u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]) != self.cid {
@@ -1772,7 +1824,17 @@ impl HidTransport {
         payload.extend(to_vec(&Value::Map(map)).map_err(|e| PFError::Io(e.to_string()))?);
 
         let resp = self.send_cbor(CTAPHID_CBOR, &payload)?;
-        from_slice(&resp).map_err(|e| PFError::Io(e.to_string()))
+        if resp.is_empty() {
+            return match sub_cmd {
+                BioEnrollmentSubCommand::SetFriendlyName
+                | BioEnrollmentSubCommand::RemoveEnrollment
+                | BioEnrollmentSubCommand::CancelCurrentEnrollment => {
+                    Ok(Value::Map(BTreeMap::new()))
+                }
+                _ => self.parse_bio_cbor_response(&resp, sub_cmd),
+            };
+        }
+        self.parse_bio_cbor_response(&resp, sub_cmd)
     }
 
     fn sign_bio_enrollment_command(
@@ -1832,6 +1894,60 @@ impl HidTransport {
         })
     }
 
+    fn parse_bio_cbor_response(
+        &self,
+        resp: &[u8],
+        sub_cmd: BioEnrollmentSubCommand,
+    ) -> Result<Value, PFError> {
+        let mut attempts: Vec<&[u8]> = Vec::new();
+        attempts.push(resp);
+
+        let trimmed = trim_trailing_zeroes(resp);
+        if trimmed.len() != resp.len() {
+            attempts.push(trimmed);
+        }
+
+        if let Some(stripped) = resp.strip_prefix(&[0x00]) {
+            attempts.push(stripped);
+            let stripped_trimmed = trim_trailing_zeroes(stripped);
+            if stripped_trimmed.len() != stripped.len() {
+                attempts.push(stripped_trimmed);
+            }
+        }
+
+        let mut last_err = None;
+        for candidate in attempts {
+            if candidate.is_empty() {
+                continue;
+            }
+            match from_slice(candidate) {
+                Ok(value) => {
+                    if candidate.as_ptr() != resp.as_ptr() || candidate.len() != resp.len() {
+                        log::warn!(
+                            "BioEnrollment {:?} response required relaxed CBOR parsing. raw={}, parsed={}",
+                            sub_cmd,
+                            hex::encode_upper(resp),
+                            hex::encode_upper(candidate)
+                        );
+                    }
+                    return Ok(value);
+                }
+                Err(err) => last_err = Some(err),
+            }
+        }
+
+        log::error!(
+            "Failed to parse BioEnrollment {:?} response as CBOR. raw={}",
+            sub_cmd,
+            hex::encode_upper(resp)
+        );
+        Err(PFError::Io(
+            last_err
+                .map(|err| err.to_string())
+                .unwrap_or_else(|| "Empty BioEnrollment response".to_string()),
+        ))
+    }
+
     fn sign_credential_mgmt_command(
         &self,
         pin_token: &[u8],
@@ -1862,6 +1978,14 @@ impl HidTransport {
         let sig = hmac::sign(&hmac_key, &message);
         sig.as_ref()[0..16].to_vec()
     }
+}
+
+fn trim_trailing_zeroes(bytes: &[u8]) -> &[u8] {
+    let mut end = bytes.len();
+    while end > 0 && bytes[end - 1] == 0x00 {
+        end -= 1;
+    }
+    &bytes[..end]
 }
 
 #[cfg(test)]
