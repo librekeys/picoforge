@@ -22,6 +22,7 @@
     - Managing security features (secure boot, firmware locking) (WIP)
     - Real-time system logging and diagnostics
     - Support for multiple hardware variants and vendors
+    - Managing Enterprise Attestations
 
 ## Usage
 

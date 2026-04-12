@@ -443,12 +443,144 @@ impl HidTransport {
         Ok(())
     }
 
-    /// Send authenticatorConfig command to set minimum PIN length.
+    /// Send CTAP_VENDOR_EA (0x04) with GenerateCsr sub-command and return the raw DER bytes.
+    ///
+    /// This calls the pico-fido enterprise attestation vendor command to generate a
+    /// Certificate Signing Request (CSR) for the device's attestation key.
+    pub fn get_enterprise_attestation_csr(&self) -> Result<Vec<u8>, PFError> {
+        log::debug!("Requesting Enterprise Attestation CSR (CTAP_VENDOR_EA)...");
+
+        let mut req = BTreeMap::new();
+        req.insert(
+            Value::Integer(1),
+            Value::Integer(EnterpriseAttestationSubCommand::GenerateCsr as i128),
+        );
+
+        let cbor = to_vec(&Value::Map(req)).map_err(|e| PFError::Io(e.to_string()))?;
+        let mut payload = vec![VendorCommand::EnterpriseAttestation as u8];
+        payload.extend(cbor);
+
+        let response = self
+            .send_cbor(CTAP_VENDOR_CBOR_CMD, &payload)
+            .map_err(|e| PFError::Device(format!("CSR request failed: {}", e)))?;
+
+        if response.is_empty() {
+            return Err(PFError::Device(
+                "Empty response to CSR request from device".into(),
+            ));
+        }
+
+        // The device returns the DER-encoded CSR. Try to unwrap from CBOR if present.
+        match from_slice::<Value>(&response) {
+            Ok(Value::Bytes(b)) => {
+                log::debug!("CSR received as CBOR byte string ({} bytes)", b.len());
+                Ok(b)
+            }
+            Ok(Value::Map(m)) => {
+                // Prefer key 0x01 (common for first response field)
+                if let Some(Value::Bytes(b)) = m.get(&Value::Integer(1)) {
+                    log::debug!("CSR found at map key 0x01 ({} bytes)", b.len());
+                    return Ok(b.clone());
+                }
+                // Fall back to the first bytes value in the map
+                for (_, v) in &m {
+                    if let Value::Bytes(b) = v {
+                        log::debug!("CSR found in map value ({} bytes)", b.len());
+                        return Ok(b.clone());
+                    }
+                }
+                log::warn!(
+                    "CSR response was a CBOR map but contained no byte values; returning raw bytes"
+                );
+                Ok(response)
+            }
+            _ => {
+                // Assume the response is raw DER bytes (not CBOR-wrapped)
+                log::debug!(
+                    "CSR response treated as raw DER bytes ({} bytes)",
+                    response.len()
+                );
+                Ok(response)
+            }
+        }
+    }
+
+    /// Send authenticatorConfig command.
     ///
     /// This bypasses the ctap-hid-fido2 library which has a bug where it sends
     /// CBOR map keys out of order (0x01, 0x03, 0x04, 0x02) instead of the required
     /// ascending order (0x01, 0x02, 0x03, 0x04). The pico-fido firmware strictly
     /// enforces canonical CBOR ordering per CTAP2 spec.
+    pub fn send_config(
+        &self,
+        sub_cmd: ConfigSubCommand,
+        pin_token: &[u8],
+        sub_params: Value,
+    ) -> Result<Vec<u8>, PFError> {
+        let mut sub_params_bytes: Vec<u8> = Vec::new();
+        if sub_params != Value::Null {
+            sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
+        }
+
+        // Calculate PIN Auth
+        let pin_auth = self.sign_config_command(pin_token, sub_cmd as u8, &sub_params_bytes);
+
+        // Build full authenticatorConfig map with keys in ASCENDING ORDER
+        // Keeping the map item in the correct order is critical - the firmware parser rejects out-of-order keys with CTAP2_ERR_INVALID_CBOR
+        let mut config_map = BTreeMap::new();
+        config_map.insert(
+            Value::Integer(ConfigParam::SubCommand as i128), // 0x01
+            Value::Integer(sub_cmd as i128),                 // 0x01
+        );
+        if sub_params != Value::Null {
+            config_map.insert(
+                Value::Integer(ConfigParam::SubCommandParams as i128), // 0x02
+                sub_params,
+            );
+        }
+        config_map.insert(
+            Value::Integer(ConfigParam::PinUvAuthProtocol as i128), // 0x03
+            Value::Integer(1),                                      // PIN protocol version 1
+        );
+        config_map.insert(
+            Value::Integer(ConfigParam::PinUvAuthParam as i128), // 0x04
+            Value::Bytes(pin_auth),
+        );
+
+        let config_payload_cbor =
+            to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
+
+        // Prepend CTAP command byte
+        let mut payload = vec![CtapCommand::Config as u8];
+        payload.extend(config_payload_cbor);
+
+        self.send_cbor(CTAPHID_CBOR, &payload)
+    }
+
+    /// Send authenticatorConfig command to enable Enterprise attestation.
+    pub fn send_config_enable_ea(&self, pin_token: &[u8]) -> Result<(), PFError> {
+        log::debug!("Sending Enterprise Attestation enable config command...");
+        match self.send_config(
+            ConfigSubCommand::EnableEnterpriseAttestation,
+            pin_token,
+            Value::Null,
+        ) {
+            Ok(_) => {
+                log::info!("Successfully enable Enterprise Attestation");
+                Ok(())
+            }
+            Err(e) => {
+                let err_str = e.to_string();
+                log::error!("Failed to enable Enterprise Attestation: {}", err_str);
+                Err(PFError::Device(format!(
+                    "EnableEnterpriseAttestation failed: {}",
+                    e
+                )))
+            }
+        }
+    }
+
+    /// Send authenticatorConfig command to set minimum PIN length.
     pub fn send_config_set_min_pin_length(
         &self,
         pin_token: &[u8],
@@ -466,44 +598,7 @@ impl HidTransport {
             Value::Integer(new_min_pin_length as i128),
         );
         let sub_params = Value::Map(sub_params_map);
-        let sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
-
-        // Calculate PIN Auth
-        let pin_auth = self.sign_config_command(
-            pin_token,
-            ConfigSubCommand::SetMinPinLength as u8,
-            &sub_params_bytes,
-        );
-
-        // Build full authenticatorConfig map with keys in ASCENDING ORDER
-        // Keeping the map item in the correct order is critical - the firmware parser rejects out-of-order keys with CTAP2_ERR_INVALID_CBOR
-        let mut config_map = BTreeMap::new();
-        config_map.insert(
-            Value::Integer(ConfigParam::SubCommand as i128), // 0x01
-            Value::Integer(ConfigSubCommand::SetMinPinLength as i128), // 0x03
-        );
-        config_map.insert(
-            Value::Integer(ConfigParam::SubCommandParams as i128), // 0x02
-            sub_params,
-        );
-        config_map.insert(
-            Value::Integer(ConfigParam::PinUvAuthProtocol as i128), // 0x03
-            Value::Integer(1),                                      // PIN protocol version 1
-        );
-        config_map.insert(
-            Value::Integer(ConfigParam::PinUvAuthParam as i128), // 0x04
-            Value::Bytes(pin_auth),
-        );
-
-        let config_payload_cbor =
-            to_vec(&Value::Map(config_map)).map_err(|e| PFError::Io(e.to_string()))?;
-
-        // Prepend CTAP command byte
-        let mut payload = vec![CtapCommand::Config as u8];
-        payload.extend(config_payload_cbor);
-
-        log::debug!("Sending minimum PIN length config command...");
-        match self.send_cbor(CTAPHID_CBOR, &payload) {
+        match self.send_config(ConfigSubCommand::SetMinPinLength, pin_token, sub_params) {
             Ok(_) => {
                 log::info!(
                     "Successfully set minimum PIN length to {}",

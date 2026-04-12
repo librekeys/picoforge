@@ -247,6 +247,21 @@ impl HomeView {
                                     .child(fido.min_pin_length.to_string()),
                             ),
                     )
+                    // Enterprise attestation
+                    .child(
+                        h_flex()
+                            .justify_between()
+                            .items_center()
+                            .child(
+                                div()
+                                    .text_color(theme.muted_foreground)
+                                    .child("Enterprise attestation"),
+                            )
+                            .child(div().font_medium().text_color(theme.foreground).child({
+                                let ep_set = fido.options.get("ep").copied().unwrap_or(false);
+                                Tag::new(if ep_set { "Set" } else { "Not Set" }).active(ep_set)
+                            })),
+                    )
                     // Remaining Credentials
                     .when(fido.remaining_discoverable_credentials.is_some(), |this| {
                         this.child(
