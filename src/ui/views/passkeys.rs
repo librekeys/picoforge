@@ -41,6 +41,7 @@ pub struct PasskeysView {
     unlocked: bool,
     cached_pin: Option<String>,
     loading: bool,
+    csr_loading: bool,
     csr_pem: Option<String>,
     show_csr: bool,
     _task: Option<Task<()>>,
@@ -64,6 +65,7 @@ impl PasskeysView {
             unlocked: false,
             cached_pin: None,
             loading: false,
+            csr_loading: false,
             csr_pem: None,
             show_csr: false,
             _task: None,
@@ -583,6 +585,7 @@ impl PasskeysView {
             return;
         }
         self.loading = true;
+        self.csr_loading = true;
         cx.notify();
 
         log::info!("Request Attestation CSR...");
@@ -596,6 +599,7 @@ impl PasskeysView {
 
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
+                this.csr_loading = false;
                 match result {
                     Ok(pem) => {
                         log::info!("CSR retrieved successfully ({} bytes).", pem.len());
@@ -772,7 +776,7 @@ impl PasskeysView {
     fn render_enterprise_attestation(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let csr_ready = self.csr_pem.is_some();
         let show_csr = self.show_csr && csr_ready;
-        let is_loading = self.loading;
+        let is_loading = self.csr_loading;
         let pem = self.csr_pem.clone().unwrap_or_default();
         let pem_for_copy = pem.clone();
 

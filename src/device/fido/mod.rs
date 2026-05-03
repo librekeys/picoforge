@@ -807,6 +807,7 @@ fn parse_cert_bytes(data: Vec<u8>) -> Result<Vec<u8>, String> {
             .map_err(|e| format!("Certificate file is not valid UTF-8: {}", e))?;
         let b64: String = text
             .lines()
+            .map(str::trim)
             .filter(|l| !l.starts_with("-----") && !l.is_empty())
             .collect();
         general_purpose::STANDARD

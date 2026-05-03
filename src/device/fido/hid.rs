@@ -515,11 +515,12 @@ impl HidTransport {
         &self,
         sub_cmd: ConfigSubCommand,
         pin_token: &[u8],
-        sub_params: Value,
+        sub_params: Option<Value>,
     ) -> Result<Vec<u8>, PFError> {
         let mut sub_params_bytes: Vec<u8> = Vec::new();
-        if sub_params != Value::Null {
-            sub_params_bytes = to_vec(&sub_params).map_err(|e| PFError::Io(e.to_string()))?;
+        
+        if let Some(ref params) = sub_params {
+            sub_params_bytes = to_vec(&params).map_err(|e| PFError::Io(e.to_string()))?;
         }
 
         // Calculate PIN Auth
@@ -532,10 +533,10 @@ impl HidTransport {
             Value::Integer(ConfigParam::SubCommand as i128), // 0x01
             Value::Integer(sub_cmd as i128),
         );
-        if sub_params != Value::Null {
+        if let Some(params) = sub_params {
             config_map.insert(
                 Value::Integer(ConfigParam::SubCommandParams as i128), // 0x02
-                sub_params,
+                params,
             );
         }
         config_map.insert(
@@ -563,7 +564,7 @@ impl HidTransport {
         match self.send_config(
             ConfigSubCommand::EnableEnterpriseAttestation,
             pin_token,
-            Value::Null,
+            None,
         ) {
             Ok(_) => {
                 log::info!("Successfully enable Enterprise Attestation");
@@ -598,7 +599,7 @@ impl HidTransport {
             Value::Integer(new_min_pin_length as i128),
         );
         let sub_params = Value::Map(sub_params_map);
-        match self.send_config(ConfigSubCommand::SetMinPinLength, pin_token, sub_params) {
+        match self.send_config(ConfigSubCommand::SetMinPinLength, pin_token, Some(sub_params)) {
             Ok(_) => {
                 log::info!(
                     "Successfully set minimum PIN length to {}",
