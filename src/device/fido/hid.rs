@@ -530,7 +530,7 @@ impl HidTransport {
         let mut config_map = BTreeMap::new();
         config_map.insert(
             Value::Integer(ConfigParam::SubCommand as i128), // 0x01
-            Value::Integer(sub_cmd as i128),                 // 0x01
+            Value::Integer(sub_cmd as i128),
         );
         if sub_params != Value::Null {
             config_map.insert(
