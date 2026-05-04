@@ -2,7 +2,7 @@
 **List of people who have contributed to the PicoForge project.**
 
 - [lockedmutex](https://github.com/lockedmutex): Worked on the frontend and backend of the entire project and also maintains the COPR repository of the application.
-- [vaishakhsnair](https://github.com/vaishakhsnair): Wrote fixes for ESP32 S3.
+- [vaishakhsnair](https://github.com/vaishakhsnair): Wrote fixes for ESP32 S3 and implimented experimental fingerprint support.
 - [oshenyang](https://github.com/oshenyang): Fixed application freezing issue on macos.
 - [Lab-8916100448256](https://github.com/Lab-8916100448256): Contributed `shell.nix` file for dev env setup using nix package manager/nixos and worked on the backend of the application.
 - [jetcookies](https://github.com/jetcookies): Contributed `package.nix` file for nix packaging of the application and maintains the nix flake of the application.

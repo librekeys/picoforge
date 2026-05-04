@@ -200,6 +200,7 @@ impl Render for PinPromptContent {
 pub fn open_pin_prompt(
     title: &str,
     description: &str,
+    placeholder: &str,
     confirm_label: &str,
     window: &mut Window,
     cx: &mut App,
@@ -209,11 +210,8 @@ pub fn open_pin_prompt(
     let description = SharedString::from(description.to_string());
     let confirm_label = SharedString::from(confirm_label.to_string());
 
-    let pin_input = cx.new(|cx| {
-        InputState::new(window, cx)
-            .placeholder("Enter FIDO PIN")
-            .masked(true)
-    });
+    let placeholder = SharedString::from(placeholder.to_string());
+    let pin_input = cx.new(|cx| InputState::new(window, cx).placeholder(placeholder).masked(true));
 
     let dialog_title = title_str.clone();
     let pin_for_sub = pin_input.clone();

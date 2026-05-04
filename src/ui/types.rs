@@ -1,6 +1,8 @@
 use crate::{
     device::types::{FidoDeviceInfo, FullDeviceStatus},
-    ui::views::{config::ConfigView, passkeys::PasskeysView, security::SecurityView},
+    ui::views::{
+        config::ConfigView, passkeys::PasskeysView, security::SecurityView, totp::TotpView,
+    },
 };
 use gpui::{Entity, Pixels, SharedString, px};
 
@@ -8,6 +10,7 @@ use gpui::{Entity, Pixels, SharedString, px};
 pub enum ActiveView {
     Home,
     Passkeys,
+    Totp,
     Configuration,
     Security,
     About,
@@ -53,6 +56,7 @@ impl LayoutState {
 
 pub struct ViewCache {
     pub passkeys: Option<Entity<PasskeysView>>,
+    pub totp: Option<Entity<TotpView>>,
     pub config: Option<Entity<ConfigView>>,
     pub security: Option<Entity<SecurityView>>,
 }
@@ -61,6 +65,7 @@ impl ViewCache {
     pub fn new() -> Self {
         Self {
             passkeys: None,
+            totp: None,
             config: None,
             security: None,
         }

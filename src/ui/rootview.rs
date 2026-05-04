@@ -1,9 +1,10 @@
 use crate::device::io;
+use crate::tray::TrayCommand;
 use crate::ui::components::sidebar::AppSidebar;
 use crate::ui::types::{ActiveView, DeviceConnectionState, LayoutState, ViewCache};
 use crate::ui::views::{
     about::AboutView, config::ConfigView, home::HomeView, passkeys::PasskeysEvent,
-    passkeys::PasskeysView, security::SecurityView,
+    passkeys::PasskeysView, security::SecurityView, totp::TotpView,
 };
 use gpui::prelude::*;
 use gpui::*;
@@ -19,6 +20,7 @@ pub struct ApplicationRoot {
     pub layout: LayoutState,
     pub views: ViewCache,
     pub focus_handle: FocusHandle,
+    tray_task: Option<Task<()>>,
 }
 
 impl ApplicationRoot {
@@ -28,14 +30,67 @@ impl ApplicationRoot {
             layout: LayoutState::new(),
             views: ViewCache::new(),
             focus_handle: cx.focus_handle(),
+            tray_task: None,
         };
 
         this.refresh_device_status(None, cx);
+        this.start_tray_poll(cx);
         this
     }
 
     pub fn focus_handle(&self) -> FocusHandle {
         self.focus_handle.clone()
+    }
+
+    fn start_tray_poll(&mut self, cx: &mut Context<Self>) {
+        let entity = cx.entity().downgrade();
+        self.tray_task = Some(cx.spawn(async move |_, cx| loop {
+            cx.background_executor()
+                .timer(std::time::Duration::from_millis(150))
+                .await;
+
+            let _ = entity.update(cx, |this, cx| {
+                while let Some(command) = crate::tray::poll_command() {
+                    match command {
+                        TrayCommand::ShowTotpWindow => {
+                            this.layout.active_view = ActiveView::Totp;
+                            let mut focused_existing_window = false;
+                            if let Some(window_handle) = cx.windows().into_iter().next() {
+                                cx.activate(false);
+                                if cx
+                                    .update_window(window_handle, |_, window, _| {
+                                        window.activate_window();
+                                    })
+                                    .is_ok()
+                                {
+                                    focused_existing_window = true;
+                                }
+                            }
+
+                            if !focused_existing_window {
+                                cx.spawn(async move |_, cx| {
+                                    if let Err(err) =
+                                        crate::open_main_window_async(cx, Some(ActiveView::Totp))
+                                    {
+                                        log::error!(
+                                            "Failed to reopen PicoForge window from tray: {}",
+                                            err
+                                        );
+                                    }
+                                })
+                                .detach();
+                            }
+                            cx.notify();
+                        }
+                        TrayCommand::Quit => {
+                            crate::tray::QUIT_REQUESTED
+                                .store(true, std::sync::atomic::Ordering::SeqCst);
+                            cx.quit();
+                        }
+                    }
+                }
+            });
+        }));
     }
 
     fn refresh_device_status(&mut self, window: Option<&mut Window>, cx: &mut Context<Self>) {
@@ -60,6 +115,7 @@ impl ApplicationRoot {
 
                 if device_changed {
                     self.views.passkeys = None;
+                    self.views.totp = None;
                     self.views.security = None;
                 }
 
@@ -163,6 +219,17 @@ impl Render for ApplicationRoot {
                         view
                     });
                     view.clone().into_any_element()
+                }
+                ActiveView::Totp => {
+                    if self.views.totp.is_none() {
+                        let root = cx.entity().downgrade();
+                        let view = cx.new(|cx| TotpView::new(window, cx, root));
+                        view.update(cx, |view, cx| {
+                            view.refresh_status(cx);
+                        });
+                        self.views.totp = Some(view);
+                    }
+                    self.views.totp.clone().unwrap().into_any_element()
                 }
                 ActiveView::Configuration => {
                     if self.views.config.is_none() {

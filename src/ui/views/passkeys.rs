@@ -182,6 +182,7 @@ impl PasskeysView {
         dialog::open_pin_prompt(
             "Unlock Storage",
             "Enter your device PIN to view saved passkeys",
+            "Enter FIDO PIN",
             "Unlock",
             window,
             cx,

@@ -144,6 +144,12 @@ impl<V: 'static> AppSidebar<V> {
                                 ))
                                 .child(self.menu_item(
                                     cx,
+                                    "TOTP",
+                                    "icons/asterisk.svg",
+                                    ActiveView::Totp,
+                                ))
+                                .child(self.menu_item(
+                                    cx,
                                     "Configuration",
                                     "icons/settings.svg",
                                     ActiveView::Configuration,

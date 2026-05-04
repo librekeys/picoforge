@@ -89,6 +89,7 @@ impl SecurityView {
         dialog::open_pin_prompt(
             "Unlock Fingerprint Management",
             "Enter your device PIN to enumerate fingerprints stored on the key.",
+            "Enter FIDO PIN",
             "Load",
             window,
             cx,

@@ -137,3 +137,27 @@ pub struct FingerprintEnrollResult {
     pub remaining_samples: u32,
     pub finished: bool,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TotpEntry {
+    pub name: String,
+    pub issuer: Option<String>,
+    pub account_name: Option<String>,
+    pub algorithm: String,
+    pub digits: u8,
+    pub period: u32,
+    pub current_code: Option<String>,
+    pub requires_touch: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct TotpStatus {
+    pub supported: bool,
+    pub version: Option<String>,
+    pub serial: Option<String>,
+    pub protected: bool,
+    pub pin_retries: Option<u8>,
+    pub entries: Vec<TotpEntry>,
+}
