@@ -25,6 +25,7 @@ pub struct PinPromptContent {
     phase: DialogPhase,
     title: SharedString,
     description: SharedString,
+    warning: Option<SharedString>,
     confirm_label: SharedString,
     pin_input: Entity<InputState>,
     on_confirm: PinPromptCallback,
@@ -115,9 +116,39 @@ impl Render for PinPromptContent {
                 let on_confirm = self.on_confirm.clone();
                 let handle = cx.entity().downgrade();
 
-                v_flex()
-                    .gap_4()
-                    .child(self.description.clone())
+                let mut container = v_flex().gap_4().child(self.description.clone());
+
+                if let Some(warning) = &self.warning {
+                    container = container.child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .gap_2()
+                            .items_start()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(rgb(0x18181b))
+                            .child(
+                                div().flex_shrink_0().child(
+                                    gpui_component::Icon::new(
+                                        gpui_component::IconName::TriangleAlert,
+                                    )
+                                    .text_color(rgb(0xef4444))
+                                    .with_size(gpui_component::Size::Medium),
+                                ),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_color(rgb(0xef4444))
+                                    .text_sm()
+                                    .child(warning.clone()),
+                            ),
+                    );
+                }
+
+                container
                     .child(
                         div()
                             .px_3()
@@ -162,9 +193,39 @@ impl Render for PinPromptContent {
                 let on_confirm = self.on_confirm.clone();
                 let handle = cx.entity().downgrade();
 
-                v_flex()
-                    .gap_4()
-                    .child(self.description.clone())
+                let mut container = v_flex().gap_4().child(self.description.clone());
+
+                if let Some(warning) = &self.warning {
+                    container = container.child(
+                        div()
+                            .flex()
+                            .flex_row()
+                            .gap_2()
+                            .items_start()
+                            .px_3()
+                            .py_2()
+                            .rounded_md()
+                            .bg(rgb(0x18181b))
+                            .child(
+                                div().flex_shrink_0().child(
+                                    gpui_component::Icon::new(
+                                        gpui_component::IconName::TriangleAlert,
+                                    )
+                                    .text_color(rgb(0xef4444))
+                                    .with_size(gpui_component::Size::Medium),
+                                ),
+                            )
+                            .child(
+                                div()
+                                    .flex_1()
+                                    .text_color(rgb(0xef4444))
+                                    .text_sm()
+                                    .child(warning.clone()),
+                            ),
+                    );
+                }
+
+                container
                     .child(Input::new(&pin_input))
                     .child(
                         h_flex()
@@ -199,6 +260,7 @@ impl Render for PinPromptContent {
 pub fn open_pin_prompt(
     title: &str,
     description: &str,
+    warning: Option<&str>,
     confirm_label: &str,
     window: &mut Window,
     cx: &mut App,
@@ -206,6 +268,7 @@ pub fn open_pin_prompt(
 ) {
     let title_str = SharedString::from(title.to_string());
     let description = SharedString::from(description.to_string());
+    let warning = warning.map(|w| SharedString::from(w.to_string()));
     let confirm_label = SharedString::from(confirm_label.to_string());
 
     let pin_input = cx.new(|cx| {
@@ -228,6 +291,7 @@ pub fn open_pin_prompt(
             phase: DialogPhase::Input,
             title: title_str,
             description,
+            warning,
             confirm_label,
             pin_input: pin_for_sub,
             on_confirm: std::rc::Rc::new(on_confirm),

@@ -24,6 +24,7 @@ hidapi = "2.6"         # For fido2 interface operations but non-standard command
 serde_cbor_2 = "0.13"
 rand = "0.10"
 bitflags = "2.11"
+base64 = "0.22"        # For PEM encoding of DER certificates
 ring = "0.17"          # For signing fido2 messages with pin token
 aes = "0.8"
 cbc = "0.1"

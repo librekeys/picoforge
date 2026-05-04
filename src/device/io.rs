@@ -58,3 +58,18 @@ pub fn get_credentials(pin: String) -> Result<Vec<StoredCredential>, String> {
 pub fn delete_credential(pin: String, credential_id: String) -> Result<String, String> {
     fido::delete_credential(pin, credential_id)
 }
+
+pub fn enable_enterprise_attestation(pin: String) -> Result<String, String> {
+    fido::enable_enterprise_attestation(pin)
+}
+
+pub fn get_enterprise_attestation_csr() -> Result<String, String> {
+    fido::get_enterprise_attestation_csr()
+}
+
+pub fn upload_enterprise_attestation_cert(
+    pin: String,
+    cert_path: String,
+) -> Result<String, String> {
+    fido::upload_enterprise_attestation_cert(pin, cert_path)
+}

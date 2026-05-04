@@ -350,6 +350,7 @@ impl ConfigView {
         dialog::open_pin_prompt(
             "Authentication Required",
             "Enter your device PIN to apply changes.",
+            None,
             "Confirm",
             window,
             cx,

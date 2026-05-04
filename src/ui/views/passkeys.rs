@@ -9,7 +9,10 @@ use crate::ui::components::{
 };
 use crate::ui::rootview::ApplicationRoot;
 use crate::ui::types::DeviceConnectionState;
+use directories::UserDirs;
+use gpui::prelude::FluentBuilder;
 use gpui::*;
+use gpui_component::Disableable;
 use gpui_component::button::{Button, ButtonVariant, ButtonVariants};
 use gpui_component::{
     ActiveTheme, Icon, Placement, Sizable, StyledExt, Theme, WindowExt,
@@ -17,6 +20,7 @@ use gpui_component::{
     h_flex,
     input::{Input, InputState},
     slider::{Slider, SliderState},
+    switch::Switch,
     v_flex,
 };
 
@@ -37,6 +41,9 @@ pub struct PasskeysView {
     unlocked: bool,
     cached_pin: Option<String>,
     loading: bool,
+    csr_loading: bool,
+    csr_pem: Option<String>,
+    show_csr: bool,
     _task: Option<Task<()>>,
 }
 
@@ -58,6 +65,9 @@ impl PasskeysView {
             unlocked: false,
             cached_pin: None,
             loading: false,
+            csr_loading: false,
+            csr_pem: None,
+            show_csr: false,
             _task: None,
         }
     }
@@ -182,6 +192,7 @@ impl PasskeysView {
         dialog::open_pin_prompt(
             "Unlock Storage",
             "Enter your device PIN to view saved passkeys",
+            None,
             "Unlock",
             window,
             cx,
@@ -567,6 +578,424 @@ impl PasskeysView {
                 });
             }
         }));
+    }
+
+    fn request_csr(&mut self, status_handle: WeakEntity<StatusContent>, cx: &mut Context<Self>) {
+        if self.loading {
+            return;
+        }
+        self.loading = true;
+        self.csr_loading = true;
+        cx.notify();
+
+        log::info!("Request Attestation CSR...");
+        let entity = cx.entity().downgrade();
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::get_enterprise_attestation_csr() })
+                .await;
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+                this.csr_loading = false;
+                match result {
+                    Ok(pem) => {
+                        log::info!("CSR retrieved successfully ({} bytes).", pem.len());
+                        this.csr_pem = Some(pem);
+                        let _ = status_handle.update(cx, |s, cx| {
+                            s.set_success(
+                                "CSR retrieved from device. Click \"View CSR\" to inspect or save it.".to_string(),
+                                cx,
+                            );
+                        });
+                    }
+                    Err(e) => {
+                        log::error!("Failed to retrieve CSR: {}", e);
+                        let _ = status_handle.update(cx, |s, cx| {
+                            s.set_error(format!("Failed to retrieve CSR: {}", e), cx);
+                        });
+                    }
+                }
+                cx.notify();
+            });
+        }));
+    }
+
+    fn execute_upload_cert(
+        &mut self,
+        pin: String,
+        cert_path: String,
+        dialog_handle: WeakEntity<PinPromptContent>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.loading {
+            return;
+        }
+        self.loading = true;
+        cx.notify();
+
+        log::info!(
+            "Uploading enterprise attestation certificate from: {}",
+            cert_path
+        );
+        let entity = cx.entity().downgrade();
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::upload_enterprise_attestation_cert(pin, cert_path) })
+                .await;
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+                match result {
+                    Ok(msg) => {
+                        log::info!("{}", msg);
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_success(msg, cx);
+                        });
+                    }
+                    Err(e) => {
+                        log::error!("Certificate upload failed: {}", e);
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_error(format!("Upload failed: {}", e), cx);
+                        });
+                    }
+                }
+                cx.notify();
+            });
+        }));
+    }
+
+    fn open_enable_ea_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let view_handle = cx.entity().downgrade();
+
+        dialog::open_pin_prompt(
+            "Enable Enterprise Attestation",
+            "Enter your device PIN to enable enterprise attestation",
+            Some("This operation is irreversible"),
+            "Enable",
+            window,
+            cx,
+            move |pin, dialog_handle, cx| {
+                let _ = view_handle.update(cx, |this, cx| {
+                    this.enable_ea(pin, dialog_handle, cx);
+                });
+            },
+        );
+    }
+
+    fn enable_ea(
+        &mut self,
+        pin: String,
+        dialog_handle: WeakEntity<PinPromptContent>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.loading {
+            return;
+        }
+        self.loading = true;
+        cx.notify();
+
+        log::info!("Enabling enterprise attestation...");
+        let entity = cx.entity().downgrade();
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { io::enable_enterprise_attestation(pin) })
+                .await;
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+                match result {
+                    Ok(msg) => {
+                        log::info!("{}", msg);
+                        if let Ok(info) = io::get_fido_info() {
+                            let _ = this.root.update(cx, |root, cx| {
+                                root.device.fido_info = Some(info);
+                                cx.notify();
+                            });
+                        }
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_success(msg, cx);
+                        });
+                    }
+                    Err(e) => {
+                        log::error!("Failed to enable EA: {}", e);
+                        let _ = dialog_handle.update(cx, |d, cx| {
+                            d.set_error(format!("Error: {}", e), cx);
+                        });
+                    }
+                }
+                cx.notify();
+            });
+        }));
+    }
+
+    fn open_upload_cert_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let window_handle = window.window_handle();
+        let entity = cx.entity().downgrade();
+
+        let receiver = cx.prompt_for_paths(PathPromptOptions {
+            files: true,
+            directories: false,
+            multiple: false,
+            prompt: Some("Select Certificate File (PEM or DER)".into()),
+        });
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let Ok(Ok(Some(paths))) = receiver.await else {
+                return;
+            };
+            let Some(first) = paths.into_iter().next() else {
+                return;
+            };
+            let cert_path = first.to_string_lossy().to_string();
+
+            let _ = cx.update_window(window_handle, |_, window, cx| {
+                dialog::open_pin_prompt(
+                    "Upload Certificate",
+                    "Enter your device PIN to upload the certificate to the device",
+                    None,
+                    "Upload",
+                    window,
+                    cx,
+                    move |pin, dialog_handle, cx| {
+                        let _ = entity.update(cx, |this, cx| {
+                            this.execute_upload_cert(pin, cert_path.clone(), dialog_handle, cx);
+                        });
+                    },
+                );
+            });
+        }));
+    }
+
+    fn render_enterprise_attestation(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let csr_ready = self.csr_pem.is_some();
+        let show_csr = self.show_csr && csr_ready;
+        let is_loading = self.csr_loading;
+        let pem = self.csr_pem.clone().unwrap_or_default();
+        let pem_for_copy = pem.clone();
+
+        let request_listener = cx.listener(|this, _, window, cx| {
+            let status_handle = dialog::open_status_dialog("Certificate Request", window, cx);
+            this.request_csr(status_handle, cx);
+        });
+
+        let view_listener = cx.listener(|this, _, _, cx| {
+            this.show_csr = !this.show_csr;
+            cx.notify();
+        });
+
+        let save_listener = cx.listener(|this, _, _, cx| {
+            let Some(pem) = this.csr_pem.clone() else {
+                return;
+            };
+            let default_dir = UserDirs::new()
+                .and_then(|d| {
+                    d.document_dir()
+                        .or_else(|| d.download_dir())
+                        .map(|p| p.to_path_buf())
+                })
+                .unwrap_or_else(|| {
+                    std::path::PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| ".".into()))
+                });
+            let receiver = cx.prompt_for_new_path(&default_dir, Some("device_attestation.csr"));
+            let entity = cx.entity().downgrade();
+            this._task = Some(cx.spawn(async move |_, cx| match receiver.await {
+                Ok(Ok(Some(path))) => match std::fs::write(&path, pem.as_bytes()) {
+                    Ok(_) => {
+                        let _ = entity.update(cx, |_, cx| {
+                            cx.emit(PasskeysEvent::Notification(format!(
+                                "CSR saved to {}",
+                                path.display()
+                            )));
+                        });
+                    }
+                    Err(e) => {
+                        let _ = entity.update(cx, |_, cx| {
+                            cx.emit(PasskeysEvent::Notification(format!(
+                                "Failed to save CSR: {}",
+                                e
+                            )));
+                        });
+                    }
+                },
+                Ok(Err(e)) => {
+                    let _ = entity.update(cx, |_, cx| {
+                        cx.emit(PasskeysEvent::Notification(format!(
+                            "Save dialog error: {}",
+                            e
+                        )));
+                    });
+                }
+                _ => {}
+            }));
+        });
+
+        let upload_listener = cx.listener(|this, _, window, cx| {
+            this.open_upload_cert_dialog(window, cx);
+        });
+
+        let theme = cx.theme();
+
+        let fido_info = self
+            .root
+            .upgrade()
+            .and_then(|r| r.read(cx).device.fido_info.clone());
+        let ep_set = fido_info
+            .as_ref()
+            .and_then(|f| f.options.get("ep").copied())
+            .unwrap_or(false);
+
+        let enable_ea_listener = cx.listener(|this, _checked: &bool, window, cx| {
+            this.open_enable_ea_dialog(window, cx);
+        });
+
+        let enable_row = div()
+            .border_1()
+            .border_color(theme.border)
+            .rounded_lg()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .p_4()
+                    .child(
+                        v_flex().child(div().font_medium().child("Enable enterprise attestation")),
+                    )
+                    .child(
+                        h_flex().gap_2().child(
+                            Switch::new("enable-ea-switch")
+                                .checked(ep_set)
+                                .disabled(ep_set)
+                                .on_click(enable_ea_listener),
+                        ),
+                    ),
+            );
+
+        let csr_row = div()
+            .border_1()
+            .border_color(theme.border)
+            .rounded_lg()
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .p_4()
+                    .child(
+                        v_flex()
+                            .child(div().font_medium().child("Certificate Signing Request"))
+                            .child(div().text_sm().text_color(theme.muted_foreground).child(
+                                if csr_ready {
+                                    "CSR retrieved"
+                                } else {
+                                    "Get a CSR for enterprise attestation enrollment"
+                                },
+                            )),
+                    )
+                    .child(
+                        h_flex()
+                            .gap_2()
+                            .when(csr_ready, |el| {
+                                el.child(
+                                    PFButton::new(if show_csr { "Hide CSR" } else { "View CSR" })
+                                        .id("view-csr-btn")
+                                        .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+                                        .on_click(view_listener),
+                                )
+                            })
+                            .child(
+                                PFButton::new(if csr_ready { "Refresh" } else { "Request CSR" })
+                                    .id("request-csr-btn")
+                                    .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+                                    .loading(is_loading)
+                                    .on_click(request_listener),
+                            ),
+                    ),
+            )
+            .when(show_csr, |el| {
+                el.child(
+                    div().border_t_1().border_color(theme.border).p_4().child(
+                        v_flex()
+                            .gap_3()
+                            .child(div().text_sm().text_color(theme.muted_foreground).child(
+                                "Certificate Signing Request from the device's attestation key.",
+                            ))
+                            .child(
+                                div()
+                                    .font_family("monospace")
+                                    .text_xs()
+                                    .bg(theme.muted)
+                                    .p_3()
+                                    .rounded_lg()
+                                    .overflow_hidden()
+                                    .child(pem.clone()),
+                            )
+                            .child(
+                                h_flex()
+                                    .gap_2()
+                                    .child(
+                                        Button::new("copy-csr")
+                                            .label("Copy to Clipboard")
+                                            .on_click(move |_, _, cx| {
+                                                cx.write_to_clipboard(ClipboardItem::new_string(
+                                                    pem_for_copy.clone(),
+                                                ));
+                                            }),
+                                    )
+                                    .child(
+                                        Button::new("save-csr")
+                                            .primary()
+                                            .label("Save to File")
+                                            .on_click(save_listener),
+                                    ),
+                            ),
+                    ),
+                )
+            });
+
+        let upload_row = div()
+            .flex()
+            .items_center()
+            .justify_between()
+            .p_4()
+            .border_1()
+            .border_color(theme.border)
+            .rounded_lg()
+            .child(
+                v_flex()
+                    .child(div().font_medium().child("Upload Certificate"))
+                    .child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.muted_foreground)
+                            .child("Upload the signed certificate to the device"),
+                    ),
+            )
+            .child(
+                PFButton::new("Upload Certificate")
+                    .id("upload-cert-btn")
+                    .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+                    .on_click(upload_listener),
+            );
+
+        Card::new()
+            .title("Enterprise Attestation Certificate")
+            .icon(Icon::default().path("icons/scroll-text.svg"))
+            .description("Manage the device enterprise attestation")
+            .child(
+                v_flex()
+                    .gap_3()
+                    .child(enable_row)
+                    .child(csr_row)
+                    .child(upload_row),
+            )
     }
 
     fn render_no_device(&self, theme: &Theme) -> impl IntoElement {
@@ -1165,7 +1594,8 @@ impl Render for PasskeysView {
         let content = v_flex()
             .gap_6()
             .child(self.render_pin_management(cx))
-            .child(self.render_stored_passkeys(cx));
+            .child(self.render_stored_passkeys(cx))
+            .child(self.render_enterprise_attestation(cx));
 
         let theme = cx.theme();
 

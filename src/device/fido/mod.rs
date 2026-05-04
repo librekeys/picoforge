@@ -8,6 +8,7 @@ use crate::{
     },
     error::PFError,
 };
+use base64::{Engine as _, engine::general_purpose};
 use constants::*;
 use hid::*;
 use serde_cbor_2::{Value, from_slice, to_vec};
@@ -796,6 +797,134 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
     "Configuration updated successfully! Unplug and re-plug the device to apply VID/PID changes."
       .to_string(),
   )
+}
+
+/// Parse raw bytes from a certificate file into DER format.
+/// Accepts both PEM (ASCII-armored base64) and raw DER (binary) input.
+fn parse_cert_bytes(data: Vec<u8>) -> Result<Vec<u8>, String> {
+    if data.starts_with(b"-----") {
+        let text = String::from_utf8(data)
+            .map_err(|e| format!("Certificate file is not valid UTF-8: {}", e))?;
+        let b64: String = text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.starts_with("-----") && !l.is_empty())
+            .collect();
+        general_purpose::STANDARD
+            .decode(&b64)
+            .map_err(|e| format!("Failed to decode PEM base64: {}", e))
+    } else {
+        Ok(data)
+    }
+}
+
+/// Upload a certificate to the device's enterprise attestation slot.
+///
+/// Sends CTAP_CONFIG_EA_UPLOAD (0x66f2a674c29a8dcf / subcommand 0xFF) via
+/// authenticatorConfig VendorPrototype. Accepts PEM or DER certificate files.
+pub(crate) fn upload_enterprise_attestation_cert(
+    pin: String,
+    cert_path: String,
+) -> Result<String, String> {
+    log::info!("Reading certificate from: {}", cert_path);
+
+    let raw = std::fs::read(&cert_path)
+        .map_err(|e| format!("Cannot read certificate file \"{}\": {}", cert_path, e))?;
+
+    let cert_der = parse_cert_bytes(raw)?;
+    log::info!(
+        "Certificate parsed ({} bytes). Uploading to device...",
+        cert_der.len()
+    );
+
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let pin_token = transport
+        .get_pin_token_with_permission(
+            &pin,
+            PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
+            None,
+        )
+        .map_err(|e| {
+            let s = e.to_string();
+            if s.contains("0x2B") {
+                return "Device does not support enterprise attestation (0x2B). Ensure firmware is up to date.".to_string();
+            }
+            format!("Failed to obtain PIN token: {}", s)
+        })?;
+
+    transport
+        .send_vendor_config(
+            &pin_token,
+            VendorConfigCommand::EnterpriseAttestationUpload,
+            Value::Bytes(cert_der),
+        )
+        .map_err(|e| format!("Failed to upload certificate: {}", e))?;
+
+    log::info!("Enterprise attestation certificate uploaded successfully.");
+    Ok("Enterprise attestation certificate uploaded successfully.".to_string())
+}
+
+pub(crate) fn enable_enterprise_attestation(pin: String) -> Result<String, String> {
+    log::info!("Enabling enterprise attestation...");
+
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let pin_token = transport
+        .get_pin_token_with_permission(
+            &pin,
+            PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
+            None,
+        )
+        .map_err(|e| {
+            let s = e.to_string();
+            log::error!("Failed to get PIN token: {}", s);
+            if s.contains("0x2B") {
+                return "Device does not support enterprise attestation (0x2B). Ensure firmware is up to date.".to_string();
+            }
+            format!("Failed to obtain PIN token: {}", s)
+        })?;
+
+    transport
+        .send_config_enable_ea(&pin_token)
+        .map_err(|e| format!("Failed to enable enterprise attestation: {}", e))?;
+
+    Ok("Enterprise attestation enabled successfully.".into())
+}
+
+/// Request a Certificate Signing Request (CSR) from the device.
+pub(crate) fn get_enterprise_attestation_csr() -> Result<String, String> {
+    log::info!("Requesting Attestation CSR from device...");
+
+    let transport =
+        HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
+
+    let csr_der = transport
+        .get_enterprise_attestation_csr()
+        .map_err(|e| format!("Failed to retrieve CSR: {}", e))?;
+
+    log::info!(
+        "CSR retrieved ({} bytes). Converting to PEM...",
+        csr_der.len()
+    );
+
+    // Base64-encode the DER bytes and wrap in PEM
+    let b64 = general_purpose::STANDARD.encode(&csr_der);
+    let wrapped: String = b64
+        .as_bytes()
+        .chunks(64)
+        .map(|c| std::str::from_utf8(c).unwrap_or(""))
+        .collect::<Vec<&str>>()
+        .join("\n");
+
+    let pem = format!(
+        "-----BEGIN CERTIFICATE REQUEST-----\n{}\n-----END CERTIFICATE REQUEST-----\n",
+        wrapped
+    );
+
+    Ok(pem)
 }
 
 #[cfg(test)]
