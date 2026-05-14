@@ -20,8 +20,10 @@
 >
 > Check application [Installation Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation guide of the PicoForge app on your system.
 >
-> PicoForge only supports v7.2 of the PICO FIDO series of firmwares. Support to v7.4 and above
-> is WIP.
+> PicoForge targets Pico FIDO firmware 7.6 for FIDO fallback reads and management.
+> Hardware configuration from FIDO-only mode is firmware-dependent: 7.0/7.2 support
+> a limited legacy configuration path, while 7.4/7.6 require rescue/PCSC mode for
+> hardware configuration changes.
 
 ## About
 
@@ -34,7 +36,7 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Real-time system logging and diagnostics
 - Support for multiple hardware variants and vendors
 
-> **BETA Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3 and, currently supports Pico FIDO firmware version 7.2 only.
+> **BETA Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3 and, currently targets Pico FIDO firmware version 7.6, with limited legacy FIDO-only configuration support for 7.0/7.2.
 
 ## Screenshots
 

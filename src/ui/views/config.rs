@@ -1,11 +1,7 @@
-use crate::device::io;
-use crate::device::types::AppConfigInput;
-use crate::ui::components::{
-    card::Card,
-    dialog,
-    dialog::{PinPromptContent, StatusContent},
-    page_view::PageView,
-};
+use crate::device::types::{AppConfigInput, DeviceMethod};
+use crate::device::{fido, io};
+use crate::ui::components::dialog::PinPromptContent;
+use crate::ui::components::{card::Card, dialog, dialog::StatusContent, page_view::PageView};
 use crate::ui::rootview::ApplicationRoot;
 use crate::ui::types::{DeviceConnectionState, LedDriverType, UsbIdentityPreset};
 use gpui::*;
@@ -314,7 +310,7 @@ impl ConfigView {
 
                         // Special case for FIDO 0x3E error (Invalid Subcommand)
                         // This happens when the firmware is too old to support config over FIDO
-                        if method == crate::device::types::DeviceMethod::Fido && err_msg.contains("0x3E")
+                        if method == DeviceMethod::Fido && err_msg.contains("0x3E")
                         {
                             err_msg = "The device firmware does not support being configured in fido only communication mode. \nHave a look at the troubleshooting guide to fix this".to_string();
                         }
@@ -358,7 +354,7 @@ impl ConfigView {
                 let _ = view_handle.update(cx, |this, cx| {
                     this.write_config_to_device(
                         changes.clone(),
-                        crate::device::types::DeviceMethod::Fido,
+                        DeviceMethod::Fido,
                         Some(pin),
                         StatusDialogHandle::Pin(dialog_handle),
                         cx,
@@ -467,8 +463,20 @@ impl ConfigView {
 
         let method = status.method.clone();
 
-        if method == crate::device::types::DeviceMethod::Fido {
-            self.open_pin_dialog(changes, window, cx);
+        if method == DeviceMethod::Fido {
+            if Self::status_supports_legacy_fido_config(status) {
+                self.open_pin_dialog(changes, window, cx);
+            } else {
+                let handle =
+                    dialog::open_status_dialog("Configuration Requires Rescue Mode", window, cx);
+                self.write_config_to_device(
+                    changes,
+                    method,
+                    None,
+                    StatusDialogHandle::Status(handle),
+                    cx,
+                );
+            }
         } else {
             let handle = dialog::open_status_dialog("Applying Configuration", window, cx);
             self.write_config_to_device(
@@ -479,6 +487,11 @@ impl ConfigView {
                 cx,
             );
         }
+    }
+
+    fn status_supports_legacy_fido_config(status: &crate::device::types::FullDeviceStatus) -> bool {
+        status.method == DeviceMethod::Fido
+            && fido::firmware_supports_legacy_fido_hardware_config(&status.info.firmware_version)
     }
 
     pub fn sync_from_device(
@@ -544,14 +557,21 @@ impl ConfigView {
         cx.notify();
     }
 
-    fn render_identity_card(&self, theme: &Theme) -> impl IntoElement {
+    fn render_identity_card(
+        &self,
+        theme: &Theme,
+        is_fido: bool,
+        hardware_config_disabled: bool,
+    ) -> impl IntoElement {
         let content = v_flex()
             .gap_4()
             .child(
-                v_flex()
-                    .gap_2()
-                    .child("Vendor Preset")
-                    .child(Select::new(&self.vendor_select).bg(rgb(0x222225)).w_full()),
+                v_flex().gap_2().child("Vendor Preset").child(
+                    Select::new(&self.vendor_select)
+                        .bg(rgb(0x222225))
+                        .w_full()
+                        .disabled(hardware_config_disabled),
+                ),
             )
             .child(
                 div()
@@ -563,7 +583,7 @@ impl ConfigView {
                             Input::new(&self.vid_input)
                                 .font_family("Mono")
                                 .bg(rgb(0x222225))
-                                .disabled(!self.is_custom_vendor),
+                                .disabled(hardware_config_disabled || !self.is_custom_vendor),
                         ),
                     )
                     .child(
@@ -571,16 +591,17 @@ impl ConfigView {
                             Input::new(&self.pid_input)
                                 .font_family("Mono")
                                 .bg(rgb(0x222225))
-                                .disabled(!self.is_custom_vendor),
+                                .disabled(hardware_config_disabled || !self.is_custom_vendor),
                         ),
                     ),
             )
             .child(div().h_px().bg(theme.border))
             .child(
-                v_flex()
-                    .gap_2()
-                    .child("Product Name")
-                    .child(Input::new(&self.product_name_input).bg(rgb(0x222225))),
+                v_flex().gap_2().child("Product Name").child(
+                    Input::new(&self.product_name_input)
+                        .bg(rgb(0x222225))
+                        .disabled(is_fido),
+                ),
             );
 
         Card::new()
@@ -590,7 +611,12 @@ impl ConfigView {
             .child(content)
     }
 
-    fn render_led_card(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_led_card(
+        &mut self,
+        cx: &mut Context<Self>,
+        is_fido: bool,
+        hardware_config_disabled: bool,
+    ) -> impl IntoElement {
         let dim_listener = cx.listener(|this, checked, _, cx| {
             this.led_dimmable = *checked;
             cx.notify();
@@ -608,16 +634,18 @@ impl ConfigView {
         let content = v_flex()
             .gap_4()
             .child(
-                v_flex()
-                    .gap_2()
-                    .child("LED GPIO Pin")
-                    .child(Input::new(&self.led_gpio_input).bg(rgb(0x222225))),
+                v_flex().gap_2().child("LED GPIO Pin").child(
+                    Input::new(&self.led_gpio_input)
+                        .bg(rgb(0x222225))
+                        .disabled(hardware_config_disabled),
+                ),
             )
             .child(
                 v_flex().gap_2().child("LED Driver").child(
                     Select::new(&self.led_driver_select)
                         .w_full()
-                        .bg(rgb(0x222225)),
+                        .bg(rgb(0x222225))
+                        .disabled(is_fido),
                 ),
             )
             .child(div().h_px().bg(theme.border))
@@ -626,7 +654,11 @@ impl ConfigView {
                     gpui_component::h_flex()
                         .items_center()
                         .gap_4()
-                        .child(Slider::new(&self.led_brightness_slider).flex_1())
+                        .child(
+                            Slider::new(&self.led_brightness_slider)
+                                .flex_1()
+                                .disabled(hardware_config_disabled),
+                        )
                         .child(
                             div()
                                 .text_xs()
@@ -650,6 +682,7 @@ impl ConfigView {
                     .child(
                         Switch::new("led-dimmable")
                             .checked(self.led_dimmable)
+                            .disabled(hardware_config_disabled)
                             .on_click(dim_listener),
                     ),
             )
@@ -668,6 +701,7 @@ impl ConfigView {
                     .child(
                         Switch::new("led-steady")
                             .checked(self.led_steady)
+                            .disabled(hardware_config_disabled)
                             .on_click(steady_listener),
                     ),
             );
@@ -679,12 +713,13 @@ impl ConfigView {
             .child(content)
     }
 
-    fn render_touch_card(&self, _theme: &Theme) -> impl IntoElement {
+    fn render_touch_card(&self, _theme: &Theme, is_fido: bool) -> impl IntoElement {
         let content = v_flex().gap_4().child(
-            v_flex()
-                .gap_2()
-                .child("Touch Timeout (seconds)")
-                .child(Input::new(&self.touch_timeout_input).bg(rgb(0x222225))),
+            v_flex().gap_2().child("Touch Timeout (seconds)").child(
+                Input::new(&self.touch_timeout_input)
+                    .bg(rgb(0x222225))
+                    .disabled(is_fido),
+            ),
         );
 
         Card::new()
@@ -694,7 +729,12 @@ impl ConfigView {
             .child(content)
     }
 
-    fn render_options_card(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
+    fn render_options_card(
+        &mut self,
+        cx: &mut Context<Self>,
+        is_fido: bool,
+        hardware_config_disabled: bool,
+    ) -> impl IntoElement {
         let power_cycle_listener = cx.listener(|this, checked, _, cx| {
             this.power_cycle = *checked;
             cx.notify();
@@ -724,6 +764,7 @@ impl ConfigView {
                     .child(
                         Switch::new("power-cycle")
                             .checked(self.power_cycle)
+                            .disabled(hardware_config_disabled)
                             .on_click(power_cycle_listener),
                     ),
             )
@@ -742,6 +783,7 @@ impl ConfigView {
                     .child(
                         Switch::new("enable-secp")
                             .checked(self.enable_secp256k1)
+                            .disabled(is_fido)
                             .on_click(secp_listener),
                     ),
             );
@@ -781,13 +823,30 @@ impl Render for ConfigView {
             .into_any_element();
         }
 
-        let led_card = self.render_led_card(cx).into_any_element();
-        let options_card = self.render_options_card(cx).into_any_element();
+        let status = self
+            .root
+            .upgrade()
+            .and_then(|r| r.read(cx).device.status.clone());
+        let is_fido = status.as_ref().map(|s| s.method.clone()) == Some(DeviceMethod::Fido);
+        let supports_legacy_fido_config = status
+            .as_ref()
+            .map(Self::status_supports_legacy_fido_config)
+            .unwrap_or(false);
+        let hardware_config_disabled = is_fido && !supports_legacy_fido_config;
+
+        let led_card = self
+            .render_led_card(cx, is_fido, hardware_config_disabled)
+            .into_any_element();
+        let options_card = self
+            .render_options_card(cx, is_fido, hardware_config_disabled)
+            .into_any_element();
 
         let theme = cx.theme();
 
-        let identity_card = self.render_identity_card(theme).into_any_element();
-        let touch_card = self.render_touch_card(theme).into_any_element();
+        let identity_card = self
+            .render_identity_card(theme, is_fido, hardware_config_disabled)
+            .into_any_element();
+        let touch_card = self.render_touch_card(theme, is_fido).into_any_element();
 
         let is_wide = window.bounds().size.width > px(1100.0);
         let columns = if is_wide { 2 } else { 1 };
@@ -812,7 +871,7 @@ impl Render for ConfigView {
                         Button::new("apply-changes")
                             .icon(Icon::default().path("icons/save.svg"))
                             .child("Apply Changes")
-                            .disabled(self.loading)
+                            .disabled(self.loading || hardware_config_disabled)
                             .custom(
                                 ButtonCustomVariant::new(cx)
                                     .color(rgb(0xe3e3e6).into())

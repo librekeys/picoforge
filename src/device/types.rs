@@ -79,9 +79,9 @@ pub struct FidoDeviceInfo {
     pub remaining_discoverable_credentials: Option<i128>,
     pub min_pin_length: i128,
     pub firmware_version: String,
-    /// Supported vendor config commands (human-readable names), parsed from CTAP GetInfo key 0x13
+    /// Supported vendor config commands (human-readable names), parsed from CTAP GetInfo.
     pub vendor_config_commands: Vec<String>,
-    /// Device certifications, parsed from CTAP GetInfo key 0x15
+    /// Device certifications when firmware exposes them separately from vendor commands.
     pub certifications: std::collections::HashMap<String, bool>,
     pub max_credential_count_in_list: Option<i128>,
     pub max_credential_id_length: Option<i128>,

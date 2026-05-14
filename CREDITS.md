@@ -7,6 +7,7 @@
 - [Lab-8916100448256](https://github.com/Lab-8916100448256): Contributed `shell.nix` file for dev env setup using nix package manager/nixos and worked on the backend of the application.
 - [jetcookies](https://github.com/jetcookies): Contributed `package.nix` file for nix packaging of the application and maintains the nix flake of the application.
 - [Sylvain Pelissier](https://github.com/sylvainpelissier): Worked on the Enterprise attestation features.
+- [kralonur](https://github.com/kralonur): Improved Pico-FIDO 7.6 compatibility and preserved legacy FIDO hardware configuration support.
 
 **Third-party Libraries**
 

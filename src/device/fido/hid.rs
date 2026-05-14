@@ -168,6 +168,11 @@ impl HidTransport {
         self.read_cbor_response(cmd)
     }
 
+    pub fn send_raw(&self, cmd: u8, payload: &[u8]) -> Result<Vec<u8>, PFError> {
+        self.write_cbor_request(cmd, payload)?;
+        self.read_hid_response(cmd)
+    }
+
     fn write_cbor_request(&self, cmd: u8, payload: &[u8]) -> Result<(), PFError> {
         log::debug!(
             "Sending CBOR Command: 0x{:02X}, Payload Size: {} bytes",
@@ -235,6 +240,32 @@ impl HidTransport {
     }
 
     fn read_cbor_response(&self, cmd: u8) -> Result<Vec<u8>, PFError> {
+        let response_data = self.read_hid_response(cmd)?;
+
+        // Check CTAP Status Byte (First byte of payload)
+        if response_data.is_empty() {
+            log::error!("Device sent empty payload response.");
+            return Err(PFError::Device("Empty response".into()));
+        }
+        let status = response_data[0];
+        if status != 0x00 {
+            log::error!("FIDO Operation returned failure status: 0x{:02X}", status);
+            return Err(PFError::Device(format!(
+                "FIDO Operation Failed with Status: 0x{:02X}",
+                status
+            )));
+        }
+
+        log::debug!(
+            "Command 0x{:02X} successful. Response payload len: {}",
+            cmd,
+            response_data.len() - 1
+        );
+        // Return payload without status byte
+        Ok(response_data[1..].to_vec())
+    }
+
+    fn read_hid_response(&self, cmd: u8) -> Result<Vec<u8>, PFError> {
         log::debug!("Waiting for response...");
 
         let mut buf = [0u8; HID_REPORT_SIZE];
@@ -347,27 +378,7 @@ impl HidTransport {
             read_len += in_pkt;
         }
 
-        // 3. Check CTAP Status Byte (First byte of payload)
-        if response_data.is_empty() {
-            log::error!("Device sent empty payload response.");
-            return Err(PFError::Device("Empty response".into()));
-        }
-        let status = response_data[0];
-        if status != 0x00 {
-            log::error!("FIDO Operation returned failure status: 0x{:02X}", status);
-            return Err(PFError::Device(format!(
-                "FIDO Operation Failed with Status: 0x{:02X}",
-                status
-            )));
-        }
-
-        log::debug!(
-            "Command 0x{:02X} successful. Response payload len: {}",
-            cmd,
-            response_data.len() - 1
-        );
-        // Return payload without status byte
-        Ok(response_data[1..].to_vec())
+        Ok(response_data)
     }
 
     pub fn send_vendor_config(
@@ -483,7 +494,7 @@ impl HidTransport {
                     return Ok(b.clone());
                 }
                 // Fall back to the first bytes value in the map
-                for (_, v) in &m {
+                for v in m.values() {
                     if let Value::Bytes(b) = v {
                         log::debug!("CSR found in map value ({} bytes)", b.len());
                         return Ok(b.clone());
@@ -518,7 +529,7 @@ impl HidTransport {
         sub_params: Option<Value>,
     ) -> Result<Vec<u8>, PFError> {
         let mut sub_params_bytes: Vec<u8> = Vec::new();
-        
+
         if let Some(ref params) = sub_params {
             sub_params_bytes = to_vec(&params).map_err(|e| PFError::Io(e.to_string()))?;
         }
@@ -599,7 +610,11 @@ impl HidTransport {
             Value::Integer(new_min_pin_length as i128),
         );
         let sub_params = Value::Map(sub_params_map);
-        match self.send_config(ConfigSubCommand::SetMinPinLength, pin_token, Some(sub_params)) {
+        match self.send_config(
+            ConfigSubCommand::SetMinPinLength,
+            pin_token,
+            Some(sub_params),
+        ) {
             Ok(_) => {
                 log::info!(
                     "Successfully set minimum PIN length to {}",
