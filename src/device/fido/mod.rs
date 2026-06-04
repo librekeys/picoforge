@@ -14,6 +14,10 @@ use hid::*;
 use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::BTreeMap;
 
+const LEGACY_PHY_OPT_DIMMABLE: u16 = 0x02;
+const LEGACY_PHY_OPT_DISABLE_POWER_RESET: u16 = 0x04;
+const LEGACY_PHY_OPT_LED_STEADY: u16 = 0x08;
+
 // Fido functions that require pin:
 
 pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
@@ -30,7 +34,11 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
     let info_val: Value =
         from_slice(&info_res).map_err(|e| format!("Failed to parse GetInfo CBOR: {}", e))?;
 
-    let map = match &info_val {
+    parse_fido_get_info(&info_val)
+}
+
+fn parse_fido_get_info(info_val: &Value) -> Result<FidoDeviceInfo, String> {
+    let map = match info_val {
         Value::Map(m) => m,
         _ => return Err("GetInfo response is not a CBOR map".into()),
     };
@@ -199,26 +207,10 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
                     );
                 }
             }
-            // 0x13: vendorPrototypeConfigCommands (array of unsigned integers)
+            // Some firmware versions used 0x13 here. Pico-FIDO 7.6 reports
+            // vendorPrototypeConfigCommands at 0x15.
             0x13 => {
-                if let Value::Array(arr) = val {
-                    for v in arr {
-                        if let Value::Integer(n) = v {
-                            let cmd_id = *n as u64;
-                            let cmd_name = VendorConfigCommand::from_u64(cmd_id)
-                                .map(|c| format!("{}", c))
-                                .unwrap_or_else(|| format!("0x{:016X}", cmd_id));
-                            vendor_config_commands.push(cmd_name);
-                        }
-                    }
-                    log::info!(
-                        "Device supports {} vendor config commands: {:?}",
-                        vendor_config_commands.len(),
-                        vendor_config_commands
-                    );
-                } else {
-                    log::info!("Empty vendor config commands list");
-                }
+                parse_get_info_extension_list(val, &mut vendor_config_commands, &mut certifications)
             }
             // 0x14: remainingDiscoverableCredentials
             0x14 => {
@@ -230,36 +222,13 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
                     );
                 }
             }
-            // 0x15: certifications (map or array of integers)
+            // Pico-FIDO 7.6 uses 0x15 for vendorPrototypeConfigCommands.
             0x15 => {
-                // log::trace!("Device certifications (0x15): {:?}", val);
-                match val {
-                    Value::Map(cert_map) => {
-                        for (k, v) in cert_map {
-                            if let (Value::Text(name), Value::Bool(enabled)) = (k, v) {
-                                let display_name = FidoCertification::from_str(name)
-                                    .map(|c| format!("{}", c))
-                                    .unwrap_or_else(|| name.clone());
-                                certifications.insert(display_name, *enabled);
-                            }
-                        }
-                    }
-                    Value::Array(cert_arr) => {
-                        for v in cert_arr {
-                            if let Value::Integer(id) = v {
-                                let cert_id = *id as u64;
-                                let name = FidoCertification::from_u64(cert_id)
-                                    .map(|c| format!("{}", c))
-                                    .unwrap_or_else(|| format!("0x{:016X}", cert_id));
-                                certifications.insert(name, true);
-                            }
-                        }
-                    }
-                    _ => {
-                        log::error!("Unexpected type for device certifications: {:?}", val);
-                    }
-                }
-                log::info!("Device certifications (0x15): {:?}", certifications);
+                parse_get_info_extension_list(val, &mut vendor_config_commands, &mut certifications)
+            }
+            // 0x1B/0x1C are Pico-FIDO PIN policy extensions.
+            0x1B | 0x1C => {
+                log::trace!("GetInfo Pico-FIDO extension key 0x{:02X} skipped", key_num);
             }
             // All other known keys (0x10-0x12, 0x16) - silently skip
             0x10..=0x12 | 0x16 => {
@@ -305,6 +274,62 @@ pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
         force_pin_change,
         max_cred_blob_length,
     })
+}
+
+fn parse_get_info_extension_list(
+    val: &Value,
+    vendor_config_commands: &mut Vec<String>,
+    certifications: &mut std::collections::HashMap<String, bool>,
+) {
+    match val {
+        Value::Array(arr) => {
+            for v in arr {
+                if let Value::Integer(n) = v {
+                    let cmd_id = *n as u64;
+                    let cmd_name = VendorConfigCommand::from_u64(cmd_id)
+                        .map(|c| format!("{}", c))
+                        .unwrap_or_else(|| format!("0x{:016X}", cmd_id));
+                    if !vendor_config_commands.contains(&cmd_name) {
+                        vendor_config_commands.push(cmd_name);
+                    }
+                }
+            }
+            log::info!(
+                "Device supports {} vendor config commands: {:?}",
+                vendor_config_commands.len(),
+                vendor_config_commands
+            );
+        }
+        Value::Map(cert_map) => {
+            for (k, v) in cert_map {
+                if let (Value::Text(name), Value::Bool(enabled)) = (k, v) {
+                    let display_name = FidoCertification::from_str(name)
+                        .map(|c| format!("{}", c))
+                        .unwrap_or_else(|| name.clone());
+                    certifications.insert(display_name, *enabled);
+                }
+            }
+            log::info!("Device certifications: {:?}", certifications);
+        }
+        _ => {
+            log::trace!("Unsupported GetInfo extension list shape: {:?}", val);
+        }
+    }
+}
+
+pub(crate) fn firmware_supports_legacy_fido_hardware_config(version: &str) -> bool {
+    let Some((major, minor)) = parse_firmware_version(version) else {
+        return false;
+    };
+
+    major == 7 && minor <= 2
+}
+
+fn parse_firmware_version(version: &str) -> Option<(u16, u16)> {
+    let mut parts = version.split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    Some((major, minor))
 }
 
 pub(crate) fn change_fido_pin(
@@ -465,6 +490,15 @@ pub(crate) fn delete_credential(pin: String, credential_id_hex: String) -> Resul
 
 // Custom Fido functions ( works only with pico-fido firmware )
 
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+struct ManagementInfo {
+    serial: Option<String>,
+    firmware_version: Option<String>,
+    usb_supported: Option<u16>,
+    usb_enabled: Option<u16>,
+    config_locked: Option<bool>,
+}
+
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     log::info!("Starting FIDO device details read...");
 
@@ -477,35 +511,56 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         }
     })?;
 
-    let (aaguid_str, fw_version) = read_device_info(&transport)?;
+    let fido_info = read_device_info(&transport)?;
 
     log::info!(
         "Device identified: AAGUID={}, FW={}",
-        aaguid_str,
-        fw_version
+        fido_info.aaguid,
+        fido_info.firmware_version
     );
 
-    let mem_stats = read_memory_stats(&transport)?;
-    if let Some((used, total)) = mem_stats {
-        log::debug!(
-            "Memory Stats: Used={}KB, Total={}KB",
-            used / 1024,
-            total / 1024
-        );
+    let supports_legacy_hardware_config =
+        firmware_supports_legacy_fido_hardware_config(&fido_info.firmware_version);
+    let management = read_management_info(&transport);
+    let config = AppConfig {
+        vid: format!("{:04X}", transport.vid),
+        pid: format!("{:04X}", transport.pid),
+        product_name: transport.product_name.clone(),
+        ..Default::default()
+    };
+    let config = if supports_legacy_hardware_config {
+        read_legacy_physical_config(&transport, config)
     } else {
-        log::info!("Memory Stats: Not Available");
-    }
-
-    let config = read_physical_config(&transport)?;
+        config
+    };
+    let mem_stats = if supports_legacy_hardware_config {
+        read_legacy_memory_stats(&transport).unwrap_or_else(|e| {
+            log::info!("Legacy FIDO memory stats unavailable: {}", e);
+            None
+        })
+    } else {
+        None
+    };
 
     log::info!("Successfully read all device details.");
 
+    let firmware_version = if fido_info.firmware_version != "0.0" {
+        fido_info.firmware_version
+    } else {
+        management
+            .as_ref()
+            .and_then(|info| info.firmware_version.clone())
+            .unwrap_or_else(|| "Unknown".to_string())
+    };
+
     Ok(FullDeviceStatus {
         info: DeviceInfo {
-            serial: "?".to_string(), // Serial number is not available through fido
-            flash_used: mem_stats.map(|(u, _)| u / 1024),
-            flash_total: mem_stats.map(|(_, t)| t / 1024),
-            firmware_version: fw_version,
+            serial: management
+                .and_then(|info| info.serial)
+                .unwrap_or_else(|| "Unknown".to_string()),
+            flash_used: mem_stats.map(|(used, _)| used / 1024),
+            flash_total: mem_stats.map(|(_, total)| total / 1024),
+            firmware_version,
         },
         config,
         secure_boot: false,
@@ -514,7 +569,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     })
 }
 
-fn read_device_info(transport: &HidTransport) -> Result<(String, String), PFError> {
+fn read_device_info(transport: &HidTransport) -> Result<FidoDeviceInfo, PFError> {
     log::debug!("Sending GetInfo command (0x04)...");
     let info_payload = [CtapCommand::GetInfo as u8];
     let info_res = transport
@@ -531,201 +586,248 @@ fn read_device_info(transport: &HidTransport) -> Result<(String, String), PFErro
         PFError::Io(e.to_string())
     })?;
 
-    // NOTE: Key 0x03 is AAGUID, not the unique device Serial.
-    let aaguid_str = if let Value::Map(m) = &info_val {
-        m.get(&Value::Integer(0x03))
-            .and_then(|v| {
-                if let Value::Bytes(b) = v {
-                    Some(hex::encode_upper(b))
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| {
-                log::warn!("AAGUID not found in GetInfo response");
-                "Unknown".into()
-            })
-    } else {
-        "Unknown".into()
-    };
-
-    let fw_version = if let Value::Map(m) = &info_val {
-        m.get(&Value::Integer(0x0E))
-            .and_then(|v| {
-                if let Value::Integer(i) = v {
-                    Some(format!("{}.{}", (i >> 8) & 0xFF, i & 0xFF))
-                } else {
-                    None
-                }
-            })
-            .unwrap_or_else(|| {
-                log::warn!("Firmware version not found in GetInfo response");
-                "Unknown".into()
-            })
-    } else {
-        "Unknown".into()
-    };
-
-    Ok((aaguid_str, fw_version))
+    parse_fido_get_info(&info_val).map_err(PFError::Io)
 }
 
-fn read_memory_stats(transport: &HidTransport) -> Result<Option<(u32, u32)>, PFError> {
-    log::debug!("Preparing Memory Stats vendor command...");
+fn read_management_info(transport: &HidTransport) -> Option<ManagementInfo> {
+    // pico-fido v7.6 src/fido/cbor.c handles HID cmd 0xC2 as raw
+    // man_get_config() TLV bytes, not as CTAP CBOR with a status byte.
+    match transport.send_raw(CTAP_VENDOR_CONFIG_CMD, &[]) {
+        Ok(raw) => match parse_management_info(&raw) {
+            Ok(info) => Some(info),
+            Err(e) => {
+                log::warn!("Failed to parse FIDO management config: {}", e);
+                None
+            }
+        },
+        Err(e) => {
+            log::info!("FIDO management config is not available: {}", e);
+            None
+        }
+    }
+}
 
+fn parse_management_info(raw: &[u8]) -> Result<ManagementInfo, String> {
+    let data = if raw.first().map(|len| *len as usize) == Some(raw.len().saturating_sub(1)) {
+        &raw[1..]
+    } else {
+        raw
+    };
+
+    let mut info = ManagementInfo::default();
+    let mut i = 0;
+    while i < data.len() {
+        if i + 2 > data.len() {
+            return Err("truncated management tag header".to_string());
+        }
+
+        let tag = data[i];
+        let len = data[i + 1] as usize;
+        i += 2;
+
+        if i + len > data.len() {
+            return Err(format!("truncated management tag 0x{:02X}", tag));
+        }
+
+        let val = &data[i..i + len];
+        match tag {
+            0x01 => info.usb_supported = parse_management_u16(val),
+            0x02 if val.len() == 4 => {
+                info.serial = Some(hex::encode_upper(val));
+            }
+            0x03 => info.usb_enabled = parse_management_u16(val),
+            0x05 if val.len() >= 2 => {
+                info.firmware_version = Some(format!("{}.{}", val[0], val[1]));
+            }
+            0x0A => {
+                if let Some(locked) = val.first() {
+                    info.config_locked = Some(*locked != 0);
+                }
+            }
+            _ => {}
+        }
+
+        i += len;
+    }
+
+    Ok(info)
+}
+
+fn parse_management_u16(val: &[u8]) -> Option<u16> {
+    match val {
+        [single] => Some(*single as u16),
+        [hi, lo] => Some(u16::from_be_bytes([*hi, *lo])),
+        _ => None,
+    }
+}
+
+fn read_legacy_memory_stats(transport: &HidTransport) -> Result<Option<(u32, u32)>, PFError> {
     let mut mem_req = BTreeMap::new();
     mem_req.insert(
-        Value::Integer(1), // Sub-command key (usually 1)
+        Value::Integer(1),
         Value::Integer(MemorySubCommand::GetStats as i128),
     );
 
-    let mem_cbor = to_vec(&Value::Map(mem_req)).map_err(|e| {
-        log::error!("Failed to encode Memory Stats CBOR: {}", e);
-        PFError::Io(format!("CBOR encode error: {}", e))
-    })?;
-
+    let mem_cbor = to_vec(&Value::Map(mem_req)).map_err(|e| PFError::Io(e.to_string()))?;
     let mut mem_payload = vec![VendorCommand::Memory as u8];
     mem_payload.extend(mem_cbor);
 
-    log::debug!("Sending Memory Stats command...");
-    let mem_res = transport
-        .send_cbor(CTAP_VENDOR_CBOR_CMD, &mem_payload)
-        .map_err(|e| {
-            // Error code 0x2B means the feature is not supported/removed in this firmware mode
-            if e.to_string().contains("0x2B") {
-                log::info!("Memory stats not supported by device firmware (0x2B).");
-                return PFError::NoDevice; // We'll handle this specially
-            }
-            log::warn!("Failed to fetch memory stats (Vendor Cmd): {}", e);
-            PFError::Device(format!("Failed to fetch memory stats: {}", e))
-        });
+    let mem_res = transport.send_cbor(CTAP_VENDOR_CBOR_CMD, &mem_payload)?;
+    if mem_res.is_empty() {
+        return Ok(None);
+    }
 
-    let mem_res = match mem_res {
-        Ok(res) => res,
-        Err(PFError::NoDevice) => return Ok(None),
-        Err(e) => return Err(e),
-    };
-
-    let mem_map: BTreeMap<i128, i128> = if !mem_res.is_empty() {
-        from_slice(&mem_res).map_err(|e| {
-            log::error!("Failed to parse Memory Stats CBOR response: {}", e);
-            PFError::Io(format!("Failed to parse Memory Stats CBOR: {}", e))
-        })?
-    } else {
-        BTreeMap::new()
-    };
-
+    let mem_map: BTreeMap<i128, i128> =
+        from_slice(&mem_res).map_err(|e| PFError::Io(e.to_string()))?;
     let used = mem_map
         .get(&(MemoryResponseKey::UsedSpace as i128))
-        .cloned()
+        .copied()
         .unwrap_or(0) as u32;
     let total = mem_map
         .get(&(MemoryResponseKey::TotalSpace as i128))
-        .cloned()
+        .copied()
         .unwrap_or(0) as u32;
 
     Ok(Some((used, total)))
 }
 
-fn read_physical_config(transport: &HidTransport) -> Result<AppConfig, PFError> {
-    log::debug!("Preparing Physical Config vendor command...");
-
-    // FIX: Only arguments in CBOR map
+fn read_legacy_physical_config(transport: &HidTransport, mut config: AppConfig) -> AppConfig {
     let mut phy_params = BTreeMap::new();
     phy_params.insert(
-        Value::Integer(1), // Sub-command key
+        Value::Integer(1),
         Value::Integer(PhysicalOptionsSubCommand::GetOptions as i128),
     );
 
-    let phy_cbor = to_vec(&Value::Map(phy_params)).map_err(|e| {
-        log::error!("Failed to encode Physical Config CBOR: {}", e);
-        PFError::Io(format!("CBOR encode error: {}", e))
-    })?;
+    let Ok(phy_cbor) = to_vec(&Value::Map(phy_params)) else {
+        return config;
+    };
 
     let mut phy_payload = vec![VendorCommand::PhysicalOptions as u8];
     phy_payload.extend(phy_cbor);
 
-    log::debug!("Sending Physical Config command...");
-    let phy_res = transport
-        .send_cbor(CTAP_VENDOR_CBOR_CMD, &phy_payload)
-        .unwrap_or_else(|e| {
-            log::warn!("Failed to fetch physical config (Vendor Cmd): {}", e);
-            Vec::new()
-        });
-
-    let mut config = AppConfig {
-        vid: format!("{:04X}", transport.vid),
-        pid: format!("{:04X}", transport.pid),
-        product_name: transport.product_name.clone(),
-        ..Default::default()
+    let Ok(phy_res) = transport.send_cbor(CTAP_VENDOR_CBOR_CMD, &phy_payload) else {
+        return config;
     };
 
-    if let Ok(Value::Map(m)) = from_slice(&phy_res) {
-        log::debug!("Parsed Physical Config map successfully");
-        if let Some(Value::Integer(v)) = m.get(&Value::Text("gpio".into())) {
-            config.led_gpio = *v as u8;
-        } else {
-            log::warn!("No led_gpio in CBOR map");
-        }
+    let Ok(Value::Map(m)) = from_slice::<Value>(&phy_res) else {
+        return config;
+    };
 
-        if let Some(Value::Integer(v)) = m.get(&Value::Text("brightness".into())) {
-            config.led_brightness = *v as u8;
-        } else {
-            log::warn!("No led_brightness in CBOR map");
-        }
-    } else if !phy_res.is_empty() {
-        log::warn!("Physical config response was not a valid CBOR map");
-    } else {
-        log::debug!("Physical config response was empty or already handled.");
+    if let Some(Value::Integer(opts_raw)) = m.get(&Value::Integer(1)) {
+        let opts = *opts_raw as u16;
+        config.led_dimmable = opts & LEGACY_PHY_OPT_DIMMABLE != 0;
+        config.power_cycle_on_reset = opts & LEGACY_PHY_OPT_DISABLE_POWER_RESET == 0;
+        config.led_steady = opts & LEGACY_PHY_OPT_LED_STEADY != 0;
     }
 
-    Ok(config)
+    config
 }
 
 pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<String, PFError> {
     log::info!("Starting FIDO write_config...");
 
-    let pin_val = pin.as_deref().ok_or_else(|| {
-        log::error!("write_config called without any security PIN provided");
-        PFError::Device(
-            "A security PIN is required to be set to change the configuration in fido mode".into(),
-        )
-    })?;
+    if is_empty_config_input(&config) {
+        return Ok("No FIDO-only hardware configuration changes were needed.".to_string());
+    }
 
-    // 1. Open custom HidTransport and obtain PIN token
     let transport = HidTransport::open().map_err(|e| {
         log::error!("Failed to open HID transport: {}", e);
         PFError::Device(format!("Could not open HID transport: {}", e))
     })?;
+    let fido_info = read_device_info(&transport)?;
+    let supports_legacy_hardware_config =
+        firmware_supports_legacy_fido_hardware_config(&fido_info.firmware_version);
 
+    validate_fido_config_changes(&config, supports_legacy_hardware_config)?;
+
+    let pin_val = pin.as_deref().ok_or_else(|| {
+        log::error!("write_config called without any security PIN provided");
+        PFError::Device(
+            "A security PIN is required to change legacy FIDO hardware configuration.".into(),
+        )
+    })?;
+
+    write_legacy_hardware_config(&transport, &config, pin_val)
+}
+
+fn is_empty_config_input(config: &AppConfigInput) -> bool {
+    config.vid.is_none()
+        && config.pid.is_none()
+        && config.product_name.is_none()
+        && config.led_gpio.is_none()
+        && config.led_brightness.is_none()
+        && config.touch_timeout.is_none()
+        && config.led_driver.is_none()
+        && config.led_dimmable.is_none()
+        && config.power_cycle_on_reset.is_none()
+        && config.led_steady.is_none()
+        && config.enable_secp256k1.is_none()
+}
+
+fn validate_fido_config_changes(
+    config: &AppConfigInput,
+    supports_legacy_hardware_config: bool,
+) -> Result<(), PFError> {
+    if !supports_legacy_hardware_config
+        && (config.vid.is_some()
+            || config.pid.is_some()
+            || config.product_name.is_some()
+            || config.led_gpio.is_some()
+            || config.led_brightness.is_some()
+            || config.touch_timeout.is_some()
+            || config.led_driver.is_some()
+            || config.led_dimmable.is_some()
+            || config.power_cycle_on_reset.is_some()
+            || config.led_steady.is_some()
+            || config.enable_secp256k1.is_some())
+    {
+        return Err(PFError::Device(
+            "Pico-FIDO 7.6 does not support hardware configuration over FIDO-only mode. Use rescue mode to change VID/PID, product name, LED, touch timeout, power/reset, or curve settings.".into(),
+        ));
+    }
+
+    if supports_legacy_hardware_config {
+        if config.product_name.is_some()
+            || config.touch_timeout.is_some()
+            || config.led_driver.is_some()
+            || config.enable_secp256k1.is_some()
+        {
+            return Err(PFError::Device(
+                "This firmware only supports VID/PID, LED GPIO, LED brightness, and basic LED/power options over FIDO. Use rescue mode for product name, touch timeout, LED driver, or curve settings.".into(),
+            ));
+        }
+
+        if config.vid.is_some() != config.pid.is_some() {
+            return Err(PFError::Device(
+                "VID and PID must be changed together in FIDO mode.".into(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+fn write_legacy_hardware_config(
+    transport: &HidTransport,
+    config: &AppConfigInput,
+    pin: &str,
+) -> Result<String, PFError> {
     let get_fresh_token = || -> Result<Vec<u8>, PFError> {
-        match transport.get_pin_token_with_permission(
-            pin_val,
-            PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
-            None,
-        ) {
-            Ok(token) => {
-                log::debug!("Successfully obtained PIN token with ACFG permission.");
-                Ok(token)
-            }
-            Err(e) => {
+        transport
+            .get_pin_token_with_permission(
+                pin,
+                PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG,
+                None,
+            )
+            .or_else(|e| {
                 log::warn!(
                     "Failed to get PIN token with ACFG permission (Error: {:?}). Falling back to standard token.",
                     e
                 );
-                // Fallback to standard PIN token (Subcommand 0x05)
-                let token = transport.get_pin_token(pin_val).map_err(|e2| {
-                    log::error!("Failed to obtain even a standard PIN token: {:?}", e2);
-                    PFError::Device(format!("PIN token acquisition failed: {:?}", e2))
-                })?;
-                log::debug!("Successfully obtained standard PIN token (fallback).");
-                Ok(token)
-            }
-        }
+                transport.get_pin_token(pin)
+            })
     };
 
-    // 2. Send vendor commands using the token
-
-    // VID/PID config
     if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid) {
         let vid = u16::from_str_radix(vid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
         let pid = u16::from_str_radix(pid_str, 16).map_err(|e| PFError::Io(e.to_string()))?;
@@ -735,68 +837,47 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
             VendorConfigCommand::PhysicalVidPid,
             Value::Integer(vidpid as i128),
         )?;
-    } else {
-        log::info!("VID/PID configuration not provided, skipping update.");
     }
 
-    // LED GPIO config
     if let Some(gpio) = config.led_gpio {
         transport.send_vendor_config(
             &get_fresh_token()?,
             VendorConfigCommand::PhysicalLedGpio,
             Value::Integer(gpio as i128),
         )?;
-    } else {
-        log::info!("LED GPIO configuration not provided, skipping update.");
     }
 
-    // LED brightness config
     if let Some(brightness) = config.led_brightness {
         transport.send_vendor_config(
             &get_fresh_token()?,
             VendorConfigCommand::PhysicalLedBrightness,
             Value::Integer(brightness as i128),
         )?;
-    } else {
-        log::info!("LED brightness configuration not provided, skipping update.");
     }
 
-    // Options config
-    let mut opts = 0u16;
-    if config.led_dimmable.unwrap_or(false) {
-        opts |= 0x02; // PHY_OPT_DIMM
-    }
-    if !config.power_cycle_on_reset.unwrap_or(true) {
-        opts |= 0x04; // PHY_OPT_DISABLE_POWER_RESET
-    }
-    if config.led_steady.unwrap_or(false) {
-        opts |= 0x08; // PHY_OPT_LED_STEADY
-    }
-    // Touch_timeout config
-    if let Some(timeout) = config.touch_timeout {
-        transport
-            .send_vendor_config(
-                &get_fresh_token()?,
-                VendorConfigCommand::PhysicalOptions,
-                Value::Integer(timeout as i128),
-            )
-            .ok();
-    } else {
-        log::info!("Touch timeout configuration not provided, skipping update.");
+    if config.led_dimmable.is_some()
+        || config.power_cycle_on_reset.is_some()
+        || config.led_steady.is_some()
+    {
+        let mut opts = 0u16;
+        if config.led_dimmable.unwrap_or(false) {
+            opts |= LEGACY_PHY_OPT_DIMMABLE;
+        }
+        if !config.power_cycle_on_reset.unwrap_or(true) {
+            opts |= LEGACY_PHY_OPT_DISABLE_POWER_RESET;
+        }
+        if config.led_steady.unwrap_or(false) {
+            opts |= LEGACY_PHY_OPT_LED_STEADY;
+        }
+
+        transport.send_vendor_config(
+            &get_fresh_token()?,
+            VendorConfigCommand::PhysicalOptions,
+            Value::Integer(opts as i128),
+        )?;
     }
 
-    transport.send_vendor_config(
-        &get_fresh_token()?,
-        VendorConfigCommand::PhysicalOptions,
-        Value::Integer(opts as i128),
-    )?;
-
-    // ToDo : Product name configuration is not implemented in pico-fido firmware (cbor_config.c)?
-
-    Ok(
-    "Configuration updated successfully! Unplug and re-plug the device to apply VID/PID changes."
-      .to_string(),
-  )
+    Ok("Configuration updated successfully! Unplug and re-plug the device to apply VID/PID changes.".to_string())
 }
 
 /// Parse raw bytes from a certificate file into DER format.
@@ -931,58 +1012,69 @@ pub(crate) fn get_enterprise_attestation_csr() -> Result<String, String> {
 mod tests {
     use super::*;
     use serde_cbor_2::Value;
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::BTreeMap;
 
-    #[test]
-    fn test_parse_certifications_map() {
-        let mut certifications = HashMap::new();
-        let mut map = BTreeMap::new();
-        // Test with both friendly names and hex string names
-        map.insert(Value::Text("fido-v2".into()), Value::Bool(true));
-        map.insert(Value::Text("0x6C07D70FE96C3897".into()), Value::Bool(true)); // PIN Complexity
-        let val = Value::Map(map);
-
-        if let Value::Map(cert_map) = &val {
-            for (k, v) in cert_map {
-                if let (Value::Text(name), Value::Bool(enabled)) = (k, v) {
-                    let display_name = FidoCertification::from_str(name)
-                        .map(|c| format!("{}", c))
-                        .unwrap_or_else(|| name.clone());
-                    certifications.insert(display_name, *enabled);
-                }
-            }
+    fn empty_config_input() -> AppConfigInput {
+        AppConfigInput {
+            vid: None,
+            pid: None,
+            product_name: None,
+            led_gpio: None,
+            led_brightness: None,
+            touch_timeout: None,
+            led_driver: None,
+            led_dimmable: None,
+            power_cycle_on_reset: None,
+            led_steady: None,
+            enable_secp256k1: None,
         }
-
-        assert_eq!(certifications.len(), 2);
-        assert_eq!(certifications.get("fido-v2"), Some(&true));
-        assert_eq!(certifications.get("PIN Complexity"), Some(&true));
     }
 
     #[test]
-    fn test_parse_certifications_array() {
-        let mut certifications = HashMap::new();
-        let val = Value::Array(vec![
-            Value::Integer(0x6C07D70FE96C3897), // PIN Complexity
-            Value::Integer(0x03E43F56B34285E2), // Auth Encryption
-            Value::Integer(0x1234567890ABCDEF), // Unknown
-        ]);
+    fn test_parse_get_info_pico_fido_76_vendor_commands_at_0x15() {
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![
+                Value::Text("U2F_V2".into()),
+                Value::Text("FIDO_2_1".into()),
+                Value::Text("FIDO_2_2".into()),
+            ]),
+        );
+        map.insert(Value::Integer(0x03), Value::Bytes(vec![0x89; 16]));
+        map.insert(Value::Integer(0x05), Value::Integer(1024));
+        map.insert(
+            Value::Integer(0x06),
+            Value::Array(vec![Value::Integer(1), Value::Integer(2)]),
+        );
+        map.insert(Value::Integer(0x0D), Value::Integer(4));
+        map.insert(Value::Integer(0x0E), Value::Integer(0x0706));
+        map.insert(
+            Value::Integer(0x15),
+            Value::Array(vec![
+                Value::Integer(VendorConfigCommand::AuthEncryptionEnable as u64 as i128),
+                Value::Integer(VendorConfigCommand::PhysicalVidPid as u64 as i128),
+                Value::Integer(0x1234567890ABCDEF),
+            ]),
+        );
 
-        if let Value::Array(cert_arr) = &val {
-            for v in cert_arr {
-                if let Value::Integer(id) = v {
-                    let cert_id = *id as u64;
-                    let name = FidoCertification::from_u64(cert_id)
-                        .map(|c| format!("{}", c))
-                        .unwrap_or_else(|| format!("0x{:016X}", cert_id));
-                    certifications.insert(name, true);
-                }
-            }
-        }
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
 
-        assert_eq!(certifications.len(), 3);
-        assert_eq!(certifications.get("PIN Complexity"), Some(&true));
-        assert_eq!(certifications.get("Auth Encryption"), Some(&true));
-        assert_eq!(certifications.get("0x1234567890ABCDEF"), Some(&true));
+        assert_eq!(info.firmware_version, "7.6");
+        assert_eq!(info.pin_protocols, vec![1, 2]);
+        assert!(
+            info.vendor_config_commands
+                .contains(&"AuthEncryptionEnable".to_string())
+        );
+        assert!(
+            info.vendor_config_commands
+                .contains(&"PhysicalVidPid".to_string())
+        );
+        assert!(
+            info.vendor_config_commands
+                .contains(&"0x1234567890ABCDEF".to_string())
+        );
+        assert!(info.certifications.is_empty());
     }
 
     #[test]
@@ -1013,9 +1105,124 @@ mod tests {
         map.insert(Value::Integer(0x0E), Value::Integer(0x0102)); // 1.2
         map.insert(Value::Integer(0x0F), Value::Integer(128));
 
-        // Mocking the behavior of get_fido_info but just testing the parsing loop part
-        // Since get_fido_info opens HidTransport, we can't easily test it directly without mocking HidTransport.
-        // But we can verify the parsing logic if we extract it, or just trust the logic for now.
-        // Actually, I'll just rely on the manual check of the logic since it's straightforward.
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+
+        assert_eq!(info.versions, vec!["FIDO_2_1"]);
+        assert_eq!(info.aaguid, "01020304");
+        assert_eq!(info.max_msg_size, 1024);
+        assert_eq!(info.max_credential_count_in_list, Some(16));
+        assert_eq!(info.max_credential_id_length, Some(64));
+        assert_eq!(info.algorithms, vec!["ES256"]);
+        assert_eq!(info.max_serialized_large_blob_array, Some(2048));
+        assert_eq!(info.force_pin_change, Some(true));
+        assert_eq!(info.min_pin_length, 4);
+        assert_eq!(info.firmware_version, "1.2");
+        assert_eq!(info.max_cred_blob_length, Some(128));
+    }
+
+    #[test]
+    fn test_parse_get_info_certification_map_still_supported() {
+        let mut cert_map = BTreeMap::new();
+        cert_map.insert(Value::Text("fido-v2".into()), Value::Bool(true));
+        cert_map.insert(Value::Text("0x6C07D70FE96C3897".into()), Value::Bool(true));
+
+        let mut map = BTreeMap::new();
+        map.insert(Value::Integer(0x15), Value::Map(cert_map));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+
+        assert!(info.vendor_config_commands.is_empty());
+        assert_eq!(info.certifications.get("fido-v2"), Some(&true));
+        assert_eq!(info.certifications.get("PIN Complexity"), Some(&true));
+    }
+
+    #[test]
+    fn test_parse_management_info_length_prefixed_tlv() {
+        let tlv = vec![
+            0x01, 0x02, 0x02, 0x23, // TAG_USB_SUPPORTED
+            0x02, 0x04, 0x12, 0x34, 0x56, 0x78, // TAG_SERIAL
+            0x03, 0x01, 0x03, // TAG_USB_ENABLED
+            0x05, 0x03, 0x07, 0x06, 0x00, // TAG_VERSION
+            0x0A, 0x01, 0x01, // TAG_CONFIG_LOCK
+        ];
+        let mut raw = vec![tlv.len() as u8];
+        raw.extend(tlv);
+
+        let info = parse_management_info(&raw).unwrap();
+
+        assert_eq!(info.usb_supported, Some(0x0223));
+        assert_eq!(info.serial.as_deref(), Some("12345678"));
+        assert_eq!(info.usb_enabled, Some(0x0003));
+        assert_eq!(info.firmware_version.as_deref(), Some("7.6"));
+        assert_eq!(info.config_locked, Some(true));
+    }
+
+    #[test]
+    fn test_parse_management_info_rejects_truncated_tag() {
+        assert!(parse_management_info(&[0x01, 0x02, 0xAA]).is_err());
+    }
+
+    #[test]
+    fn test_firmware_supports_legacy_fido_hardware_config() {
+        assert!(firmware_supports_legacy_fido_hardware_config("7.0"));
+        assert!(firmware_supports_legacy_fido_hardware_config("7.2"));
+        assert!(!firmware_supports_legacy_fido_hardware_config("7.4"));
+        assert!(!firmware_supports_legacy_fido_hardware_config("7.6"));
+        assert!(!firmware_supports_legacy_fido_hardware_config("Unknown"));
+    }
+
+    #[test]
+    fn test_validate_fido_config_changes_accepts_noop_without_legacy_support() {
+        assert!(validate_fido_config_changes(&empty_config_input(), false).is_ok());
+    }
+
+    #[test]
+    fn test_validate_fido_config_changes_rejects_hardware_update_without_legacy_support() {
+        let mut config = empty_config_input();
+        config.led_gpio = Some(25);
+
+        let err = validate_fido_config_changes(&config, false)
+            .unwrap_err()
+            .to_string();
+
+        assert!(err.contains("rescue mode"));
+    }
+
+    #[test]
+    fn test_validate_fido_config_changes_accepts_legacy_supported_update() {
+        let mut config = empty_config_input();
+        config.vid = Some("FEFF".to_string());
+        config.pid = Some("FCFD".to_string());
+        config.led_gpio = Some(25);
+        config.led_brightness = Some(8);
+        config.led_dimmable = Some(true);
+        config.power_cycle_on_reset = Some(false);
+        config.led_steady = Some(true);
+
+        assert!(validate_fido_config_changes(&config, true).is_ok());
+    }
+
+    #[test]
+    fn test_validate_fido_config_changes_rejects_legacy_unsupported_update() {
+        let mut config = empty_config_input();
+        config.product_name = Some("Pico Key".to_string());
+
+        let err = validate_fido_config_changes(&config, true)
+            .unwrap_err()
+            .to_string();
+
+        assert!(err.contains("only supports VID/PID"));
+    }
+
+    #[test]
+    fn test_validate_fido_config_changes_requires_vid_pid_pair_for_legacy() {
+        let mut config = empty_config_input();
+        config.vid = Some("FEFF".to_string());
+
+        let err = validate_fido_config_changes(&config, true)
+            .unwrap_err()
+            .to_string();
+
+        assert!(err.contains("VID and PID"));
     }
 }
