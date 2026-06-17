@@ -595,7 +595,10 @@ fn read_management_info(transport: &HidTransport) -> Option<ManagementInfo> {
     match transport.send_raw(CTAP_VENDOR_CONFIG_CMD, &[]) {
         Ok(raw) => {
             if raw.len() == 1 {
-                log::info!("FIDO management config is not available (CTAP error 0x{:02X})", raw[0]);
+                log::info!(
+                    "FIDO management config is not available (CTAP error 0x{:02X})",
+                    raw[0]
+                );
                 None
             } else {
                 match parse_management_info(&raw) {
@@ -871,7 +874,10 @@ fn write_legacy_hardware_config(
         if config.led_dimmable.unwrap_or(current_config.led_dimmable) {
             opts |= LEGACY_PHY_OPT_DIMMABLE;
         }
-        if !config.power_cycle_on_reset.unwrap_or(current_config.power_cycle_on_reset) {
+        if !config
+            .power_cycle_on_reset
+            .unwrap_or(current_config.power_cycle_on_reset)
+        {
             opts |= LEGACY_PHY_OPT_DISABLE_POWER_RESET;
         }
         if config.led_steady.unwrap_or(current_config.led_steady) {
