@@ -322,7 +322,7 @@ pub(crate) fn firmware_supports_legacy_fido_hardware_config(version: &str) -> bo
         return false;
     };
 
-    major == 7 && minor <= 2
+    major < 7 || (major == 7 && minor <= 2)
 }
 
 fn parse_firmware_version(version: &str) -> Option<(u16, u16)> {
@@ -593,13 +593,23 @@ fn read_management_info(transport: &HidTransport) -> Option<ManagementInfo> {
     // pico-fido v7.6 src/fido/cbor.c handles HID cmd 0xC2 as raw
     // man_get_config() TLV bytes, not as CTAP CBOR with a status byte.
     match transport.send_raw(CTAP_VENDOR_CONFIG_CMD, &[]) {
-        Ok(raw) => match parse_management_info(&raw) {
-            Ok(info) => Some(info),
-            Err(e) => {
-                log::warn!("Failed to parse FIDO management config: {}", e);
+        Ok(raw) => {
+            if raw.len() == 1 {
+                log::info!(
+                    "FIDO management config is not available (CTAP error 0x{:02X})",
+                    raw[0]
+                );
                 None
+            } else {
+                match parse_management_info(&raw) {
+                    Ok(info) => Some(info),
+                    Err(e) => {
+                        log::warn!("Failed to parse FIDO management config: {}", e);
+                        None
+                    }
+                }
             }
-        },
+        }
         Err(e) => {
             log::info!("FIDO management config is not available: {}", e);
             None
@@ -859,14 +869,18 @@ fn write_legacy_hardware_config(
         || config.power_cycle_on_reset.is_some()
         || config.led_steady.is_some()
     {
+        let current_config = read_legacy_physical_config(transport, AppConfig::default());
         let mut opts = 0u16;
-        if config.led_dimmable.unwrap_or(false) {
+        if config.led_dimmable.unwrap_or(current_config.led_dimmable) {
             opts |= LEGACY_PHY_OPT_DIMMABLE;
         }
-        if !config.power_cycle_on_reset.unwrap_or(true) {
+        if !config
+            .power_cycle_on_reset
+            .unwrap_or(current_config.power_cycle_on_reset)
+        {
             opts |= LEGACY_PHY_OPT_DISABLE_POWER_RESET;
         }
-        if config.led_steady.unwrap_or(false) {
+        if config.led_steady.unwrap_or(current_config.led_steady) {
             opts |= LEGACY_PHY_OPT_LED_STEADY;
         }
 
@@ -1164,6 +1178,7 @@ mod tests {
 
     #[test]
     fn test_firmware_supports_legacy_fido_hardware_config() {
+        assert!(firmware_supports_legacy_fido_hardware_config("6.6"));
         assert!(firmware_supports_legacy_fido_hardware_config("7.0"));
         assert!(firmware_supports_legacy_fido_hardware_config("7.2"));
         assert!(!firmware_supports_legacy_fido_hardware_config("7.4"));

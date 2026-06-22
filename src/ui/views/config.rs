@@ -817,7 +817,11 @@ impl Render for ConfigView {
                     .border_1()
                     .border_color(theme.border)
                     .rounded_xl()
-                    .child(div().text_color(theme.muted_foreground).child("No Content")),
+                    .child(
+                        div()
+                            .text_color(theme.muted_foreground)
+                            .child("No Device Connected"),
+                    ),
                 theme,
             )
             .into_any_element();

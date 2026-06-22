@@ -264,6 +264,9 @@ See [LICENSE](LICENSE) for full details.
 - **Suyog Tandel** ([@lockedmutex](https://github.com/lockedmutex))
 - **Fabrice Bellamy** ([@Lab-8916100448256](https://github.com/Lab-8916100448256))
 
+> We are looking for new maintainers who can help us with actively maintaining the repository. 
+> If you are interested, please reach out to us on [Matrix](https://matrix.to/#/%23librekeys:matrix.org) or [Discord](https://discord.gg/6wYBpSHJY2).
+
 ## Package Maintainers
 
 - **JetCookies** ([@jetcookies](https://github.com/jetcookies)): Maintainer of the [Nix](https://nixos.org/) package.

@@ -37,7 +37,7 @@ impl AboutView {
                                             .text_color(theme.foreground)
                                             .child("PicoForge"),
                                     )
-                                    .child(Tag::new("v0.5.0"))
+                                    .child(Tag::new("v0.6.0"))
                                     .child(
                                         div()
                                             .text_color(theme.muted_foreground)
@@ -69,7 +69,8 @@ impl AboutView {
                                                             .items_end()
                                                             .child("Suyog Tandel")
                                                             .child("Fabrice Bellamy")
-                                                            .child("Jetcookies"),
+                                                            .child("Jetcookies")
+                                                            .child("PicoForge Contributers"),
                                                     ),
                                             )
                                             .child(
