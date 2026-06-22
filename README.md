@@ -18,12 +18,19 @@
 > PicoForge is an independent, community-developed tool and is not affiliated with or endorsed by the official [pico-fido](https://github.com/polhenarejos/pico-fido) project. 
 > This software does not share any code with the official closed-source pico-fido application.
 >
+> **BETA Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3
+>
 > Check application [Installation Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation guide of the PicoForge app on your system.
 >
-> PicoForge targets Pico FIDO firmware 7.6 for FIDO fallback reads and management.
-> Hardware configuration from FIDO-only mode is firmware-dependent: 7.0/7.2 support
-> a limited legacy configuration path, while 7.4/7.6 require rescue/PCSC mode for
-> hardware configuration changes.
+> **Supported Firmwares:**
+> - **pico-fido**: v7.0, v7.2, v7.4, v7.6
+> - **LibreKeys One**: v7.4.2
+> - **RSKeys**: v0.2.8
+>
+> **Configuration Support:**
+> - **pico-fido v7.0/v7.2** & **LibreKeys One v7.4.2**: Hardware configuration via FIDO mode is supported.
+> - **pico-fido v7.4/v7.6**: Hardware configuration requires Rescue/PCSC mode. Configuration cannot be done via FIDO-only mode.
+> - **RSKeys v0.2.8**: Only FIDO-related parameters (such as managing passkeys and changing the PIN) can be modified. Changing VID/PID or other hardware configurations is not possible at this time.
 
 ## About
 
@@ -35,8 +42,6 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Managing security features (secure boot, firmware locking) (WIP)
 - Real-time system logging and diagnostics
 - Support for multiple hardware variants and vendors
-
-> **BETA Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3 and, currently targets Pico FIDO firmware version 7.6 and LibreKeys One version 7.4.2, with limited legacy FIDO-only configuration support for 7.0/7.2.
 
 ## Screenshots
 
