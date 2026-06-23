@@ -1070,7 +1070,9 @@ mod tests {
             power_cycle_on_reset: None,
             led_steady: None,
             enable_secp256k1: None,
+            raw_curves_mask: None,
             led_order: None,
+            enabled_usb_itf: None,
         }
     }
 

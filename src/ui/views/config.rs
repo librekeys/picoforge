@@ -908,9 +908,7 @@ impl ConfigView {
 
             let dec_bright_listener = cx.listener(move |this, _, _, cx| {
                 let mut b = this.led_status_brightness[c_i];
-                if b > 0 {
-                    b -= 1;
-                }
+                b = b.saturating_sub(1);
                 this.led_status_brightness[c_i] = b;
                 cx.notify();
             });

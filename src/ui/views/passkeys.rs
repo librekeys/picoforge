@@ -1029,10 +1029,10 @@ impl PasskeysView {
                     .child("Reset Device")
                     .custom(
                         ButtonCustomVariant::new(cx)
-                            .color(theme.danger.into())
-                            .hover(theme.danger_hover.into())
-                            .active(theme.danger_active.into())
-                            .foreground(theme.danger_foreground.into()),
+                            .color(theme.danger)
+                            .hover(theme.danger_hover)
+                            .active(theme.danger_active)
+                            .foreground(theme.danger_foreground),
                     )
                     .disabled(self.loading)
                     .on_click(cx.listener(|this, _, window, cx| {

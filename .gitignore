@@ -30,3 +30,4 @@ gpui-component
 packaging
 .cargo-packager
 llm-texts
+opencode.jsonc

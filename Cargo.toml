@@ -15,19 +15,19 @@ log4rs = "1"                                     # For logging to output (like s
 directories = "6"                                # For Applcation config/data dir handling
 
 # For device management backend:
-pcsc = "2"             # Standard Smart Card API (connect to the key)
-hex = "0.4"            # For parsing VID/PID strings
-byteorder = "1.5"      # Required for writing Big-Endian numbers (firmware requirement)
-thiserror = "2"        # Makes custom error handling much easier
-anyhow = "1"           # For easy error propagation
-hidapi = "2.6"         # For fido2 interface operations but non-standard commands
+pcsc = "2"            # Standard Smart Card API (connect to the key)
+hex = "0.4"           # For parsing VID/PID strings
+byteorder = "1.5"     # Required for writing Big-Endian numbers (firmware requirement)
+thiserror = "2"       # Makes custom error handling much easier
+anyhow = "1"          # For easy error propagation
+hidapi = "2.6"        # For fido2 interface operations but non-standard commands
 serde_cbor_2 = "0.13"
 rand = "0.10"
-bitflags = "2.11"
-base64 = "0.22"        # For PEM encoding of DER certificates
-ring = "0.17"          # For signing fido2 messages with pin token
-aes = "0.8"
-cbc = "0.1"
+bitflags = "2.13.0"
+base64 = "0.22"       # For PEM encoding of DER certificates
+ring = "0.17"         # For signing fido2 messages with pin token
+aes = "0.9"
+cbc = "0.2"
 
 # For Application UI:
 gpui = { version = "0.2.2", features = [] }
