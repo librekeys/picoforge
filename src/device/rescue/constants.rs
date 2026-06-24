@@ -376,11 +376,31 @@ bitflags::bitflags! {
 /// - [RS-Key](https://github.com/TheMaxMur/RS-Key) `crates/rsk-rescue/src/phy.rs`
 bitflags::bitflags! {
     pub struct RescueCurves: u32 {
+        /// SECP256R1 curve (NIST P-256).
+        const SECP256R1 = 0x01;
+        /// SECP384R1 curve (NIST P-384).
+        const SECP384R1 = 0x02;
+        /// SECP521R1 curve (NIST P-521).
+        const SECP521R1 = 0x04;
         /// SECP256K1 curve (Bitcoin/Ethereum).
         ///
         /// Used by cryptocurrency wallets and some FIDO2 implementations.
         /// Curve OID: 1.3.132.0.10
         const SECP256K1 = 0x08;
+        /// BrainpoolP256R1 curve.
+        const BP256R1 = 0x10;
+        /// BrainpoolP384R1 curve.
+        const BP384R1 = 0x20;
+        /// BrainpoolP512R1 curve.
+        const BP512R1 = 0x40;
+        /// Ed25519 curve.
+        const ED25519 = 0x80;
+        /// Ed448 curve.
+        const ED448 = 0x100;
+        /// Curve25519 (X25519 key exchange).
+        const CURVE25519 = 0x200;
+        /// Curve448 (X448 key exchange).
+        const CURVE448 = 0x400;
     }
 }
 
@@ -613,7 +633,7 @@ impl LedStatus {
 ///
 /// Byte sequence: `A0 00 00 05 27 47 11 17`
 ///
-/// **Note**: This applet is only available in RS-Key firmware, not in pico-fido.
+/// This applet is available in both pico-fido and RS-Key firmware.
 pub const MANAGEMENT_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17];
 
 /// Management applet instruction codes.

@@ -100,9 +100,6 @@ pub enum ClientPinSubCommand {
     /// Get remaining UV attempts.
     GetUvRetries = 0x07,
     /// Get a PIN auth token with specific permissions.
-    ///
-    /// **Pico-fido note:** The CTAP2 spec defines this as `0x08`, but pico-fido
-    /// firmware uses `0x09`. This discrepancy is documented here for clarity.
     GetPinUvAuthTokenUsingPinWithPermissions = 0x09,
 }
 
@@ -389,6 +386,16 @@ pub enum CoseAlgorithm {
     ESB384 = -267,
     /// ECDSA with brainpool512r1 and SHA-512.
     ESB512 = -268,
+    /// ML-DSA-44 (FIPS 204, Level 2) — post-quantum signing.
+    ///
+    /// RS-Key specific. Uses COSE key type AKP (7) instead of EC2/OKP.
+    MLDSA44 = -48,
+    /// ML-DSA-65 (FIPS 204, Level 3) — declared in getInfo but may be
+    /// unsupported for credential creation.
+    MLDSA65 = -49,
+    /// ML-DSA-87 (FIPS 204, Level 5) — declared in getInfo but may be
+    /// unsupported for credential creation.
+    MLDSA87 = -50,
 }
 
 impl CoseAlgorithm {
@@ -412,6 +419,9 @@ impl CoseAlgorithm {
             -265 => Some(Self::ESB256),
             -267 => Some(Self::ESB384),
             -268 => Some(Self::ESB512),
+            -48 => Some(Self::MLDSA44),
+            -49 => Some(Self::MLDSA65),
+            -50 => Some(Self::MLDSA87),
             _ => None,
         }
     }
@@ -437,6 +447,9 @@ impl fmt::Display for CoseAlgorithm {
             Self::ESB256 => write!(f, "ESB256"),
             Self::ESB384 => write!(f, "ESB384"),
             Self::ESB512 => write!(f, "ESB512"),
+            Self::MLDSA44 => write!(f, "ML-DSA-44"),
+            Self::MLDSA65 => write!(f, "ML-DSA-65"),
+            Self::MLDSA87 => write!(f, "ML-DSA-87"),
         }
     }
 }
@@ -586,11 +599,20 @@ pub enum Ctap2Error {
 // extensions used by the pico-fido firmware (and RS-Key, which shares the
 // same vendor command surface).
 
-/// Pico-fido vendor commands sent via `CTAPHID_MSG` (not CBOR).
+/// Pico-fido vendor CBOR sub-commands.
 ///
-/// These are raw byte commands, not CTAP2-standard. Each sub-command
-/// carries its own TLV or binary payload. RS-Key implements the same
-/// command set for compatibility.
+/// Sent as the first byte of the CBOR payload inside a
+/// `CTAP_VENDOR_CBOR_CMD` (0xC1) message.
+///
+/// # Version history
+///
+/// - **All versions**: Backup(0x01), MSE(0x02), Unlock(0x03), EA(0x04)
+/// - **≤ v7.2**: PhysicalOptions(0x05), Memory(0x06) — removed in later
+///   releases. PicoForge keeps them for legacy device support.
+/// - **Current**: AdminPin(0x08) added.
+///
+/// RS-Key uses a different vendor command scheme (CTAPHID 0x41 with
+/// 64-bit sub-command IDs) — this enum does NOT apply to RS-Key.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VendorCommand {
@@ -603,8 +625,12 @@ pub enum VendorCommand {
     /// Enterprise attestation CSR generation.
     EnterpriseAttestation = 0x04,
     /// Physical options (LED, power, etc.) — legacy TLV encoding.
+    ///
+    /// **Legacy** (pico-fido ≤ v7.2 only). Removed in current firmware.
     PhysicalOptions = 0x05,
     /// Flash memory statistics (free/used/total).
+    ///
+    /// **Legacy** (pico-fido ≤ v7.2 only). Removed in current firmware.
     Memory = 0x06,
 }
 
