@@ -1190,6 +1190,7 @@ impl PasskeysView {
                         cx.emit(PasskeysEvent::Notification(
                             "Device reset successfully".into(),
                         ));
+                        this.lock_storage(cx);
                         this.sync_fido_state(None, cx);
                     }
                     Err(e) => {
