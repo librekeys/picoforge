@@ -821,8 +821,8 @@ use gpui_component::Root;
 use gpui_component::{Theme, ThemeMode, ThemeSet};
 use ui::rootview::ApplicationRoot;
 
-mod device;
 pub mod error;
+mod hal;
 pub mod logging;
 mod ui;
 

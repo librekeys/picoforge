@@ -1,10 +1,10 @@
-use crate::device::io;
+use crate::hal::io;
 use crate::ui::components::sidebar::AppSidebar;
-use crate::ui::types::{ActiveView, DeviceConnectionState, LayoutState, ViewCache};
-use crate::ui::views::{
+use crate::ui::screens::{
     about::AboutView, config::ConfigView, home::HomeView, passkeys::PasskeysEvent,
     passkeys::PasskeysView, security::SecurityView,
 };
+use crate::ui::types::{ActiveView, DeviceConnectionState, LayoutState, ViewCache};
 use gpui::prelude::*;
 use gpui::*;
 use gpui_component::Root;
@@ -76,8 +76,8 @@ impl ApplicationRoot {
                     }
                 }
 
-                if status.firmware_type == crate::device::types::FirmwareType::RSKey
-                    && status.method == crate::device::types::DeviceMethod::Rescue
+                if status.firmware_type == crate::hal::types::FirmwareType::RSKey
+                    && status.method == crate::hal::types::DeviceMethod::Rescue
                 {
                     self.device.led_status = io::read_led_config().ok();
                     self.device.management_apps = io::read_management_config().ok();

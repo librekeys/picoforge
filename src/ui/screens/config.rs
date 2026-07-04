@@ -1,9 +1,9 @@
-use crate::device::rescue::constants::{
+use crate::hal::rescue::constants::{
     LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP, USB_CAP_OTP, USB_CAP_PIV,
     USB_CAP_U2F,
 };
-use crate::device::types::{AppConfigInput, DeviceMethod};
-use crate::device::{fido, io};
+use crate::hal::types::{AppConfigInput, DeviceMethod};
+use crate::hal::{fido, io};
 use crate::ui::components::dialog::PinPromptContent;
 use crate::ui::components::{card::Card, dialog, dialog::StatusContent, page_view::PageView};
 use crate::ui::rootview::ApplicationRoot;
@@ -254,7 +254,7 @@ impl ConfigView {
     fn write_config_to_device(
         &mut self,
         changes: AppConfigInput,
-        method: crate::device::types::DeviceMethod,
+        method: crate::hal::types::DeviceMethod,
         pin: Option<String>,
         dialog_handle: StatusDialogHandle,
         cx: &mut Context<Self>,
@@ -529,7 +529,7 @@ impl ConfigView {
         }
     }
 
-    fn status_supports_legacy_fido_config(status: &crate::device::types::FullDeviceStatus) -> bool {
+    fn status_supports_legacy_fido_config(status: &crate::hal::types::FullDeviceStatus) -> bool {
         status.method == DeviceMethod::Fido
             && fido::firmware_supports_legacy_fido_hardware_config(&status.info.firmware_version)
     }
@@ -1300,7 +1300,7 @@ impl Render for ConfigView {
         let columns = if is_wide { 2 } else { 1 };
 
         let is_rskey = status.as_ref().map(|s| &s.firmware_type)
-            == Some(&crate::device::types::FirmwareType::RSKey);
+            == Some(&crate::hal::types::FirmwareType::RSKey);
 
         let mut grid_children = vec![identity_card, led_card, touch_card, options_card];
 

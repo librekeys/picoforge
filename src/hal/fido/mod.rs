@@ -58,11 +58,11 @@ pub mod constants;
 pub mod hid;
 
 use crate::{
-    device::types::{
+    error::PFError,
+    hal::types::{
         AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FirmwareType,
         FullDeviceStatus, PICOFIDO_AAGUID, RSKEY_AAGUID, StoredCredential,
     },
-    error::PFError,
 };
 use base64::{Engine as _, engine::general_purpose};
 use constants::*;

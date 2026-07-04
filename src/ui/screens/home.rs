@@ -1,4 +1,4 @@
-use crate::device::types::DeviceMethod;
+use crate::hal::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::types::DeviceConnectionState;
 use gpui::prelude::FluentBuilder;

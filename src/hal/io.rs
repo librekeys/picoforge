@@ -10,7 +10,7 @@
 
 #![allow(unused)]
 
-use crate::{device::fido, device::rescue, device::types::*, error::PFError};
+use crate::{error::PFError, hal::fido, hal::rescue, hal::types::*};
 
 // ── Shared: functions that use both rescue and FIDO ─────────────────────────
 

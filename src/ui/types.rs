@@ -1,6 +1,6 @@
 use crate::{
-    device::types::{FidoDeviceInfo, FullDeviceStatus, LedStatusConfig, ManagementAppConfig},
-    ui::views::{config::ConfigView, passkeys::PasskeysView},
+    hal::types::{FidoDeviceInfo, FullDeviceStatus, LedStatusConfig, ManagementAppConfig},
+    ui::screens::{config::ConfigView, passkeys::PasskeysView},
 };
 use gpui::{Entity, Pixels, SharedString, px};
 

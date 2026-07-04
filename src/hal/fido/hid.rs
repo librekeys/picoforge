@@ -89,8 +89,8 @@ use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use crate::device::fido::constants::*;
 use crate::error::PFError;
+use crate::hal::fido::constants::*;
 
 /// Size of a single USB HID report in bytes (CTAP2 §11.2 mandates 64-byte reports).
 const HID_REPORT_SIZE: usize = 64;

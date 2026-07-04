@@ -1,4 +1,4 @@
-use crate::device::types::DeviceMethod;
+use crate::hal::types::DeviceMethod;
 use crate::ui::components::button::PFIconButton;
 use crate::ui::types::{ActiveView, DeviceConnectionState};
 use gpui::*;
@@ -223,7 +223,7 @@ impl<V: 'static> AppSidebar<V> {
                                             &state.status
                                         {
                                             let is_rskey = status.firmware_type
-                                                == crate::device::types::FirmwareType::RSKey;
+                                                == crate::hal::types::FirmwareType::RSKey;
                                             let fw_label =
                                                 if is_rskey { "RS-Key" } else { "Pico-FIDO" };
 

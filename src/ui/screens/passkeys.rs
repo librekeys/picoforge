@@ -1,5 +1,5 @@
-use crate::device::io;
-use crate::device::types::StoredCredential;
+use crate::hal::io;
+use crate::hal::types::StoredCredential;
 use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
@@ -1138,7 +1138,7 @@ impl PasskeysView {
                     // 1. Wait for unplug
                     while start.elapsed().as_secs() < 15 {
                         std::thread::sleep(std::time::Duration::from_millis(200));
-                        if crate::device::fido::hid::HidTransport::open().is_err() {
+                        if crate::hal::fido::hid::HidTransport::open().is_err() {
                             break;
                         }
                     }
@@ -1146,7 +1146,7 @@ impl PasskeysView {
                     // 2. Wait for replug
                     while start.elapsed().as_secs() < 15 {
                         std::thread::sleep(std::time::Duration::from_millis(500));
-                        if crate::device::fido::hid::HidTransport::open().is_ok() {
+                        if crate::hal::fido::hid::HidTransport::open().is_ok() {
                             return true;
                         }
                     }
@@ -1750,7 +1750,7 @@ impl Render for PasskeysView {
         let has_fido = device
             .status
             .as_ref()
-            .map(|s| s.method == crate::device::types::DeviceMethod::Fido)
+            .map(|s| s.method == crate::hal::types::DeviceMethod::Fido)
             .unwrap_or(false)
             || device.fido_info.is_some();
 
