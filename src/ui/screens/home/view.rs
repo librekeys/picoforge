@@ -1,59 +1,12 @@
-use crate::device::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
-use crate::ui::types::DeviceConnectionState;
+use crate::ui::models::device::{DeviceMethod, FidoDeviceInfo, FullDeviceStatus};
+use crate::ui::screens::home::view_model::HomeViewModel;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
-use gpui_component::StyledExt;
+use gpui_component::{ActiveTheme, StyledExt};
 use gpui_component::{Icon, IconName, Theme, h_flex, progress::Progress, v_flex};
 
-pub struct HomeView;
-
-impl HomeView {
-    pub fn build(
-        state: &DeviceConnectionState,
-        theme: &Theme,
-        window_width: Pixels,
-    ) -> impl IntoElement {
-        let connected = state.status.is_some();
-        let is_wide = window_width > px(1100.0);
-        let columns = if is_wide { 2 } else { 1 };
-
-        PageView::build(
-            "Device Overview",
-            "Quick view of your device status and specifications.",
-            if !connected {
-                // No Device Status Placeholder
-                div()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .h_64()
-                    .border_1()
-                    .border_color(theme.border)
-                    .rounded_xl()
-                    .child(
-                        div()
-                            .text_color(theme.muted_foreground)
-                            .child("No Device Connected"),
-                    )
-                    .into_any_element()
-            } else {
-                // Card Grid
-                div()
-                    .grid()
-                    .grid_cols(columns)
-                    .gap_6()
-                    .child(Self::render_device_info(state, theme))
-                    .child(Self::render_fido_info(state, theme))
-                    .child(Self::render_led_config(state, theme))
-                    .child(Self::render_security_status(state, theme))
-                    .into_any_element()
-            },
-            theme,
-        )
-    }
-
-    // Helper for Key-Value pairs
+impl HomeViewModel {
     fn render_kv(
         label: &str,
         value: impl IntoElement,
@@ -82,8 +35,7 @@ impl HomeView {
             )
     }
 
-    fn render_device_info(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.status.as_ref().unwrap();
+    fn render_device_info(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         let info = &status.info;
         let config = &status.config;
 
@@ -165,15 +117,14 @@ impl HomeView {
             )
     }
 
-    fn render_fido_info(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
+    fn render_fido_info(fido: Option<&FidoDeviceInfo>, theme: &Theme) -> impl IntoElement {
         Card::new()
             .title("FIDO2 Information")
             .icon(Icon::default().path("icons/shield.svg"))
-            .child(if let Some(fido) = &state.fido_info {
+            .child(if let Some(fido) = fido {
                 v_flex()
                     .gap_3()
                     .text_sm()
-                    // AAGUID
                     .child(
                         h_flex()
                             .justify_between()
@@ -188,7 +139,6 @@ impl HomeView {
                                     .child(fido.aaguid.clone()),
                             ),
                     )
-                    // FIDO Versions
                     .child(
                         h_flex()
                             .justify_between()
@@ -209,7 +159,6 @@ impl HomeView {
                             )),
                     )
                     .child(div().h_px().bg(theme.border))
-                    // PIN Set
                     .child(
                         h_flex()
                             .justify_between()
@@ -221,7 +170,6 @@ impl HomeView {
                                 Tag::new(if pin_set { "Set" } else { "Not Set" }).active(pin_set)
                             }),
                     )
-                    // Resident Keys
                     .child(
                         h_flex()
                             .justify_between()
@@ -236,7 +184,6 @@ impl HomeView {
                                 Tag::new(if rk { "Supported" } else { "Not Supported" }).active(rk)
                             }),
                     )
-                    // Min PIN Length
                     .child(
                         h_flex()
                             .justify_between()
@@ -253,7 +200,6 @@ impl HomeView {
                                     .child(fido.min_pin_length.to_string()),
                             ),
                     )
-                    // Enterprise attestation
                     .child(
                         h_flex()
                             .justify_between()
@@ -268,7 +214,6 @@ impl HomeView {
                                 Tag::new(if ep_set { "Set" } else { "Not Set" }).active(ep_set)
                             })),
                     )
-                    // Remaining Credentials
                     .when(fido.remaining_discoverable_credentials.is_some(), |this| {
                         this.child(
                             h_flex()
@@ -298,8 +243,7 @@ impl HomeView {
             })
     }
 
-    fn render_led_config(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.status.as_ref().unwrap();
+    fn render_led_config(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         let config = &status.config;
         Card::new()
             .title("LED Configuration")
@@ -386,8 +330,7 @@ impl HomeView {
             })
     }
 
-    fn render_security_status(state: &DeviceConnectionState, theme: &Theme) -> impl IntoElement {
-        let status = state.status.as_ref().unwrap();
+    fn render_security_status(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         Card::new()
             .title("Security Status")
             .icon(Icon::default().path("icons/shield-check.svg"))
@@ -461,5 +404,50 @@ impl HomeView {
                             ),
                     ),
             )
+    }
+}
+
+impl Render for HomeViewModel {
+    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let device = self.device.read(cx);
+        let connected = device.status.is_some();
+        let is_wide = window.bounds().size.width > px(1100.0);
+        let columns = if is_wide { 2 } else { 1 };
+
+        PageView::build(
+            "Device Overview",
+            "Quick view of your device status and specifications.",
+            if !connected {
+                div()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .h_64()
+                    .border_1()
+                    .border_color(cx.theme().border)
+                    .rounded_xl()
+                    .child(
+                        div()
+                            .text_color(cx.theme().muted_foreground)
+                            .child("No Device Connected"),
+                    )
+                    .into_any_element()
+            } else {
+                let status = device.status.as_ref().unwrap();
+                div()
+                    .grid()
+                    .grid_cols(columns)
+                    .gap_6()
+                    .child(Self::render_device_info(status, cx.theme()))
+                    .child(Self::render_fido_info(
+                        device.fido_info.as_ref(),
+                        cx.theme(),
+                    ))
+                    .child(Self::render_led_config(status, cx.theme()))
+                    .child(Self::render_security_status(status, cx.theme()))
+                    .into_any_element()
+            },
+            cx.theme(),
+        )
     }
 }

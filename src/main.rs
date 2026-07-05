@@ -91,18 +91,18 @@
 //!
 //! ### Where to Start
 //!
-//! - **New to the codebase?** Start with `src/main.rs` (this file) and `src/ui/rootview.rs`
+//! - **New to the codebase?** Start with `src/main.rs` (this file) and `src/ui/app.rs`
 //!   to understand the application entry point and main window structure.
 //!
-//! - **Want to understand device communication?** Read `src/device/mod.rs` and
-//!   `src/device/io.rs` for the high-level API, then dive into `src/device/rescue/mod.rs`
-//!   (PC/SC protocol) or `src/device/fido/mod.rs` (FIDO2/CTAP2 protocol).
+//! - **Want to understand device communication?** Read `src/hal/mod.rs` and
+//!   `src/hal/io.rs` for the high-level API, then dive into `src/hal/rescue/mod.rs`
+//!   (PC/SC protocol) or `src/hal/fido/mod.rs` (FIDO2/CTAP2 protocol).
 //!
-//! - **Working on UI features?** Explore `src/ui/views/` for page implementations and
-//!   `src/ui/components/` for reusable widgets. See `src/ui/types.rs` for state types.
+//! - **Working on UI features?** Explore `src/ui/screens/` for page implementations and
+//!   `src/ui/components/` for reusable widgets. See `src/ui/models/` for shared state.
 //!
-//! - **Adding new device commands?** Check `src/device/fido/constants.rs` and
-//!   `src/device/rescue/constants.rs` for protocol constants, then implement in the
+//! - **Adding new device commands?** Check `src/hal/fido/constants.rs` and
+//!   `src/hal/rescue/constants.rs` for protocol constants, then implement in the
 //!   appropriate protocol module.
 //!
 //! ---
@@ -143,7 +143,7 @@
 //! │   ├── main.rs                         # ← THIS FILE: Application entry point
 //! │   ├── error.rs                        # Application-wide error types (PFError)
 //! │   ├── logging.rs                      # log4rs configuration
-//! │   ├── device/                         # Hardware communication layer
+//! │   ├── hal/                            # Hardware abstraction layer
 //! │   │   ├── mod.rs                      # Module root, re-exports
 //! │   │   ├── io.rs                       # High-level API bridging rescue and FIDO
 //! │   │   ├── types.rs                    # Shared data structures
@@ -156,17 +156,34 @@
 //! │   │       └── hid.rs                  # USB HID transport
 //! │   └── ui/                             # GPUI frontend
 //! │       ├── mod.rs
-//! │       ├── rootview.rs                 # Main window, sidebar routing
-//! │       ├── types.rs                    # UI state types
+//! │       ├── app.rs                      # ApplicationRoot, AppModels, layout, Render
 //! │       ├── assets.rs                   # rust-embed asset loader
 //! │       ├── colors.rs                   # Theme color constants
-//! │       ├── views/                      # Page views (sidebar sections)
+//! │       ├── models/                     # Shared reactive state (DeviceRepo)
 //! │       │   ├── mod.rs
-//! │       │   ├── home.rs
-//! │       │   ├── passkeys.rs
-//! │       │   ├── config.rs
-//! │       │   ├── security.rs
-//! │       │   └── about.rs
+//! │       │   └── device.rs
+//! │       ├── screens/                    # Page views (sidebar sections)
+//! │       │   ├── mod.rs
+//! │       │   ├── home/
+//! │       │   │   ├── mod.rs
+//! │       │   │   ├── view.rs
+//! │       │   │   └── view_model.rs
+//! │       │   ├── passkeys/
+//! │       │   │   ├── mod.rs
+//! │       │   │   ├── view.rs
+//! │       │   │   └── view_model.rs
+//! │       │   ├── config/
+//! │       │   │   ├── mod.rs
+//! │       │   │   ├── view.rs
+//! │       │   │   └── view_model.rs
+//! │       │   ├── security/
+//! │       │   │   ├── mod.rs
+//! │       │   │   ├── view.rs
+//! │       │   │   └── view_model.rs
+//! │       │   └── about/
+//! │       │       ├── mod.rs
+//! │       │       ├── view.rs
+//! │       │       └── view_model.rs
 //! │       └── components/                 # Reusable UI widgets
 //! │           ├── mod.rs
 //! │           ├── button.rs
@@ -254,36 +271,47 @@
 //! ### Layer Diagram
 //!
 //! ```text
-//! ┌─────────────────────────────────────────────────────────────┐
-//! │                    UI Layer (src/ui/)                       │
-//! │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
-//! │  │ HomeView │  │Passkeys  │  │ConfigView│  │Security  │     │
-//! │  │          │  │View      │  │          │  │View      │     │
-//! │  └────┬─────┘  └─────┬────┘  └──────┬───┘  └───────┬──┘     │
-//! │       │              │              │              │        │
-//! │       └──────────────┴──────┬───────┴──────────────┘        │
-//! │                             │                               │
-//! │                    ┌────────▼────────┐                      │
-//! │                    │ ApplicationRoot │ (rootview.rs)        │
-//! │                    │  DeviceState    │                      │
-//! │                    │  LayoutState    │                      │
-//! │                    │  ViewCache      │                      │
-//! │                    └────────┬────────┘                      │
-//! └─────────────────────────────┼───────────────────────────────┘
+//! ┌──────────────────────────────────────────────────────────────┐
+//! │                   UI Layer (src/ui/)                         │
+//! │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
+//! │  │ HomeView │  │Passkeys  │  │ConfigVM  │  │Security  │      │
+//! │  │          │  │ViewModel │  │          │  │View      │      │
+//! │  └────┬─────┘  └─────┬────┘  └──────┬───┘  └───────┬──┘      │
+//! │       │              │              │              │         │
+//! │       └──────────────┴──────┬───────┴──────────────┘         │
+//! │                             │                                │
+//! │                    ┌────────▼────────┐                       │
+//! │                    │ ApplicationRoot │ (app.rs)              │
+//! │                    │  AppModels      │                       │
+//! │                    │  Destination    │                       │
+//! │                    │  ViewModelStore │                       │
+//! │                    └────────┬────────┘                       │
+//! │                             │                                │
+//! │                    ┌────────▼────────┐                       │
+//! │                    │   DeviceRepo    │ (models/device.rs)    │
+//! │                    │  — sole HAL     │                       │
+//! │                    │    gateway      │                       │
+//! │                    │  — re-exports   │                       │
+//! │                    │    HAL types    │                       │
+//! │                    │  — blocking     │                       │
+//! │                    │    static       │                       │
+//! │                    │    methods      │                       │
+//! │                    └────────┬────────┘                       │
+//! └─────────────────────────────┼────────────────────────────────┘
 //!                               │
-//! ┌─────────────────────────────▼───────────────────────────────┐
-//! │                  Device I/O Layer (src/device/io.rs)        │
-//! │         High-level API: read_device_details()               │
-//! │                         write_config()                      │
-//! │                         get_credentials()                   │
-//! │                         reboot()                            │
-//! └─────────────────────────────┬───────────────────────────────┘
+//! ┌─────────────────────────────▼────────────────────────────────┐
+//! │                  Hardware I/O Layer (src/hal/io.rs)          │
+//! │         High-level API: read_device_details()                │
+//! │                         write_config()                       │
+//! │                         get_credentials()                    │
+//! │                         reboot()                             │
+//! └─────────────────────────────┬────────────────────────────────┘
 //!                               │
 //!              ┌────────────────┴────────────────┐
 //!              │                                 │
 //! ┌────────────▼────────────┐  ┌─────────────────▼─────────────┐
 //! │  Rescue Protocol        │  │  FIDO2 Protocol               │
-//! │  (src/device/rescue/)   │  │  (src/device/fido/)           │
+//! │  (src/hal/rescue/)      │  │  (src/hal/fido/)              │
 //! │                         │  │                               │
 //! │  PC/SC + ISO 7816-4     │  │  CTAPHID + CTAP2              │
 //! │  APDU commands          │  │  CBOR messages                │
@@ -303,8 +331,9 @@
 //!
 //! ### Key Design Principles
 //!
-//! 1. **Separation of Concerns**: Device communication (`src/device/`) is completely
-//!    separate from UI code (`src/ui/`). No GPUI imports exist in device modules.
+//! 1. **HAL Gateway Pattern**: Views and ViewModels never import `crate::hal`.
+//!    [`DeviceRepo`] is the sole bridge — it re-exports all needed types and
+//!    provides `*_blocking()` static methods for background tasks.
 //!
 //! 2. **Protocol Abstraction**: The `io.rs` layer provides a unified API that
 //!    automatically selects Rescue or FIDO2 based on device capabilities and
@@ -314,8 +343,9 @@
 //!    and RS-Key (Rust firmware) with the same UI, detecting firmware type via
 //!    AAGUID and adapting behavior accordingly.
 //!
-//! 4. **State-Driven UI**: The `ApplicationRoot` maintains device state and
-//!    propagates changes to views via the `DeviceConnectionState` struct.
+//! 4. **Event-Driven State**: Writes go through `DeviceRepo::apply_fresh_state()`
+//!    or `update_fido_info()`, which emit `DeviceEvent::Updated`. All ViewModel
+//!    subscribers react to the event, keeping state in sync without manual wiring.
 //!
 //! ---
 //!
@@ -324,70 +354,79 @@
 //! ### Device Detection and Status Refresh
 //!
 //! ```text
-//! ApplicationRoot::new()
+//! ApplicationRoot::new() / sidebar refresh button click
 //!       │
 //!       ▼
-//! refresh_device_status()
+//! DeviceRepo::refresh()          [sole polling method]
+//!       │
+//!       ├── begin_load()
+//!       ├── io::read_device_details()
+//!       │     ├──► rescue::read_device_details()
+//!       │     │         ├── connect_and_select()          [PC/SC]
+//!       │     │         ├── READ(FlashInfo)
+//!       │     │         ├── READ(SecureBootStatus)
+//!       │     │         └── READ(PhyConfig)               [TLV parsing]
+//!       │     │
+//!       │     └──► fido::read_device_details()            [fallback]
+//!       │               ├── HidTransport::open()
+//!       │               ├── GetInfo (CTAP2 0x04)
+//!       │               └── Vendor commands (0xC1/0xC2)
+//!       │
+//!       ├── io::get_fido_info()
+//!       ├── io::read_led_config()                       [RS-Key only]
+//!       ├── io::read_management_config()                [RS-Key only]
+//!       ├── end_load()
+//!       ├── cx.emit(DeviceEvent::Updated)
 //!       │
 //!       ▼
-//! io::read_device_details()
+//! All DeviceEvent::Updated subscribers:
 //!       │
-//!       ├──► rescue::read_device_details()
-//!       │         │
-//!       │         ├── connect_and_select()          [PC/SC]
-//!       │         ├── READ(FlashInfo)
-//!       │         ├── READ(SecureBootStatus)
-//!       │         └── READ(PhyConfig)               [TLV parsing]
-//!       │
-//!       └──► fido::read_device_details()            [fallback]
-//!                 │
-//!                 ├── HidTransport::open()
-//!                 ├── GetInfo (CTAP2 0x04)
-//!                 └── Vendor commands (0xC1/0xC2)
-//!
-//!       ▼
-//! Update DeviceConnectionState
-//!       │
-//!       ├── status: FullDeviceStatus
-//!       ├── fido_info: FidoDeviceInfo
-//!       ├── led_status: LedStatusConfig             [RS-Key only]
-//!       └── management_apps: ManagementAppConfig    [RS-Key only]
-//!       │
-//!       ▼
-//! cx.notify() → UI re-renders with new state
+//!       ├── ApplicationRoot: if device_changed → invalidate passkeys
+//!       ├── HomeViewModel:   cx.notify() → re-render
+//!       ├── PasskeysViewModel:
+//!       │     ├── if unlocked → refresh_credentials(pin) (silent re-fetch)
+//!       │     └── cx.notify()
+//!       ├── ConfigViewModel: sync_from_device() (sync form fields)
+//!       └── SecurityViewModel / AboutViewModel: cx.notify()
 //! ```
 //!
 //! ### Configuration Write Flow
 //!
 //! ```text
-//! User edits config form (ConfigView)
+//! User edits config form (ConfigViewModel)
 //!       │
 //!       ▼
-//! io::write_config(config, method, pin)
+//! ConfigViewModel::write_config_to_device()
+//!       │  (pre-write serial check — Fix #3)
 //!       │
-//!       ├──► rescue::write_config(config)
-//!       │         │
-//!       │         ├── Build TLV payload
-//!       │         ├── connect_and_select()
-//!       │         └── WRITE(PhyConfig, tlv_data)
+//!       ├── spawn background task
+//!       │     │
+//!       │     ├── DeviceRepo::write_config_blocking()
+//!       │     │     │
+//!       │     │     ├──► io::write_config(config, method, pin)
+//!       │     │     │      ├── rescue::write_config()  or
+//!       │     │     │      └── fido::write_config()
+//!       │     │     │
+//!       │     │     └── Return Result<String, PFError>
+//!       │     │
+//!       │     └── DeviceRepo::read_device_state_blocking()
+//!       │           (fresh post-write snapshot)
 //!       │
-//!       └──► fido::write_config(config, pin)    [if FIDO mode]
-//!                 │
-//!                 ├── HidTransport::open()
-//!                 ├── get_pin_token_with_permission()
-//!                 └── send_vendor_config()
-//!
-//!       ▼
-//! Return success/error message
-//!       │
-//!       ▼
-//! Dialog shows status to user
+//!       └── UI update (on main thread):
+//!             │
+//!             ├── On success: repo.apply_fresh_state(fs)
+//!             │     ├── Updates status, led, management fields
+//!             │     ├── Checks device_changed (serial comparison)
+//!             │     └── cx.emit(DeviceEvent::Updated)
+//!             │
+//!             └── On error: show dialog with error message
+//!                     (special-case "0x3E" for FIDO mode)
 //! ```
 //!
 //! ### Credential Management Flow
 //!
 //! ```text
-//! PasskeysView::unlock_storage(pin)
+//! PasskeysViewModel::unlock_storage(pin)
 //!       │
 //!       ▼
 //! io::get_credentials(pin)
@@ -407,7 +446,7 @@
 //! Parse CBOR responses → Vec<StoredCredential>
 //!       │
 //!       ▼
-//! Display credentials in PasskeysView table
+//! Display credentials in PasskeysViewModel table
 //! ```
 //!
 //! ---
@@ -503,33 +542,50 @@
 //! ```text
 //! ApplicationRoot::new(cx)
 //!       │
-//!       ├── DeviceConnectionState::new()
-//!       ├── LayoutState::new()
-//!       ├── ViewCache::new()
+//!       ├── AppModels { device: Entity<DeviceRepo> }
+//!       ├── Entity<AppSidebar>::new()
+//!       ├── ViewModelStore::new()               [all None, lazy-init]
 //!       │
-//!       └── refresh_device_status() → io::read_device_details()
+//!       └── device.update(cx, |repo, cx| repo.refresh(cx))
+//!                   │                             [HAL poll triggered inline]
 //!
-//! Render cycle:
+//! Render cycle (within `ApplicationRoot::render`):
 //!       │
-//!       ├── Render sidebar (AppSidebar)
-//!       │     └── on_select → updates LayoutState.active_view
+//!       ├── Sidebar column (AppSidebar entity)
+//!       │     └── Nav click → cx.emit(SidebarEvent::Navigate) → sets active_destination
 //!       │
-//!       └── Render content based on active_view:
-//!             ├── Home → HomeView::build() [stateless]
-//!             ├── Passkeys → PasskeysView::new() [stateful, cached]
-//!             ├── Configuration → ConfigView::new() [stateful, cached]
-//!             ├── Security → SecurityView::build() [stateless]
-//!             └── About → AboutView::build() [stateless]
+//!       ├── Content area based on active_destination:
+//!       │     ├── Home → HomeViewModel::new()        [lazy, cached]
+//!       │     ├── Passkeys → PasskeysViewModel::new() [lazy, cached]
+//!       │     ├── Configuration → ConfigViewModel::new() [lazy, cached]
+//!       │     ├── Security → SecurityViewModel::new()   [lazy, cached]
+//!       │     └── About → AboutViewModel::new()         [lazy, cached]
+//!       │
+//!       └── Toggle button (rendered last, paints on top of content)
 //! ```
 //!
 //! ### State Management
 //!
-//! - **DeviceConnectionState**: Holds device status, FIDO info, LED config, errors
-//! - **LayoutState**: Active view, sidebar width/collapse state
-//! - **ViewCache**: Cached entity views (PasskeysView, ConfigView) to preserve state
+//! - **AppModels**: Dependency injection bag holding `Entity<DeviceRepo>`
+//! - **DeviceRepo**: Sole HAL gateway — re-exports all needed types, provides
+//!   `*_blocking()` static methods for background tasks, owns the full poll cycle
+//!   via `refresh()`. State-modifying operations use `apply_fresh_state()` or
+//!   `update_fido_info()` which emit `DeviceEvent::Updated`.
+//! - **ViewModels**: Never import `crate::hal`. Read from `DeviceRepo` via
+//!   `models.device.read(cx)`, write via `DeviceRepo::*_blocking()` in background
+//!   tasks, then push results to the repo (not directly to HAL).
+//! - **Passkeys session**: `unlocked`, `credentials`, `cached_pin` live in
+//!   `PasskeysViewModel`. Invalidated only on device change (replug), not on
+//!   navigation away and back.
+//! - **Destination**: Active screen; sidebar entity owns collapse state internally
+//! - **Toggle button**: Rendered by `ApplicationRoot` (not sidebar) as the last child
+//!   of `main-area` so it paints on top of the content column
+//! - **ViewModelStore**: Lazy-initialized cached entity views, all use `get_or_insert_with`
 //!
-//! State flows downward from `ApplicationRoot` to views via props. Views communicate
-//! upward via callbacks (`on_select`, `on_refresh`) and events (`PasskeysEvent`).
+//! State flows via `Entity<T>::read(cx)` and entity events. `DeviceRepo` owns all
+//! state mutations and event emissions — ViewModels never mutate repo fields or
+//! emit events on the repo directly. Every `DeviceEvent::Updated` propagates to
+//! all subscribers, keeping every screen in sync.
 //!
 //! ---
 //!
@@ -819,10 +875,10 @@ use std::rc::Rc;
 use gpui::*;
 use gpui_component::Root;
 use gpui_component::{Theme, ThemeMode, ThemeSet};
-use ui::rootview::ApplicationRoot;
+use ui::app::ApplicationRoot;
 
-mod device;
 pub mod error;
+mod hal;
 pub mod logging;
 mod ui;
 
@@ -837,7 +893,7 @@ fn main() {
         // Register sidebar toggle keybinding
         cx.bind_keys([gpui::KeyBinding::new(
             "ctrl-shift-d",
-            ui::rootview::ToggleSidebar,
+            ui::app::ToggleSidebar,
             None,
         )]);
 

@@ -159,8 +159,8 @@
 
 pub mod constants;
 
-use crate::device::{rescue::constants::*, types::*};
 use crate::error::PFError;
+use crate::hal::{rescue::constants::*, types::*};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use pcsc::{Context, Protocols, Scope, ShareMode};
 use std::io::Cursor;
