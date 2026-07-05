@@ -1,10 +1,10 @@
-use crate::hal::types::StoredCredential;
 use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
     dialog,
     page_view::PageView,
 };
+use crate::ui::models::device::{DeviceMethod, StoredCredential};
 use crate::ui::screens::passkeys::view_model::{PasskeysEvent, PasskeysViewModel};
 use directories::UserDirs;
 use gpui::prelude::FluentBuilder;
@@ -705,7 +705,7 @@ impl Render for PasskeysViewModel {
         let has_fido = device
             .status
             .as_ref()
-            .map(|s| s.method == crate::hal::types::DeviceMethod::Fido)
+            .map(|s| s.method == DeviceMethod::Fido)
             .unwrap_or(false)
             || device.fido_info.is_some();
 

@@ -1,5 +1,5 @@
-use crate::hal::types::{DeviceMethod, FidoDeviceInfo, FullDeviceStatus};
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
+use crate::ui::models::device::{DeviceMethod, FidoDeviceInfo, FullDeviceStatus};
 use crate::ui::screens::home::view_model::HomeViewModel;
 use gpui::prelude::FluentBuilder;
 use gpui::*;

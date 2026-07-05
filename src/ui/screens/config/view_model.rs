@@ -1,9 +1,9 @@
-use crate::hal::types::{AppConfigInput, DeviceMethod};
-use crate::hal::{fido, io};
 use crate::ui::app::AppModels;
 use crate::ui::components::dialog::PinPromptContent;
 use crate::ui::components::{dialog, dialog::StatusContent};
-use crate::ui::models::device::{DeviceEvent, DeviceRepo};
+use crate::ui::models::device::{
+    AppConfigInput, DeviceEvent, DeviceMethod, DeviceRepo, FullDeviceStatus,
+};
 use gpui::*;
 use gpui_component::input::InputState;
 use gpui_component::select::{SelectItem, SelectState};
@@ -224,8 +224,10 @@ pub struct ConfigViewModel {
 impl ConfigViewModel {
     pub fn new(window: &mut Window, cx: &mut Context<Self>, models: &AppModels) -> Self {
         let device = models.device.clone();
-        cx.subscribe(&device, |_, _, _: &DeviceEvent, cx| cx.notify())
-            .detach();
+        cx.subscribe_in(&device, window, |this, _, _: &DeviceEvent, window, cx| {
+            this.sync_from_device(window, cx);
+        })
+        .detach();
 
         let device_read = device.read(cx);
         let config = device_read.status.as_ref().map(|s| &s.config);
@@ -392,7 +394,7 @@ impl ConfigViewModel {
     pub(super) fn write_config_to_device(
         &mut self,
         changes: AppConfigInput,
-        method: crate::hal::types::DeviceMethod,
+        method: DeviceMethod,
         pin: Option<String>,
         dialog_handle: StatusDialogHandle,
         cx: &mut Context<Self>,
@@ -411,17 +413,48 @@ impl ConfigViewModel {
         let method_clone = method.clone();
 
         self._task = Some(cx.spawn(async move |_, cx| {
-            let result = cx
+            let serial_check = expected_serial.clone();
+            let device_still_matches = cx
                 .background_executor()
-                .spawn(async move { io::write_config(changes, method_clone, pin) })
+                .spawn(async move {
+                    let current = DeviceRepo::read_device_serial_blocking();
+                    match (serial_check, current) {
+                        (Some(expected), Some(current)) => expected == current,
+                        (None, _) => true,
+                        _ => false,
+                    }
+                })
                 .await;
 
-            let new_status_result = if result.is_ok() {
-                Some(
-                    cx.background_executor()
-                        .spawn(async move { io::read_device_details() })
-                        .await,
-                )
+            if !device_still_matches {
+                let _ = entity.update(cx, |this, cx| {
+                    this.loading = false;
+                    this.device.update(cx, |repo, repo_cx| {
+                        repo.refresh(repo_cx);
+                    });
+                    let err_msg = "Device changed before write could complete. Refresh and try again.".to_string();
+                    match &dialog_handle {
+                        StatusDialogHandle::Pin(dh) => {
+                            let _ = dh.update(cx, |d, cx| d.set_error(err_msg, cx));
+                        }
+                        StatusDialogHandle::Status(dh) => {
+                            let _ = dh.update(cx, |d, cx| d.set_error(err_msg, cx));
+                        }
+                    }
+                    cx.notify();
+                });
+                return;
+            }
+
+            let result = cx
+                .background_executor()
+                .spawn(async move { DeviceRepo::write_config_blocking(changes, method_clone, pin) })
+                .await;
+
+            let fresh_state = if result.is_ok() {
+                cx.background_executor()
+                    .spawn(async move { DeviceRepo::read_device_state_blocking().ok() })
+                    .await
             } else {
                 None
             };
@@ -433,24 +466,24 @@ impl ConfigViewModel {
                     Ok(msg) => {
                         log::info!("Success: {}", msg);
 
-                        if let Some(Ok(new_status)) = new_status_result {
+                        if let Some(fs) = &fresh_state {
                             let serial_matches = expected_serial.as_deref()
-                                                        == Some(new_status.info.serial.as_str());
+                                == Some(fs.status.info.serial.as_str());
 
                             if serial_matches {
                                 log::info!(
                                     "Refreshed device status. LED Steady: {}",
-                                    new_status.config.led_steady
+                                    fs.status.config.led_steady
                                 );
 
-                                let config = &new_status.config;
+                                let config = &fs.status.config;
                                 this.led_dimmable = config.led_dimmable;
                                 this.led_steady = config.led_steady;
                                 this.power_cycle = config.power_cycle_on_reset;
                                 this.enable_secp256k1 = config.enable_secp256k1;
 
-                                this.device.update(cx, |repo, _| {
-                                    repo.status = Some(new_status);
+                                this.device.update(cx, |repo, repo_cx| {
+                                    repo.apply_fresh_state(fs.clone(), repo_cx);
                                 });
                             } else {
                                 log::warn!("Device changed during config write, discarding stale status");
@@ -672,13 +705,12 @@ impl ConfigViewModel {
         }
     }
 
-    pub(super) fn status_supports_legacy_fido_config(
-        status: &crate::hal::types::FullDeviceStatus,
-    ) -> bool {
+    pub(super) fn status_supports_legacy_fido_config(status: &FullDeviceStatus) -> bool {
         status.method == DeviceMethod::Fido
-            && fido::firmware_supports_legacy_fido_hardware_config(&status.info.firmware_version)
+            && DeviceRepo::firmware_supports_legacy_fido_config(&status.info.firmware_version)
     }
 
+    #[allow(dead_code)]
     pub fn sync_from_device(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let device = self.device.read(cx);
         let config = device.status.as_ref().map(|s| &s.config);
@@ -779,16 +811,34 @@ impl ConfigViewModel {
                 .background_executor()
                 .spawn(async move {
                     for i in 0..4 {
-                        io::write_led_status(i as u8, colors[i], brightnesses[i], steady)?;
+                        DeviceRepo::write_led_status_blocking(
+                            i as u8,
+                            colors[i],
+                            brightnesses[i],
+                            steady,
+                        )?;
                     }
                     Ok::<_, crate::error::PFError>(())
                 })
                 .await;
 
+            let fresh_state = if result.is_ok() {
+                cx.background_executor()
+                    .spawn(async move { DeviceRepo::read_device_state_blocking().ok() })
+                    .await
+            } else {
+                None
+            };
+
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
                 match result {
                     Ok(_) => {
+                        if let Some(fs) = fresh_state {
+                            this.device.update(cx, |repo, repo_cx| {
+                                repo.apply_fresh_state(fs, repo_cx);
+                            });
+                        }
                         let _ = handle.update(cx, |d, cx| {
                             d.set_success(
                                 "LED configuration applied successfully.".to_string(),
@@ -821,13 +871,26 @@ impl ConfigViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::write_management_config(mask) })
+                .spawn(async move { DeviceRepo::write_management_config_blocking(mask) })
                 .await;
+
+            let fresh_state = if result.is_ok() {
+                cx.background_executor()
+                    .spawn(async move { DeviceRepo::read_device_state_blocking().ok() })
+                    .await
+            } else {
+                None
+            };
 
             let _ = entity.update(cx, |this, cx| {
                 this.loading = false;
                 match result {
                     Ok(_) => {
+                        if let Some(fs) = fresh_state {
+                            this.device.update(cx, |repo, repo_cx| {
+                                repo.apply_fresh_state(fs, repo_cx);
+                            });
+                        }
                         let _ = handle.update(cx, |d, cx| {
                             d.set_success(
                                 "USB applications updated successfully. Please re-plug the device."

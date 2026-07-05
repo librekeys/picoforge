@@ -1,9 +1,8 @@
-use crate::hal::rescue::constants::{
-    LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP, USB_CAP_OTP, USB_CAP_PIV,
-    USB_CAP_U2F,
-};
-use crate::hal::types::DeviceMethod;
 use crate::ui::components::{card::Card, page_view::PageView};
+use crate::ui::models::device::{
+    DeviceMethod, FirmwareType, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP,
+    USB_CAP_OTP, USB_CAP_PIV, USB_CAP_U2F,
+};
 use crate::ui::screens::config::view_model::ConfigViewModel;
 use gpui::*;
 use gpui_component::button::{ButtonCustomVariant, ButtonVariants};
@@ -602,8 +601,7 @@ impl Render for ConfigViewModel {
         let is_wide = window.bounds().size.width > px(1100.0);
         let columns = if is_wide { 2 } else { 1 };
 
-        let is_rskey = status.as_ref().map(|s| &s.firmware_type)
-            == Some(&crate::hal::types::FirmwareType::RSKey);
+        let is_rskey = status.as_ref().map(|s| &s.firmware_type) == Some(&FirmwareType::RSKey);
 
         let mut grid_children = vec![identity_card, led_card, touch_card, options_card];
 

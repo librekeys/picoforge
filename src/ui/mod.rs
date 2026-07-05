@@ -5,24 +5,32 @@
 //!
 //! ## Architecture
 //!
-//! The UI follows a **reactive component tree** model. At the root sits
-//! [`ApplicationRoot`](app::ApplicationRoot), which holds:
+//! The UI follows a **reactive component tree** model with a strict layering
+//! boundary: **Views and ViewModels never import `crate::hal` directly**. All
+//! hardware communication passes through [`DeviceRepo`](models::device::DeviceRepo),
+//! the sole gateway to the HAL.
+//!
+//! At the root sits [`ApplicationRoot`](app::ApplicationRoot), which holds:
 //!
 //! * **Shared reactive state** — [`AppModels`](app::AppModels) wrapping
 //!   [`DeviceRepo`](models::device::DeviceRepo), an `Entity<DeviceRepo>` that any
 //!   view-model can read or write.
+//! * **Navigation** — [`active_destination`](app::ApplicationRoot::active_destination)
+//!   determines which screen is displayed.
 //! * **View-model registry** — [`ViewModelStore`](app::ViewModelStore) that
 //!   lazily initializes each screen's view-model on first navigation.
-//! * **Layout state** — [`LayoutState`](app::LayoutState) tracking active sidebar
-//!   selection and sidebar width/collapse.
+//! * **Sidebar** — [`Entity<AppSidebar>`] that owns its own collapse state, width
+//!   animation, and toggle hover state. The toggle button is rendered by
+//!   [`ApplicationRoot`](app::ApplicationRoot) as the last child of `main-area`
+//!   so it paints on top of the content column.
 //!
 //! Each screen (Home, Passkeys, Configuration, Security, About) is split into:
 //! * `view_model.rs` — the reactive state machine (`Entity<T>`, `EventEmitter<T>`)
 //! * `view.rs` — the `Render` impl that builds GPUI elements from view-model state
 //!
-//! Views never call device hardware directly; they read from `DeviceRepo` (which
-//! is populated by `ApplicationRoot::refresh_device_status`) and emit events that
-//! flow upward through the component tree.
+//! Views never call device hardware directly. ViewModels call `DeviceRepo::*_blocking()`
+//! static methods from background tasks and push results back via `repo.apply_fresh_state()`
+//! or `repo.update_fido_info()`, which emit `DeviceEvent::Updated` to all subscribers.
 //!
 //! ## GPUI Concepts (zed-industries/gpui)
 //!
@@ -71,9 +79,10 @@
 //! ```text
 //! src/ui/
 //! ├── mod.rs             # This file — module declaration + architecture docs
-//! ├── app.rs             # ApplicationRoot, AppModels, LayoutState, ViewModelStore
-//! │                       # Root Render: sidebar, title bar, content routing, toggle button
-//! │                       # refresh_device_status: polls HAL, updates DeviceRepo
+//! ├── app.rs             # ApplicationRoot, AppModels, Destination, ViewModelStore
+//! │                       # Root Render: sidebar entity, title bar, content routing
+//! │                       # Triggers initial DeviceRepo::refresh(), subscribes to
+//! │                       # DeviceEvent to invalidate passkeys on device change
 //! ├── assets.rs          # AssetLoaderImpl via rust-embed (loads SVGs from static/)
 //! ├── colors.rs          # Zinc palette constants (u32 RGB). WIP — HSLA migration planned.
 //! │                       # Reference: https://ui.shadcn.com/colors
@@ -88,8 +97,9 @@
 //! │   ├── card.rs        # Card container widgets
 //! │   ├── dialog.rs      # Custom dialog widgets
 //! │   ├── page_view.rs   # Page view layout container
-//! │   ├── sidebar.rs     # AppSidebar — SVG navigation sidebar (Home, Passkeys, etc.)
-//! │   │                   # Handles selection highlighting, tooltips, nav callbacks
+//! │   ├── sidebar.rs     # AppSidebar — sidebar Entity with EventEmitter
+//! │   │                   # Owns collapse, width animation, toggle hover state
+//! │   │                   # Renders nav items; emits Nav / RefreshDevice events
 //! │   └── tag.rs         # Tag/badge widgets
 //! ├── screens/
 //! │   ├── mod.rs         # pub mod home, config, passkeys, security, about
@@ -117,14 +127,17 @@
 //!
 //! ## Navigation & Data Flow
 //!
-//! 1. `ApplicationRoot::render` reads `LayoutState.active_view` to decide which
-//!    screen to display. Each screen's view-model is lazily created via
-//!    `get_or_insert_with` on `ViewModelStore`.
-//! 2. `AppSidebar::on_select` sets `LayoutState.active_view` and calls `cx.notify()`.
-//! 3. `refresh_device_status` (called at startup and on sidebar refresh) invokes
-//!    `crate::hal::io::read_device_details()`, writes results into `DeviceRepo`,
-//!    then notifies all subscribers.
-//! 4. Screen view-models read `DeviceRepo` in their `Render` or event handlers
+//! 1. [`AppSidebar`] emits [`SidebarEvent::Navigate`] when a nav item is clicked.
+//!    [`ApplicationRoot`] receives it via `cx.subscribe` and sets `active_destination`.
+//! 2. `ApplicationRoot::render` reads `active_destination` to decide which screen
+//!    to display. Each screen's view-model is lazily created via `get_or_insert_with`
+//!    on `ViewModelStore`. Passkeys survives navigation (only invalidated on device change).
+//! 3. [`DeviceRepo::refresh()`] (called at startup and on sidebar refresh) performs the
+//!    full HAL poll cycle — reads device details, FIDO info, LED/management config — and
+//!    emits [`DeviceEvent::Updated`]. All subscribers re-read from `DeviceRepo`.
+//! 4. For writes, ViewModels call `DeviceRepo::*_blocking()` static methods from background
+//!    tasks, then push fresh state via `repo.apply_fresh_state()`, which emits the event.
+//! 5. Screen view-models read `DeviceRepo` in their `Render` or event handlers
 //!    via `models.device.read(cx)`.
 //!
 //! ## External References

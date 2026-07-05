@@ -1,11 +1,9 @@
-use crate::hal::io;
-use crate::hal::types::StoredCredential;
 use crate::ui::app::AppModels;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::{
     ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent, StatusContent,
 };
-use crate::ui::models::device::{DeviceEvent, DeviceRepo};
+use crate::ui::models::device::{DeviceEvent, DeviceRepo, StoredCredential};
 use gpui::*;
 use gpui_component::button::ButtonVariants;
 use gpui_component::{ActiveTheme, StyledExt, WindowExt};
@@ -31,8 +29,10 @@ impl EventEmitter<PasskeysEvent> for PasskeysViewModel {}
 impl PasskeysViewModel {
     pub fn new(_window: &mut Window, cx: &mut Context<Self>, models: &AppModels) -> Self {
         let device = models.device.clone();
-        cx.subscribe(&device, |_, _, _: &DeviceEvent, cx| cx.notify())
-            .detach();
+        cx.subscribe(&device, |this: &mut Self, _, _: &DeviceEvent, cx| {
+            this.refresh_if_unlocked(cx);
+        })
+        .detach();
         Self {
             device,
             credentials: Vec::new(),
@@ -65,7 +65,7 @@ impl PasskeysViewModel {
             let pin_for_bg = pin.clone();
             let result = cx
                 .background_executor()
-                .spawn(async move { io::get_credentials(pin_for_bg) })
+                .spawn(async move { DeviceRepo::get_credentials_blocking(pin_for_bg) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| {
@@ -118,7 +118,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::delete_credential(pin, credential_id) })
+                .spawn(async move { DeviceRepo::delete_credential_blocking(pin, credential_id) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| match result {
@@ -146,7 +146,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::get_credentials(pin) })
+                .spawn(async move { DeviceRepo::get_credentials_blocking(pin) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| {
@@ -172,11 +172,9 @@ impl PasskeysViewModel {
     }
 
     fn sync_fido_state(&mut self, new_pin: Option<String>, cx: &mut Context<Self>) {
-        if let Ok(info) = io::get_fido_info() {
-            self.device.update(cx, |repo, _| {
-                repo.fido_info = Some(info);
-            });
-        }
+        self.device.update(cx, |repo, repo_cx| {
+            repo.update_fido_info(repo_cx);
+        });
 
         if let Some(pin) = new_pin {
             self.cached_pin = Some(pin);
@@ -275,7 +273,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::change_fido_pin(None, new) })
+                .spawn(async move { DeviceRepo::change_fido_pin_blocking(None, new) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| match result {
@@ -459,7 +457,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::change_fido_pin(Some(current), new) })
+                .spawn(async move { DeviceRepo::change_fido_pin_blocking(Some(current), new) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| match result {
@@ -502,7 +500,9 @@ impl PasskeysViewModel {
             let current_for_bg = current.clone();
             let res_len = cx
                 .background_executor()
-                .spawn(async move { io::set_min_pin_length(current_for_bg, min_len) })
+                .spawn(
+                    async move { DeviceRepo::set_min_pin_length_blocking(current_for_bg, min_len) },
+                )
                 .await;
 
             if let Err(e) = res_len {
@@ -521,7 +521,9 @@ impl PasskeysViewModel {
                 let new_pin_for_sync = new_pin.clone();
                 let res_pin = cx
                     .background_executor()
-                    .spawn(async move { io::change_fido_pin(Some(current), new_pin) })
+                    .spawn(
+                        async move { DeviceRepo::change_fido_pin_blocking(Some(current), new_pin) },
+                    )
                     .await;
                 let _ = entity.update(cx, |this, cx| match res_pin {
                     Ok(_) => {
@@ -570,7 +572,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::get_enterprise_attestation_csr() })
+                .spawn(async move { DeviceRepo::get_enterprise_attestation_csr_blocking() })
                 .await;
 
             let _ = entity.update(cx, |this, cx| {
@@ -621,7 +623,9 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::upload_enterprise_attestation_cert(pin, cert_path) })
+                .spawn(async move {
+                    DeviceRepo::upload_enterprise_attestation_cert_blocking(pin, cert_path)
+                })
                 .await;
 
             let _ = entity.update(cx, |this, cx| {
@@ -681,7 +685,7 @@ impl PasskeysViewModel {
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
-                .spawn(async move { io::enable_enterprise_attestation(pin) })
+                .spawn(async move { DeviceRepo::enable_enterprise_attestation_blocking(pin) })
                 .await;
 
             let _ = entity.update(cx, |this, cx| match result {
@@ -784,14 +788,14 @@ impl PasskeysViewModel {
                     let start = std::time::Instant::now();
                     while start.elapsed().as_secs() < 15 {
                         std::thread::sleep(std::time::Duration::from_millis(200));
-                        if crate::hal::fido::hid::HidTransport::open().is_err() {
+                        if !DeviceRepo::check_hid_available_blocking() {
                             break;
                         }
                     }
 
                     while start.elapsed().as_secs() < 15 {
                         std::thread::sleep(std::time::Duration::from_millis(500));
-                        if crate::hal::fido::hid::HidTransport::open().is_ok() {
+                        if DeviceRepo::check_hid_available_blocking() {
                             return true;
                         }
                     }
@@ -819,7 +823,7 @@ impl PasskeysViewModel {
 
             let result = cx
                 .background_executor()
-                .spawn(async move { io::reset_device() })
+                .spawn(async move { DeviceRepo::reset_device_blocking() })
                 .await;
 
             let _ = entity.update(cx, |this, cx| match result {

@@ -66,9 +66,6 @@ impl Render for AboutViewModel {
                                                             .font_medium()
                                                             .text_color(theme.foreground)
                                                             .items_end()
-                                                            .child("Suyog Tandel")
-                                                            .child("Fabrice Bellamy")
-                                                            .child("Jetcookies")
                                                             .child("PicoForge Contributers"),
                                                     ),
                                             )
