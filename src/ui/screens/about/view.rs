@@ -1,12 +1,11 @@
-// src/views/about.rs
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
+use crate::ui::screens::about::view_model::AboutViewModel;
 use gpui::*;
-use gpui_component::{Icon, StyledExt, Theme, button::Button, h_flex, v_flex};
+use gpui_component::{ActiveTheme, Icon, StyledExt, button::Button, h_flex, v_flex};
 
-pub struct AboutView;
-
-impl AboutView {
-    pub fn build(theme: &Theme) -> impl IntoElement {
+impl Render for AboutViewModel {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme();
         PageView::build(
             "About",
             "Information about the application and its development.",

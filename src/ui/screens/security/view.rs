@@ -1,4 +1,5 @@
 use crate::ui::components::page_view::PageView;
+use crate::ui::screens::security::view_model::SecurityViewModel;
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Disableable, Icon, StyledExt,
@@ -8,19 +9,13 @@ use gpui_component::{
     v_flex,
 };
 
-pub struct SecurityView;
-
-impl SecurityView {
-    pub fn build<V: 'static>(cx: &mut Context<V>) -> impl IntoElement {
-        let (fg, muted_fg, border, card_bg) = {
-            let theme = cx.theme();
-            (
-                theme.foreground,
-                theme.muted_foreground,
-                theme.border,
-                theme.secondary,
-            )
-        };
+impl Render for SecurityViewModel {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = cx.theme();
+        let fg = theme.foreground;
+        let muted_fg = theme.muted_foreground;
+        let border = theme.border;
+        let card_bg = theme.secondary;
 
         let destructive_red = rgb(0xef4444);
         let destructive_red_hover = rgb(0xdc2626);
@@ -80,7 +75,6 @@ impl SecurityView {
                                 .child("Lock Settings"),
                         ),
                     )
-                    // Card Content
                     .child(
                         v_flex()
                             .px_6()
@@ -112,7 +106,6 @@ impl SecurityView {
                                     ),
                             )
                             .child(
-                                // Secure Lock Row (Disabled)
                                 h_flex()
                                     .justify_between()
                                     .items_center()
@@ -153,7 +146,6 @@ impl SecurityView {
                                     ),
                             ),
                     )
-                    // Card Footer
                     .child(
                         div()
                             .border_t_1()
@@ -187,7 +179,7 @@ impl SecurityView {
             "Secure Boot",
             "Permanently lock this device to the current firmware vendor.",
             content,
-            cx.theme(),
+            theme,
         )
     }
 }

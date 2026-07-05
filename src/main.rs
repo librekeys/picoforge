@@ -819,7 +819,7 @@ use std::rc::Rc;
 use gpui::*;
 use gpui_component::Root;
 use gpui_component::{Theme, ThemeMode, ThemeSet};
-use ui::rootview::ApplicationRoot;
+use ui::app::ApplicationRoot;
 
 pub mod error;
 mod hal;
@@ -837,7 +837,7 @@ fn main() {
         // Register sidebar toggle keybinding
         cx.bind_keys([gpui::KeyBinding::new(
             "ctrl-shift-d",
-            ui::rootview::ToggleSidebar,
+            ui::app::ToggleSidebar,
             None,
         )]);
 

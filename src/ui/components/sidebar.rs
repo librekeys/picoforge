@@ -1,6 +1,7 @@
 use crate::hal::types::DeviceMethod;
+use crate::ui::app::{ActiveView, AppModels};
 use crate::ui::components::button::PFIconButton;
-use crate::ui::types::{ActiveView, DeviceConnectionState};
+use crate::ui::models::device::DeviceRepo;
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Icon, IconName, Side,
@@ -18,7 +19,7 @@ pub struct AppSidebar<V: 'static> {
     active_view: ActiveView,
     width: Pixels,
     collapsed: bool,
-    state: DeviceConnectionState,
+    device: Entity<DeviceRepo>,
     on_select: SelectHandler<V>,
     on_refresh: RefreshHandler<V>,
 }
@@ -28,13 +29,13 @@ impl<V: 'static> AppSidebar<V> {
         active_view: ActiveView,
         width: Pixels,
         collapsed: bool,
-        state: DeviceConnectionState,
+        models: &AppModels,
     ) -> Self {
         Self {
             active_view,
             width,
             collapsed,
-            state,
+            device: models.device.clone(),
             on_select: None,
             on_refresh: None,
         }
@@ -59,7 +60,9 @@ impl<V: 'static> AppSidebar<V> {
     pub fn render(self, cx: &mut Context<V>) -> impl IntoElement {
         let width = self.width;
         let collapsed = self.collapsed;
-        let state = self.state.clone();
+        let state = self.device.read(cx);
+        let status_owned = state.status.clone();
+        let error_owned = state.error.clone();
 
         let sidebar_bg = cx.theme().sidebar;
         let sidebar_fg = cx.theme().sidebar_foreground;
@@ -191,13 +194,13 @@ impl<V: 'static> AppSidebar<V> {
                                     .w_full(),
                             )
                             .child(div().w(px(8.)).h(px(8.)).rounded_full().bg(
-                                if let Some(status) = &state.status {
+                                if let Some(status) = &status_owned {
                                     if status.method == DeviceMethod::Fido {
                                         rgb(0xf59e0b)
                                     } else {
                                         rgb(0x22c55e)
                                     }
-                                } else if state.error.is_some() {
+                                } else if error_owned.is_some() {
                                     rgb(0xf59e0b)
                                 } else {
                                     rgb(0xef4444)
@@ -220,7 +223,7 @@ impl<V: 'static> AppSidebar<V> {
                                     )
                                     .child({
                                         let (text, color_bg, color_text) = if let Some(status) =
-                                            &state.status
+                                            &status_owned
                                         {
                                             let is_rskey = status.firmware_type
                                                 == crate::hal::types::FirmwareType::RSKey;
@@ -240,7 +243,7 @@ impl<V: 'static> AppSidebar<V> {
                                                     rgb(0xffffff),
                                                 )
                                             }
-                                        } else if state.error.is_some() {
+                                        } else if error_owned.is_some() {
                                             ("Error".to_string(), rgb(0xd97706), rgb(0xffffff))
                                         } else {
                                             ("Offline".to_string(), rgb(0xef4444), rgb(0xffffff))
