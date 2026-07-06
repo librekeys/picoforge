@@ -418,6 +418,11 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                         config.led_order = Some(val[0]);
                     }
                 }
+                PhyTag::LedNum => {
+                    if !val.is_empty() {
+                        config.led_num = Some(val[0]);
+                    }
+                }
                 PhyTag::EnabledUsbItf => {
                     if !val.is_empty() {
                         config.enabled_usb_itf = Some(val[0]);
@@ -633,6 +638,7 @@ pub fn write_config(config: AppConfigInput) -> Result<String, PFError> {
 ///
 /// # Errors
 /// - `PFError::Device` if the APDU fails or returns a non-success status
+#[allow(dead_code)]
 pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
     let (card, _, _) = connect_and_select()?;
 
@@ -681,6 +687,7 @@ pub fn reboot_device(to_bootsel: bool) -> Result<String, PFError> {
 /// # Warning
 /// This function is unstable and may change. Locking secure boot can permanently
 /// prevent firmware downgrades. Use with caution.
+#[allow(dead_code)]
 pub fn enable_secure_boot(lock: bool) -> Result<String, PFError> {
     let (card, _, _) = connect_and_select()?;
 

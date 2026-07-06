@@ -39,7 +39,10 @@
 //!    and converts errors to the caller's expected type.
 //! 4. Wire the wrapper into a gpui-component view or action handler.
 
+pub mod common;
 pub mod fido;
+pub mod firmwares;
 pub mod io;
 pub mod rescue;
+pub mod transport;
 pub mod types;

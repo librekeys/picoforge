@@ -156,6 +156,7 @@ const HID_TOTAL_TIMEOUT_MS: i32 = 5000;
 ///
 /// Created via [`HidTransport::open`], which scans for a device with the FIDO
 /// HID Usage Page (0xF1D0) and performs the INIT handshake to obtain a Channel ID.
+#[derive(Debug)]
 pub struct HidTransport {
     device: hidapi::HidDevice,
     cid: u32,

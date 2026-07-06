@@ -59,9 +59,12 @@ pub mod hid;
 
 use crate::{
     error::PFError,
-    hal::types::{
-        AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FirmwareType,
-        FullDeviceStatus, PICOFIDO_AAGUID, RSKEY_AAGUID, StoredCredential,
+    hal::{
+        firmwares::AnyFirmware,
+        types::{
+            AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FirmwareType,
+            FullDeviceStatus, PICOFIDO_AAGUID, RSKEY_AAGUID, StoredCredential,
+        },
     },
 };
 use base64::{Engine as _, engine::general_purpose};
@@ -374,18 +377,11 @@ fn parse_get_info_extension_list(
 }
 
 pub(crate) fn firmware_supports_legacy_fido_hardware_config(version: &str) -> bool {
-    let Some((major, minor)) = parse_firmware_version(version) else {
+    let ver = crate::hal::common::FirmwareVersion::parse(version);
+    let Some(ref ver) = ver else {
         return false;
     };
-
-    major < 7 || (major == 7 && minor <= 2)
-}
-
-fn parse_firmware_version(version: &str) -> Option<(u16, u16)> {
-    let mut parts = version.split('.');
-    let major = parts.next()?.parse().ok()?;
-    let minor = parts.next()?.parse().ok()?;
-    Some((major, minor))
+    ver.major < 7 || (ver.major == 7 && ver.minor <= 2)
 }
 
 pub(crate) fn change_fido_pin(
@@ -595,8 +591,15 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         fido_info.firmware_version
     );
 
-    let supports_legacy_hardware_config =
-        firmware_supports_legacy_fido_hardware_config(&fido_info.firmware_version);
+    let firmware_type = if fido_info.aaguid == RSKEY_AAGUID {
+        FirmwareType::RSKey
+    } else if fido_info.aaguid == PICOFIDO_AAGUID {
+        FirmwareType::PicoFido
+    } else {
+        FirmwareType::Unknown
+    };
+    let firmware = AnyFirmware::new(firmware_type, &fido_info.firmware_version);
+    let supports_legacy_hardware_config = firmware.supports_legacy_fido_hardware_config();
     let management = read_management_info(&transport);
     let config = AppConfig {
         vid: format!("{:04X}", transport.vid),
@@ -629,14 +632,6 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
             .unwrap_or_else(|| "Unknown".to_string())
     };
 
-    let firmware_type = if fido_info.aaguid == RSKEY_AAGUID {
-        FirmwareType::RSKey
-    } else if fido_info.aaguid == PICOFIDO_AAGUID {
-        FirmwareType::PicoFido
-    } else {
-        FirmwareType::Unknown
-    };
-
     Ok(FullDeviceStatus {
         info: DeviceInfo {
             serial: management
@@ -650,7 +645,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         secure_boot: false,
         secure_lock: false,
         method: DeviceMethod::Fido,
-        firmware_type,
+        firmware_type: firmware.firmware_type(),
     })
 }
 
@@ -830,8 +825,15 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
         PFError::Device(format!("Could not open HID transport: {}", e))
     })?;
     let fido_info = read_device_info(&transport)?;
-    let supports_legacy_hardware_config =
-        firmware_supports_legacy_fido_hardware_config(&fido_info.firmware_version);
+    let firmware_type = if fido_info.aaguid == RSKEY_AAGUID {
+        FirmwareType::RSKey
+    } else if fido_info.aaguid == PICOFIDO_AAGUID {
+        FirmwareType::PicoFido
+    } else {
+        FirmwareType::Unknown
+    };
+    let firmware = AnyFirmware::new(firmware_type, &fido_info.firmware_version);
+    let supports_legacy_hardware_config = firmware.supports_legacy_fido_hardware_config();
 
     validate_fido_config_changes(&config, supports_legacy_hardware_config)?;
 
@@ -1129,6 +1131,7 @@ mod tests {
             raw_curves_mask: None,
             led_order: None,
             enabled_usb_itf: None,
+            led_num: None,
         }
     }
 
@@ -1327,5 +1330,147 @@ mod tests {
             .to_string();
 
         assert!(err.contains("VID and PID"));
+    }
+
+    #[test]
+    fn test_parse_get_info_rskey_style() {
+        // RS-Key GetInfo has a different AAGUID, may include PQC algorithms,
+        // and reports firmware at a different key.
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![
+                Value::Text("U2F_V2".into()),
+                Value::Text("FIDO_2_0".into()),
+                Value::Text("FIDO_2_1".into()),
+            ]),
+        );
+        // RS-Key AAGUID
+        map.insert(
+            Value::Integer(0x03),
+            Value::Bytes(vec![
+                0x24, 0x79, 0xC7, 0xBF, 0x6B, 0x30, 0x56, 0x83, 0x9E, 0xC8, 0x0E, 0x81, 0x71, 0xA9,
+                0x18, 0xB7,
+            ]),
+        );
+        map.insert(Value::Integer(0x05), Value::Integer(1200));
+        map.insert(
+            Value::Integer(0x06),
+            Value::Array(vec![Value::Integer(1), Value::Integer(2)]),
+        );
+        map.insert(Value::Integer(0x0D), Value::Integer(4));
+
+        // RS-Key firmware version (5.7.4 encoded as (5<<8)|7 = 0x0507)
+        map.insert(Value::Integer(0x0E), Value::Integer(0x0507));
+
+        // Algorithms list including PQC
+        let es256 = BTreeMap::from([(Value::Text("alg".into()), Value::Integer(-7))]);
+        let eddsa = BTreeMap::from([(Value::Text("alg".into()), Value::Integer(-8))]);
+        let pqc = BTreeMap::from([(Value::Text("alg".into()), Value::Integer(-48))]);
+        map.insert(
+            Value::Integer(0x0A),
+            Value::Array(vec![Value::Map(es256), Value::Map(eddsa), Value::Map(pqc)]),
+        );
+
+        // RS-Key options
+        let mut opts = BTreeMap::new();
+        opts.insert(Value::Text("rk".into()), Value::Bool(true));
+        opts.insert(Value::Text("up".into()), Value::Bool(true));
+        opts.insert(Value::Text("clientPin".into()), Value::Bool(false));
+        opts.insert(Value::Text("credMgmt".into()), Value::Bool(true));
+        opts.insert(Value::Text("authnrCfg".into()), Value::Bool(true));
+        map.insert(Value::Integer(0x04), Value::Map(opts));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+
+        assert_eq!(info.aaguid, "2479C7BF6B3056839EC80E8171A918B7");
+        assert_eq!(info.firmware_version, "5.7");
+        assert_eq!(info.versions, vec!["U2F_V2", "FIDO_2_0", "FIDO_2_1"]);
+        assert_eq!(info.algorithms, vec!["ES256", "EdDSA", "ML-DSA-44"]);
+        assert_eq!(info.min_pin_length, 4);
+        assert!(info.options.get("rk") == Some(&true));
+        assert!(info.options.get("credMgmt") == Some(&true));
+        assert!(info.options.get("clientPin") == Some(&false));
+    }
+
+    #[test]
+    fn test_parse_get_info_empty_returns_default() {
+        let result = parse_fido_get_info(&Value::Map(BTreeMap::new()));
+        assert!(result.is_ok());
+        assert!(result.unwrap().versions.is_empty());
+    }
+
+    #[test]
+    fn test_parse_get_info_skips_unknown_keys() {
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![Value::Text("FIDO_2_1".into())]),
+        );
+        map.insert(Value::Integer(0x03), Value::Bytes(vec![0x89; 16]));
+        map.insert(Value::Integer(0x05), Value::Integer(1024));
+
+        // Unknown keys should be silently skipped
+        map.insert(Value::Integer(0x10), Value::Integer(999));
+        map.insert(Value::Integer(0x11), Value::Integer(888));
+        map.insert(Value::Integer(0x12), Value::Integer(777));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+        assert_eq!(info.versions, vec!["FIDO_2_1"]);
+        assert_eq!(info.max_msg_size, 1024);
+    }
+
+    #[test]
+    fn test_parse_get_info_minimal_response() {
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![Value::Text("FIDO_2_0".into())]),
+        );
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+        assert_eq!(info.versions, vec!["FIDO_2_0"]);
+        assert_eq!(info.max_msg_size, 0);
+    }
+
+    #[test]
+    fn test_parse_get_info_certification_map_unknown_id_becomes_hex() {
+        let mut cert_map = BTreeMap::new();
+        cert_map.insert(Value::Text("0xDEADBEEFCAFEBABE".into()), Value::Bool(true));
+
+        let mut map = BTreeMap::new();
+        map.insert(Value::Integer(0x15), Value::Map(cert_map));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+        assert_eq!(info.certifications.get("0xDEADBEEFCAFEBABE"), Some(&true));
+    }
+
+    #[test]
+    fn test_parse_get_info_management_info_version_fallback() {
+        // When firmware version in GetInfo is 0.0, management info version
+        // should be used instead - this is tested via the management info
+        // parsing, but verify the GetInfo parser handles the edge case.
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![Value::Text("FIDO_2_1".into())]),
+        );
+        map.insert(Value::Integer(0x03), Value::Bytes(vec![0x89; 16]));
+        // firmware_version = 0x0000 -> would become "0.0"
+        map.insert(Value::Integer(0x0E), Value::Integer(0x0000));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+        assert_eq!(info.firmware_version, "0.0");
+    }
+
+    #[test]
+    fn test_is_empty_config_input_works() {
+        assert!(is_empty_config_input(&empty_config_input()));
+        let mut c = empty_config_input();
+        c.led_gpio = Some(25);
+        assert!(!is_empty_config_input(&c));
+        let mut c = empty_config_input();
+        c.vid = Some("FEFF".to_string());
+        assert!(!is_empty_config_input(&c));
     }
 }

@@ -49,6 +49,8 @@ pub struct AppConfig {
     pub led_order: Option<u8>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled_usb_itf: Option<u8>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub led_num: Option<u8>,
 }
 
 /// Partial config update; `None` fields are left unchanged on the device.
@@ -69,6 +71,7 @@ pub struct AppConfigInput {
     pub raw_curves_mask: Option<u32>,
     pub led_order: Option<u8>,
     pub enabled_usb_itf: Option<u8>,
+    pub led_num: Option<u8>,
 }
 
 /// Aggregated snapshot of device info, config, and security state.

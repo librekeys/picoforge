@@ -124,10 +124,13 @@ pub enum RescueInstruction {
     /// Data field contains the tag value to write.
     Write = 0x1C,
 
-    /// Lock or unlock device access.
+    /// Lock or unlock device access (pico-fido only, not RS-Key).
     ///
     /// P2 parameter determines lock state (0x00=Unlock, 0x01=Lock).
     /// When locked, PHY configuration commands are rejected.
+    ///
+    /// **Note**: This instruction is only available on pico-fido firmware
+    /// (RP2350/ESP32). RS-Key uses `OtpLock = 0x1B` instead.
     Secure = 0x1D,
 
     /// Read hardware configuration from flash memory.
@@ -241,7 +244,8 @@ pub const P2_UNUSED: u8 = 0x00;
 /// commands to access hardware configuration.
 ///
 /// PHY configuration is shared between pico-fido and RS-Key, with RS-Key adding
-/// additional tags like `LedOrder` for RGB LED support.
+/// additional tags like `LedOrder` for RGB LED support and `LedNum` for
+/// multi-LED count.
 ///
 /// References:
 /// - [pico-fido](https://github.com/polhenarejos/pico-fido) `src/fs/phy.h`
@@ -308,6 +312,13 @@ pub enum PhyTag {
     /// Data format: `[ORDER]` (1 byte).
     /// RS-Key specific tag for configuring LED color channel order.
     LedOrder = 0x0D,
+
+    /// Number of LEDs on the device (RS-Key extension).
+    ///
+    /// Data format: `[COUNT]` (1 byte).
+    /// RS-Key specific tag specifying how many individual LEDs
+    /// are present (e.g., 1 for single, 3 for RGB).
+    LedNum = 0x0E,
 }
 
 impl PhyTag {
@@ -327,6 +338,7 @@ impl PhyTag {
             0x0B => Some(Self::EnabledUsbItf),
             0x0C => Some(Self::LedDriver),
             0x0D => Some(Self::LedOrder),
+            0x0E => Some(Self::LedNum),
             _ => None,
         }
     }
@@ -344,6 +356,13 @@ impl PhyTag {
 /// - [RS-Key](https://github.com/TheMaxMur/RS-Key) `crates/rsk-rescue/src/phy.rs`
 bitflags::bitflags! {
     pub struct RescueOptions: u16 {
+        /// Windows Compatible ID (WCID) support.
+        ///
+        /// When set, the device advertises WCID descriptors for
+        /// automatic driver installation on Windows without
+        /// requiring a custom .inf file.
+        const WCID = 0x01;
+
         /// LED supports dimming (PWM control).
         ///
         /// When set, the LED brightness can be adjusted. When clear,

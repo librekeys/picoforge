@@ -677,6 +677,7 @@ impl ConfigViewModel {
             raw_curves_mask,
             led_order,
             enabled_usb_itf: final_enabled_usb_itf,
+            led_num: None,
         };
 
         if method == DeviceMethod::Fido {
