@@ -187,7 +187,6 @@ impl ConfigViewModel {
     fn render_options_card(
         &mut self,
         cx: &mut Context<Self>,
-        is_fido: bool,
         hardware_config_disabled: bool,
     ) -> impl IntoElement {
         let power_cycle_listener = cx.listener(|this, checked, _, cx| {
@@ -195,59 +194,98 @@ impl ConfigViewModel {
             cx.notify();
         });
 
-        let secp_listener = cx.listener(|this, checked, _, cx| {
-            this.enable_secp256k1 = *checked;
-            cx.notify();
-        });
-
         let theme = cx.theme();
 
-        let content = v_flex()
-            .gap_4()
-            .child(
-                gpui_component::h_flex()
-                    .items_center()
-                    .justify_between()
-                    .child(
-                        v_flex().gap_0p5().child("Power Cycle on Reset").child(
-                            div()
-                                .text_sm()
-                                .text_color(theme.muted_foreground)
-                                .child("Restart device on reset"),
-                        ),
-                    )
-                    .child(
-                        Switch::new("power-cycle")
-                            .checked(self.power_cycle)
-                            .disabled(hardware_config_disabled)
-                            .on_click(power_cycle_listener),
+        let content = v_flex().gap_4().child(
+            gpui_component::h_flex()
+                .items_center()
+                .justify_between()
+                .child(
+                    v_flex().gap_0p5().child("Power Cycle on Reset").child(
+                        div()
+                            .text_sm()
+                            .text_color(theme.muted_foreground)
+                            .child("Restart device on reset"),
                     ),
-            )
-            .child(
-                gpui_component::h_flex()
-                    .items_center()
-                    .justify_between()
-                    .child(
-                        v_flex().gap_0p5().child("Enable Secp256k1").child(
-                            div()
-                                .text_sm()
-                                .text_color(theme.muted_foreground)
-                                .child("Does not work on Android!"),
-                        ),
-                    )
-                    .child(
-                        Switch::new("enable-secp")
-                            .checked(self.enable_secp256k1)
-                            .disabled(is_fido)
-                            .on_click(secp_listener),
-                    ),
-            );
+                )
+                .child(
+                    Switch::new("power-cycle")
+                        .checked(self.power_cycle)
+                        .disabled(hardware_config_disabled)
+                        .on_click(power_cycle_listener),
+                ),
+        );
 
         Card::new()
             .title("Device Options")
             .description("Toggle advanced features")
             .icon(Icon::default().path("icons/settings.svg"))
             .child(content)
+    }
+
+    fn render_curves_card(&mut self, cx: &mut Context<Self>, is_fido: bool) -> impl IntoElement {
+        let theme = cx.theme();
+        let mut rows = v_flex().gap_4();
+
+        let curves = [
+            ("curve-p256", "P-256 (secp256r1)", self.curve_p256),
+            ("curve-p384", "P-384 (secp384r1)", self.curve_p384),
+            ("curve-p521", "P-521 (secp521r1)", self.curve_p521),
+            ("curve-k1", "secp256k1 (Bitcoin)", self.curve_secp256k1),
+            ("curve-bp256", "Brainpool 256r1", self.curve_bp256),
+            ("curve-bp384", "Brainpool 384r1", self.curve_bp384),
+            ("curve-bp512", "Brainpool 512r1", self.curve_bp512),
+            ("curve-ed25519", "Ed25519", self.curve_ed25519),
+            ("curve-ed448", "Ed448", self.curve_ed448),
+            ("curve-x25519", "X25519", self.curve_x25519),
+            ("curve-x448", "X448", self.curve_x448),
+        ];
+
+        for (id, label, checked) in curves {
+            let toggle_listener = cx.listener(move |this, checked, _, cx| {
+                match id {
+                    "curve-p256" => this.curve_p256 = *checked,
+                    "curve-p384" => this.curve_p384 = *checked,
+                    "curve-p521" => this.curve_p521 = *checked,
+                    "curve-k1" => this.curve_secp256k1 = *checked,
+                    "curve-bp256" => this.curve_bp256 = *checked,
+                    "curve-bp384" => this.curve_bp384 = *checked,
+                    "curve-bp512" => this.curve_bp512 = *checked,
+                    "curve-ed25519" => this.curve_ed25519 = *checked,
+                    "curve-ed448" => this.curve_ed448 = *checked,
+                    "curve-x25519" => this.curve_x25519 = *checked,
+                    "curve-x448" => this.curve_x448 = *checked,
+                    _ => {}
+                }
+                cx.notify();
+            });
+
+            rows = rows.child(
+                gpui_component::h_flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        v_flex().gap_0p5().child(label).child(
+                            div()
+                                .text_sm()
+                                .text_color(theme.muted_foreground)
+                                .child("Cryptographic curve"),
+                        ),
+                    )
+                    .child(
+                        Switch::new(id)
+                            .checked(checked)
+                            .disabled(is_fido)
+                            .on_click(toggle_listener),
+                    ),
+            );
+        }
+
+        Card::new()
+            .title("Supported Curves")
+            .description("Enable or disable cryptographic curves for RS-Key")
+            .icon(Icon::default().path("icons/shield.svg"))
+            .child(rows)
     }
 
     fn render_rskey_led_card(&mut self, cx: &mut Context<Self>, is_fido: bool) -> impl IntoElement {
@@ -595,7 +633,7 @@ impl Render for ConfigViewModel {
             .render_led_card(cx, fido_no_rskey, hardware_config_disabled)
             .into_any_element();
         let options_card = self
-            .render_options_card(cx, fido_no_rskey, hardware_config_disabled)
+            .render_options_card(cx, hardware_config_disabled)
             .into_any_element();
 
         let identity_card = self
@@ -613,9 +651,11 @@ impl Render for ConfigViewModel {
         if is_rskey {
             // RS-Key cards always enabled in FIDO mode — they work via
             // CONFIG_WRITE with PIN token.
+            let rskey_curves = self.render_curves_card(cx, false).into_any_element();
             let rskey_led = self.render_rskey_led_card(cx, false).into_any_element();
             let rskey_apps = self.render_rskey_apps_card(cx, false).into_any_element();
             let rskey_usb_itf = self.render_rskey_usb_itf_card(cx, false).into_any_element();
+            grid_children.push(rskey_curves);
             grid_children.push(rskey_led);
             grid_children.push(rskey_apps);
             grid_children.push(rskey_usb_itf);

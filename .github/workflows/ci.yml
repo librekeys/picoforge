@@ -37,6 +37,12 @@ jobs:
       - name: Run clippy
         run: nix develop --command cargo clippy --all-targets -- -D warnings
 
+      - name: Check for missing documentation
+        run: nix develop --command bash -c 'RUSTFLAGS="-D missing_docs" cargo check --all-targets'
+
+      - name: Check documentation builds cleanly
+        run: nix develop --command bash -c 'RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --document-private-items'
+
       - name: Build project
         run: nix develop --command cargo build --verbose
 

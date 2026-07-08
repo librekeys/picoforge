@@ -1,11 +1,13 @@
 //! View model for the configuration screen — form state and save logic.
 
+use crate::hal::types::{AppConfig, RescueCurves};
 use crate::ui::app::AppModels;
 use crate::ui::components::dialog::PinPromptContent;
 use crate::ui::components::{dialog, dialog::StatusContent};
 use crate::ui::models::device::{
     AppConfigInput, DeviceEvent, DeviceMethod, DeviceRepo, FullDeviceStatus, LedStatusConfig,
 };
+
 use gpui::*;
 use gpui_component::input::InputState;
 use gpui_component::select::{SelectItem, SelectState};
@@ -211,7 +213,6 @@ pub struct ConfigViewModel {
     pub(super) led_steady: bool,
     pub(super) touch_timeout_input: Entity<InputState>,
     pub(super) power_cycle: bool,
-    pub(super) enable_secp256k1: bool,
     pub(super) loading: bool,
     pub(super) is_custom_vendor: bool,
 
@@ -222,6 +223,19 @@ pub struct ConfigViewModel {
     pub(super) usb_apps_supported: u16,
     pub(super) usb_apps_enabled: u16,
     pub(super) enabled_usb_itf: Option<u8>,
+
+    // Curve toggles — initialized from raw_curves_mask, rebuilt into mask on save.
+    pub(super) curve_p256: bool,
+    pub(super) curve_p384: bool,
+    pub(super) curve_p521: bool,
+    pub(super) curve_secp256k1: bool,
+    pub(super) curve_bp256: bool,
+    pub(super) curve_bp384: bool,
+    pub(super) curve_bp512: bool,
+    pub(super) curve_ed25519: bool,
+    pub(super) curve_ed448: bool,
+    pub(super) curve_x25519: bool,
+    pub(super) curve_x448: bool,
 
     pub(super) _task: Option<Task<()>>,
 }
@@ -257,8 +271,11 @@ impl ConfigViewModel {
         let led_dimmable = config.map(|c| c.led_dimmable).unwrap_or(true);
         let led_steady = config.map(|c| c.led_steady).unwrap_or(false);
         let power_cycle = config.map(|c| c.power_cycle_on_reset).unwrap_or(false);
-        let enable_secp256k1 = config.map(|c| c.enable_secp256k1).unwrap_or(true);
         let enabled_usb_itf = config.and_then(|c| c.enabled_usb_itf);
+        let curves = config
+            .and_then(|c| c.raw_curves_mask)
+            .map(RescueCurves::from_bits_truncate)
+            .unwrap_or(RescueCurves::empty());
         let current_driver_val = config.and_then(|c| c.led_driver).unwrap_or(0);
 
         let mut led_status_steady = false;
@@ -383,7 +400,17 @@ impl ConfigViewModel {
             led_steady,
             touch_timeout_input,
             power_cycle,
-            enable_secp256k1,
+            curve_p256: curves.contains(RescueCurves::SECP256R1),
+            curve_p384: curves.contains(RescueCurves::SECP384R1),
+            curve_p521: curves.contains(RescueCurves::SECP521R1),
+            curve_secp256k1: curves.contains(RescueCurves::SECP256K1),
+            curve_bp256: curves.contains(RescueCurves::BP256R1),
+            curve_bp384: curves.contains(RescueCurves::BP384R1),
+            curve_bp512: curves.contains(RescueCurves::BP512R1),
+            curve_ed25519: curves.contains(RescueCurves::ED25519),
+            curve_ed448: curves.contains(RescueCurves::ED448),
+            curve_x25519: curves.contains(RescueCurves::CURVE25519),
+            curve_x448: curves.contains(RescueCurves::CURVE448),
             loading: false,
             is_custom_vendor,
             led_status_steady,
@@ -453,17 +480,23 @@ impl ConfigViewModel {
 
             let dialog = dialog_handle;
 
-            // Tell the user to look at their key!
+            // Tell the user to press the button — RS-Key firmware requires
+            // user presence for config writes on both FIDO and Rescue paths.
             cx.update(|cx| {
+                let msg = if method_clone == DeviceMethod::Fido {
+                    "Applying configuration... Touch your device if it flashes."
+                } else {
+                    "Applying configuration... Press the device button to confirm."
+                };
                 match &dialog {
                     StatusDialogHandle::Pin(dh) => {
                         let _ = dh.update(cx, |d, cx| {
-                            d.set_loading_msg("Applying configuration... Please touch your device if it flashes.", cx);
+                            d.set_loading_msg(msg, cx);
                         });
                     }
                     StatusDialogHandle::Status(dh) => {
                         let _ = dh.update(cx, |d, cx| {
-                            d.set_loading("Applying configuration... Please touch your device if it flashes.", cx);
+                            d.set_loading(msg, cx);
                         });
                     }
                 }
@@ -507,7 +540,7 @@ impl ConfigViewModel {
                                 this.led_dimmable = config.led_dimmable;
                                 this.led_steady = config.led_steady;
                                 this.power_cycle = config.power_cycle_on_reset;
-                                this.enable_secp256k1 = config.enable_secp256k1;
+                                Self::sync_curve_toggles(this, Some(config));
 
                                 this.device.update(cx, |repo, repo_cx| {
                                     repo.apply_fresh_state(fs.clone(), repo_cx);
@@ -610,7 +643,6 @@ impl ConfigViewModel {
         let current_led_dimmable = status.config.led_dimmable;
         let current_led_steady = status.config.led_steady;
         let current_power_cycle = status.config.power_cycle_on_reset;
-        let current_enable_secp256k1 = status.config.enable_secp256k1;
         let current_enabled_usb_itf = status.config.enabled_usb_itf;
         let raw_curves_mask = status.config.raw_curves_mask;
         let led_order = status.config.led_order;
@@ -676,7 +708,10 @@ impl ConfigViewModel {
             has_changes = true;
         }
 
-        if self.enable_secp256k1 != current_enable_secp256k1 {
+        let new_curves_mask = Self::curves_mask_from_toggles(self);
+        let has_curve_changes = Some(new_curves_mask) != raw_curves_mask
+            || (raw_curves_mask.is_none() && new_curves_mask != 0);
+        if has_curve_changes {
             has_changes = true;
         }
 
@@ -691,6 +726,11 @@ impl ConfigViewModel {
             return;
         }
 
+        let built_curves_mask = if has_curve_changes {
+            Some(new_curves_mask)
+        } else {
+            raw_curves_mask
+        };
         let changes = AppConfigInput {
             vid: Some(vid),
             pid: Some(pid),
@@ -702,8 +742,8 @@ impl ConfigViewModel {
             led_dimmable: Some(self.led_dimmable),
             power_cycle_on_reset: Some(self.power_cycle),
             led_steady: Some(self.led_steady),
-            enable_secp256k1: Some(self.enable_secp256k1),
-            raw_curves_mask,
+            enable_secp256k1: None,
+            raw_curves_mask: built_curves_mask,
             led_order,
             enabled_usb_itf: final_enabled_usb_itf,
             led_num: None,
@@ -734,6 +774,42 @@ impl ConfigViewModel {
                 cx,
             );
         }
+    }
+
+    /// Build the curves bitmask from the current toggle states.
+    fn curves_mask_from_toggles(&self) -> u32 {
+        let mut mask = RescueCurves::empty();
+        mask.set(RescueCurves::SECP256R1, self.curve_p256);
+        mask.set(RescueCurves::SECP384R1, self.curve_p384);
+        mask.set(RescueCurves::SECP521R1, self.curve_p521);
+        mask.set(RescueCurves::SECP256K1, self.curve_secp256k1);
+        mask.set(RescueCurves::BP256R1, self.curve_bp256);
+        mask.set(RescueCurves::BP384R1, self.curve_bp384);
+        mask.set(RescueCurves::BP512R1, self.curve_bp512);
+        mask.set(RescueCurves::ED25519, self.curve_ed25519);
+        mask.set(RescueCurves::ED448, self.curve_ed448);
+        mask.set(RescueCurves::CURVE25519, self.curve_x25519);
+        mask.set(RescueCurves::CURVE448, self.curve_x448);
+        mask.bits()
+    }
+
+    /// Sync all curve toggle fields from a device config.
+    fn sync_curve_toggles(&mut self, config: Option<&AppConfig>) {
+        let curves = config
+            .and_then(|c| c.raw_curves_mask)
+            .map(RescueCurves::from_bits_truncate)
+            .unwrap_or(RescueCurves::empty());
+        self.curve_p256 = curves.contains(RescueCurves::SECP256R1);
+        self.curve_p384 = curves.contains(RescueCurves::SECP384R1);
+        self.curve_p521 = curves.contains(RescueCurves::SECP521R1);
+        self.curve_secp256k1 = curves.contains(RescueCurves::SECP256K1);
+        self.curve_bp256 = curves.contains(RescueCurves::BP256R1);
+        self.curve_bp384 = curves.contains(RescueCurves::BP384R1);
+        self.curve_bp512 = curves.contains(RescueCurves::BP512R1);
+        self.curve_ed25519 = curves.contains(RescueCurves::ED25519);
+        self.curve_ed448 = curves.contains(RescueCurves::ED448);
+        self.curve_x25519 = curves.contains(RescueCurves::CURVE25519);
+        self.curve_x448 = curves.contains(RescueCurves::CURVE448);
     }
 
     pub(super) fn status_supports_legacy_fido_config(status: &FullDeviceStatus) -> bool {
@@ -768,7 +844,7 @@ impl ConfigViewModel {
         self.led_dimmable = config.map(|c| c.led_dimmable).unwrap_or(true);
         self.led_steady = config.map(|c| c.led_steady).unwrap_or(false);
         self.power_cycle = config.map(|c| c.power_cycle_on_reset).unwrap_or(false);
-        self.enable_secp256k1 = config.map(|c| c.enable_secp256k1).unwrap_or(true);
+        Self::sync_curve_toggles(self, config);
 
         let brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
 

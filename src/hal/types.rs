@@ -207,6 +207,9 @@ pub struct StoredCredential {
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
+/// Re-export curve bitflags for use by UI components.
+pub use crate::hal::rescue::constants::RescueCurves;
+
 /// AAGUID assigned to RS-Key hardware.
 pub const RSKEY_AAGUID: &str = "2479C7BF6B3056839EC80E8171A918B7";
 /// AAGUID assigned to Pico-Fido hardware.

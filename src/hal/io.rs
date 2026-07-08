@@ -2,8 +2,8 @@
 //!
 //! Each public function here selects the appropriate protocol path based
 //! on the detected firmware type or an explicit [`DeviceMethod`] parameter.
-//! Some functions (e.g. `read_device_details`) try FIDO first and merge
-//! results from Rescue to produce a complete status snapshot.
+//! Some functions (e.g. `read_device_details`) try Rescue (PC/SC) first,
+//! then FIDO, and merge results to produce a complete status snapshot.
 
 use crate::{
     error::PFError,
@@ -20,20 +20,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     let mut rescue_status: Option<FullDeviceStatus> = None;
     let mut rescue_fw_type: Option<FirmwareType> = None;
 
-    // Discover via FIDO/HID transport
-    match DeviceHandle::try_fido() {
-        Ok(Some((_handle, _identity))) => match fido::read_device_details() {
-            Ok(status) => {
-                log::info!("FIDO device details read successfully");
-                fido_status = Some(status);
-            }
-            Err(e) => log::warn!("FIDO read_device_details failed: {}", e),
-        },
-        Ok(None) => log::info!("No FIDO HID device found"),
-        Err(e) => log::warn!("FIDO HID discovery error: {}", e),
-    }
-
-    // Discover via Rescue/PC/SC transport
+    // Discover via Rescue/PC/SC transport (preferred for richer details)
     match DeviceHandle::try_rescue() {
         Ok(Some((handle, _identity))) => {
             rescue_fw_type = Some(handle.firmware_type());
@@ -47,6 +34,19 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         }
         Ok(None) => log::info!("No Rescue PC/SC device found"),
         Err(e) => log::warn!("Rescue PC/SC discovery error: {}", e),
+    }
+
+    // Discover via FIDO/HID transport (fallback for FIDO-only details)
+    match DeviceHandle::try_fido() {
+        Ok(Some((_handle, _identity))) => match fido::read_device_details() {
+            Ok(status) => {
+                log::info!("FIDO device details read successfully");
+                fido_status = Some(status);
+            }
+            Err(e) => log::warn!("FIDO read_device_details failed: {}", e),
+        },
+        Ok(None) => log::info!("No FIDO HID device found"),
+        Err(e) => log::warn!("FIDO HID discovery error: {}", e),
     }
 
     match (fido_status, rescue_status) {
@@ -92,7 +92,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                 },
                 secure_boot: rescue.secure_boot,
                 secure_lock: rescue.secure_lock,
-                method: DeviceMethod::Fido,
+                method: DeviceMethod::Rescue,
                 firmware_type: fido.firmware_type,
             })
         }

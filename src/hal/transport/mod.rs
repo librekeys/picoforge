@@ -9,9 +9,10 @@
 //!   a PC/SC smart-card reader. Used when the device is in rescue/bootloader mode
 //!   or when FIDO commands are blocked (e.g. firmware version ≥ 7.4 on pico-fido).
 //!
-//! The [`DeviceHandle::discover`] method tries FIDO HID first and falls back to
-//! PC/SC. This ensures normal operation prefers the faster HID path while still
-//! allowing rescue access when needed.
+//! The [`DeviceHandle::discover`] method tries PC/SC first and falls back to
+//! FIDO HID. The PC/SC rescue channel provides richer device details (serial,
+//! flash stats, secure boot) and does not require PIN authentication for
+//! configuration writes.
 
 use std::fmt;
 
@@ -76,18 +77,9 @@ impl DeviceHandle {
         }
     }
 
-    /// Try to discover a device via FIDO HID first, falling back to Rescue PC/SC.
+    /// Try to discover a device via Rescue PC/SC first, falling back to FIDO HID.
     #[allow(dead_code)]
     pub fn discover() -> Result<(Self, DeviceIdentity), PFError> {
-        match Self::try_fido() {
-            Ok(Some((handle, identity))) => {
-                log::info!("Device discovered via FIDO HID transport");
-                return Ok((handle, identity));
-            }
-            Ok(None) => log::info!("No FIDO HID device found"),
-            Err(e) => log::warn!("FIDO HID discovery error: {}", e),
-        }
-
         match Self::try_rescue() {
             Ok(Some((handle, identity))) => {
                 log::info!("Device discovered via Rescue PC/SC transport");
@@ -95,6 +87,15 @@ impl DeviceHandle {
             }
             Ok(None) => log::info!("No Rescue PC/SC device found"),
             Err(e) => log::warn!("Rescue PC/SC discovery error: {}", e),
+        }
+
+        match Self::try_fido() {
+            Ok(Some((handle, identity))) => {
+                log::info!("Device discovered via FIDO HID transport");
+                return Ok((handle, identity));
+            }
+            Ok(None) => log::info!("No FIDO HID device found"),
+            Err(e) => log::warn!("FIDO HID discovery error: {}", e),
         }
 
         Err(PFError::NoDevice)
