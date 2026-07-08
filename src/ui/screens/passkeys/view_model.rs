@@ -1,3 +1,5 @@
+//! View model for the passkeys screen — credential listing and management.
+
 use crate::ui::app::AppModels;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::{
@@ -8,6 +10,7 @@ use gpui::*;
 use gpui_component::button::ButtonVariants;
 use gpui_component::{ActiveTheme, StyledExt, WindowExt};
 
+/// Credential state, PIN management, and FIDO storage operations.
 pub struct PasskeysViewModel {
     pub(super) device: Entity<DeviceRepo>,
     pub(super) credentials: Vec<StoredCredential>,
@@ -20,6 +23,7 @@ pub struct PasskeysViewModel {
     pub(super) _task: Option<Task<()>>,
 }
 
+/// Events emitted by [`PasskeysViewModel`] to notify the parent of UI-level actions.
 pub enum PasskeysEvent {
     Notification(String),
 }

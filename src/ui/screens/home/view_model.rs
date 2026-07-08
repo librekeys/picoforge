@@ -1,7 +1,10 @@
+//! View model for the home screen — tracks device connection state and polling.
+
 use crate::ui::app::AppModels;
 use crate::ui::models::device::{DeviceEvent, DeviceRepo};
 use gpui::*;
 
+/// Application state and device-detection polling for the home screen.
 pub struct HomeViewModel {
     pub device: Entity<DeviceRepo>,
 }

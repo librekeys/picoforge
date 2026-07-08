@@ -1,3 +1,11 @@
+//! Logging initialisation with log4rs.
+//!
+//! Sets up a rolling-file appender (10 MB per file, delete-oldest policy)
+//! and a console appender. The `picoforge` logger defaults to `Trace` in
+//! debug builds and `Info` in release builds; verbose third-party
+//! loggers (`gpui`, `gpui_component`, `blade_graphics`) are capped at
+//! `Error` to reduce noise.
+
 use directories::ProjectDirs;
 use log::LevelFilter;
 use log4rs::{

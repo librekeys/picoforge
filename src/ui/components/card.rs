@@ -1,8 +1,11 @@
+//! Reusable card component for grouping related content with an optional header.
+
 #![allow(unused)]
 
 use gpui::*;
 use gpui_component::{ActiveTheme, Icon, Theme, h_flex, v_flex};
 
+/// A titled card panel with optional description, icon, and header-right slot.
 #[derive(IntoElement)]
 pub struct Card {
     title: Option<SharedString>,

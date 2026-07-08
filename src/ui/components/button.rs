@@ -1,3 +1,5 @@
+//! Reusable styled button and icon-button components.
+
 #![allow(unused)]
 
 use crate::ui::colors;

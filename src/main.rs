@@ -1,3 +1,5 @@
+#![deny(missing_docs)]
+
 //! # PicoForge
 //!
 //! An open-source commissioning and management tool for **Pico FIDO** hardware security keys.
@@ -144,16 +146,29 @@
 //! │   ├── error.rs                        # Application-wide error types (PFError)
 //! │   ├── logging.rs                      # log4rs configuration
 //! │   ├── hal/                            # Hardware abstraction layer
-//! │   │   ├── mod.rs                      # Module root, re-exports
-//! │   │   ├── io.rs                       # High-level API bridging rescue and FIDO
+//! │   │   ├── mod.rs                      # Module root
+//! │   │   ├── io.rs                       # High-level dispatch across protocols
 //! │   │   ├── types.rs                    # Shared data structures
-//! │   │   ├── rescue/                     # Rescue applet (PC/SC protocol)
+//! │   │   ├── common/                     # COSE enums, version parsing
 //! │   │   │   ├── mod.rs
-//! │   │   │   └── constants.rs
-//! │   │   └── fido/                       # FIDO2/CTAP2 protocol
+//! │   │   │   ├── cose.rs
+//! │   │   │   └── version.rs
+//! │   │   ├── firmwares/                  # Per-firmware capability gating
+//! │   │   │   ├── mod.rs
+//! │   │   │   ├── picofido.rs
+//! │   │   │   └── rskey.rs
+//! │   │   ├── transport/                  # Physical transport abstractions
+//! │   │   │   ├── mod.rs
+//! │   │   │   ├── fido.rs                 # CTAPHID over USB HID
+//! │   │   │   └── pcsc.rs                 # ISO 7816-4 over PC/SC
+//! │   │   ├── fido/                       # FIDO2/CTAP2 protocol
+//! │   │   │   ├── mod.rs
+//! │   │   │   ├── constants.rs
+//! │   │   │   └── ops.rs                  # PIN, credential mgmt, vendor cmds
+//! │   │   └── rescue/                     # Rescue applet (PC/SC APDU)
 //! │   │       ├── mod.rs
-//! │   │       ├── constants.rs
-//! │   │       └── hid.rs                  # USB HID transport
+//! │   │       ├── constants.rs            # ISO 7816-4, PHY tags, vendor AIDs
+//! │   │       └── ops.rs                  # Device config, reboot, LED, mgmt
 //! │   └── ui/                             # GPUI frontend
 //! │       ├── mod.rs
 //! │       ├── app.rs                      # ApplicationRoot, AppModels, layout, Render
@@ -332,7 +347,7 @@
 //! ### Key Design Principles
 //!
 //! 1. **HAL Gateway Pattern**: Views and ViewModels never import `crate::hal`.
-//!    [`DeviceRepo`] is the sole bridge — it re-exports all needed types and
+//!    [`DeviceRepo`](crate::ui::models::device::DeviceRepo) is the sole bridge — it re-exports all needed types and
 //!    provides `*_blocking()` static methods for background tasks.
 //!
 //! 2. **Protocol Abstraction**: The `io.rs` layer provides a unified API that

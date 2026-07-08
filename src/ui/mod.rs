@@ -19,7 +19,7 @@
 //!   determines which screen is displayed.
 //! * **View-model registry** — [`ViewModelStore`](app::ViewModelStore) that
 //!   lazily initializes each screen's view-model on first navigation.
-//! * **Sidebar** — [`Entity<AppSidebar>`] that owns its own collapse state, width
+//! * **Sidebar** — `Entity<[`AppSidebar`](crate::ui::components::sidebar::AppSidebar)>` that owns its own collapse state, width
 //!   animation, and toggle hover state. The toggle button is rendered by
 //!   [`ApplicationRoot`](app::ApplicationRoot) as the last child of `main-area`
 //!   so it paints on top of the content column.
@@ -127,14 +127,15 @@
 //!
 //! ## Navigation & Data Flow
 //!
-//! 1. [`AppSidebar`] emits [`SidebarEvent::Navigate`] when a nav item is clicked.
-//!    [`ApplicationRoot`] receives it via `cx.subscribe` and sets `active_destination`.
+//! 1. [`AppSidebar`](crate::ui::components::sidebar::AppSidebar) emits
+//!    [`SidebarEvent::Navigate`](crate::ui::components::sidebar::SidebarEvent::Navigate) when a nav item is clicked.
+//!    [`ApplicationRoot`](crate::ui::app::ApplicationRoot) receives it via `cx.subscribe` and sets `active_destination`.
 //! 2. `ApplicationRoot::render` reads `active_destination` to decide which screen
 //!    to display. Each screen's view-model is lazily created via `get_or_insert_with`
 //!    on `ViewModelStore`. Passkeys survives navigation (only invalidated on device change).
-//! 3. [`DeviceRepo::refresh()`] (called at startup and on sidebar refresh) performs the
+//! 3. [`DeviceRepo::refresh()`](crate::ui::models::device::DeviceRepo::refresh) (called at startup and on sidebar refresh) performs the
 //!    full HAL poll cycle — reads device details, FIDO info, LED/management config — and
-//!    emits [`DeviceEvent::Updated`]. All subscribers re-read from `DeviceRepo`.
+//!    emits [`DeviceEvent::Updated`](crate::ui::models::device::DeviceEvent::Updated). All subscribers re-read from `DeviceRepo`.
 //! 4. For writes, ViewModels call `DeviceRepo::*_blocking()` static methods from background
 //!    tasks, then push fresh state via `repo.apply_fresh_state()`, which emits the event.
 //! 5. Screen view-models read `DeviceRepo` in their `Render` or event handlers

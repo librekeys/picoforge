@@ -1,3 +1,5 @@
+//! Modal dialog components for PIN prompts, confirmations, and status display.
+
 use gpui::*;
 use gpui_component::{
     ActiveTheme, Disableable, Sizable, WindowExt,
@@ -24,6 +26,7 @@ enum DialogPhase {
     Error(String),
 }
 
+/// Dialog content for collecting the FIDO PIN from the user.
 pub struct PinPromptContent {
     phase: DialogPhase,
     title: SharedString,
@@ -36,16 +39,24 @@ pub struct PinPromptContent {
 }
 
 impl PinPromptContent {
+    /// Transition the dialog to a loading state with the given message.
+    pub fn set_loading_msg(&mut self, msg: impl Into<String>, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::LoadingWithMessage(msg.into());
+        cx.notify();
+    }
+
     fn set_loading(&mut self, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Loading;
         cx.notify();
     }
 
+    /// Transition the dialog to a success state.
     pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Success(msg);
         cx.notify();
     }
 
+    /// Transition the dialog to an error state with the given message.
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
@@ -95,23 +106,29 @@ impl Render for PinPromptContent {
                 )
                 .into_any_element(),
 
-            DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => v_flex()
-                .gap_4()
-                .child(self.description.clone())
-                .child(Input::new(&self.pin_input).disabled(true))
-                .child(
-                    h_flex()
-                        .justify_end()
-                        .gap_2()
-                        .child(Button::new("cancel").label("Cancel").disabled(true))
-                        .child(
-                            Button::new("confirm")
-                                .primary()
-                                .label("Loading...")
-                                .loading(true),
-                        ),
-                )
-                .into_any_element(),
+            DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => {
+                let text = match &self.phase {
+                    DialogPhase::LoadingWithMessage(msg) => msg.clone(),
+                    _ => self.description.to_string(),
+                };
+                v_flex()
+                    .gap_4()
+                    .child(text)
+                    .child(Input::new(&self.pin_input).disabled(true))
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(Button::new("cancel").label("Cancel").disabled(true))
+                            .child(
+                                Button::new("confirm")
+                                    .primary()
+                                    .label("Loading...")
+                                    .loading(true),
+                            ),
+                    )
+                    .into_any_element()
+            }
 
             DialogPhase::Error(err_msg) => {
                 let pin_input = self.pin_input.clone();
@@ -260,6 +277,7 @@ impl Render for PinPromptContent {
     }
 }
 
+/// Open a PIN prompt dialog and return the submitted PIN.
 pub fn open_pin_prompt(
     title: &str,
     description: &str,
@@ -311,6 +329,7 @@ pub fn open_pin_prompt(
     });
 }
 
+/// Dialog content for confirming a destructive or irreversible action.
 pub struct ConfirmContent {
     phase: DialogPhase,
     title: SharedString,
@@ -326,11 +345,13 @@ impl ConfirmContent {
         cx.notify();
     }
 
+    /// Transition the dialog to a success state.
     pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Success(msg);
         cx.notify();
     }
 
+    /// Transition the dialog to an error state with the given message.
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
@@ -464,6 +485,7 @@ impl Render for ConfirmContent {
     }
 }
 
+/// Open a confirmation dialog and return whether the user accepted.
 pub fn open_confirm(
     title: &str,
     message: String,
@@ -494,6 +516,7 @@ pub fn open_confirm(
     });
 }
 
+/// Dialog content for changing an existing FIDO PIN.
 pub struct ChangePinContent {
     phase: DialogPhase,
     current_pin: Entity<InputState>,
@@ -509,11 +532,13 @@ impl ChangePinContent {
         cx.notify();
     }
 
+    /// Transition the dialog to a success state.
     pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Success(msg);
         cx.notify();
     }
 
+    /// Transition the dialog to an error state with the given message.
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
@@ -759,6 +784,7 @@ impl Render for ChangePinContent {
     }
 }
 
+/// Open a dialog to change the FIDO PIN.
 pub fn open_change_pin(
     window: &mut Window,
     cx: &mut App,
@@ -811,6 +837,7 @@ pub fn open_change_pin(
     });
 }
 
+/// Dialog content for setting an initial FIDO PIN.
 pub struct SetPinContent {
     phase: DialogPhase,
     new_pin: Entity<InputState>,
@@ -825,11 +852,13 @@ impl SetPinContent {
         cx.notify();
     }
 
+    /// Transition the dialog to a success state.
     pub fn set_success(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Success(msg);
         cx.notify();
     }
 
+    /// Transition the dialog to an error state with the given message.
     pub fn set_error(&mut self, msg: String, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Error(msg);
         cx.notify();
@@ -1052,6 +1081,7 @@ impl Render for SetPinContent {
     }
 }
 
+/// Open a dialog to set an initial FIDO PIN.
 pub fn open_setup_pin(
     window: &mut Window,
     cx: &mut App,
@@ -1097,6 +1127,7 @@ pub fn open_setup_pin(
             .close_button(false)
     });
 }
+/// Dialog content for showing operation progress, success, or error.
 pub struct StatusContent {
     phase: DialogPhase,
     title: SharedString,
@@ -1215,6 +1246,7 @@ impl Render for StatusContent {
     }
 }
 
+/// Open a status dialog showing progress, success, or error state.
 pub fn open_status_dialog(
     title: &str,
     window: &mut Window,

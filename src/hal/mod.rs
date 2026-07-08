@@ -1,45 +1,42 @@
-//! Device communication layer for pico-forge.
+//! Hardware abstraction layer — all device communication lives here.
 //!
 //! ```text
-//! device/
-//! ├── mod.rs      — module root, re-exports submodules
-//! ├── io.rs       — high-level entry points (both protocols)
-//! ├── rescue.rs   — rescue / PC/SC protocol implementation
-//! ├── fido.rs     — FIDO2 / CTAP2 protocol implementation
-//! └── types.rs    — shared structs, enums, and constants
+//! hal/
+//! ├── mod.rs       — module root
+//! ├── io.rs        — high-level entry points dispatching across protocols
+//! ├── types.rs     — shared structs, enums, and constants
+//! ├── common/      — COSE algorithm/curve enums and firmware-version parsing
+//! │   ├── cose.rs
+//! │   └── version.rs
+//! ├── firmwares/   — per-firmware capability gating (PicoFido, RSKey)
+//! │   ├── picofido.rs
+//! │   └── rskey.rs
+//! ├── transport/   — physical transport abstractions (HID, PC/SC)
+//! │   ├── fido.rs  — CTAPHID framing over USB HID
+//! │   └── pcsc.rs  — ISO 7816-4 APDU over PC/SC
+//! ├── fido/        — FIDO2 / CTAP2 protocol implementation
+//! │   ├── constants.rs — CTAP2 command codes, CBOR keys, vendor commands
+//! │   └── ops.rs       — FidoOperations trait, PIN/credential management
+//! └── rescue/      — Rescue applet protocol (PC/SC APDU)
+//!     ├── constants.rs — ISO 7816-4 constants, PHY tags, vendor AIDs
+//!     └── ops.rs       — RescueOperations trait
 //! ```
 //!
-//! # Overview
+//! # Architecture
 //!
-//! The `device` module is the only place that talks to the hardware token.
-//! Everything above it (UI state, gpui-component views) depends on the
-//! public functions exported here; nothing below it should know about the
-//! communication details.
-//!
-//! Two protocols are used:
-//!
-//! - **Rescue (PC/SC)** — low-level APDU channel for firmware-level
-//!   configuration: secure boot, LED status, USB applet management, and
-//!   device reboot.  Implemented in [`rescue`].
-//!
-//! - **FIDO2 (CTAP2)** — standard authenticator protocol for credential
-//!   management, PIN operations, and enterprise attestation.
-//!   Implemented in [`fido`].
-//!
-//! [`io`] sits on top of both and exposes a single function per device
-//! operation.  Some functions dispatch to one protocol or the other based
-//! on a [`types::DeviceMethod`] flag; others try rescue first and fall back
-//! to FIDO on failure.
-//!
-//! # Adding a new device operation
-//!
-//! 1. Add any new structs/enums to [`types`].
-//! 2. Implement the raw protocol call in [`rescue`] or [`fido`].
-//! 3. Expose a high-level wrapper in [`io`] that picks the right protocol
-//!    and converts errors to the caller's expected type.
-//! 4. Wire the wrapper into a gpui-component view or action handler.
+//! [`types`] defines the data types shared across all submodules.
+//! [`firmwares`] provides [`AnyFirmware`](crate::hal::firmwares::AnyFirmware) with per-firmware capability
+//! checks (e.g. legacy vs new vendor commands).
+//! [`transport`] discovers the device and returns a [`DeviceHandle`](crate::hal::transport::DeviceHandle)
+//! wrapping either a FIDO HID or Rescue PC/SC connection.
+//! [`fido`] and [`rescue`] implement the protocol-level operations.
+//! [`io`] sits on top and exposes one function per device operation,
+//! selecting the correct protocol path based on the detected firmware.
 
+pub mod common;
 pub mod fido;
+pub mod firmwares;
 pub mod io;
 pub mod rescue;
+pub mod transport;
 pub mod types;

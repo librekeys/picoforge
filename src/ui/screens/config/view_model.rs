@@ -1,14 +1,17 @@
+//! View model for the configuration screen — form state and save logic.
+
 use crate::ui::app::AppModels;
 use crate::ui::components::dialog::PinPromptContent;
 use crate::ui::components::{dialog, dialog::StatusContent};
 use crate::ui::models::device::{
-    AppConfigInput, DeviceEvent, DeviceMethod, DeviceRepo, FullDeviceStatus,
+    AppConfigInput, DeviceEvent, DeviceMethod, DeviceRepo, FullDeviceStatus, LedStatusConfig,
 };
 use gpui::*;
 use gpui_component::input::InputState;
 use gpui_component::select::{SelectItem, SelectState};
 use gpui_component::slider::SliderState;
 
+/// Known USB vendor/product identity presets for various security keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UsbIdentityPreset {
     Custom,
@@ -120,6 +123,7 @@ impl UsbIdentityPreset {
     }
 }
 
+/// Supported LED driver types for the device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LedDriverType {
     PicoGpio = 1,
@@ -193,6 +197,7 @@ pub(super) enum StatusDialogHandle {
     Status(WeakEntity<StatusContent>),
 }
 
+/// Form state, input bindings, and save logic for the configuration screen.
 pub struct ConfigViewModel {
     pub(super) device: Entity<DeviceRepo>,
     pub(super) vendor_select: Entity<SelectState<Vec<VendorSelectOption>>>,
@@ -446,10 +451,32 @@ impl ConfigViewModel {
                 return;
             }
 
+            let dialog = dialog_handle;
+
+            // Tell the user to look at their key!
+            cx.update(|cx| {
+                match &dialog {
+                    StatusDialogHandle::Pin(dh) => {
+                        let _ = dh.update(cx, |d, cx| {
+                            d.set_loading_msg("Applying configuration... Please touch your device if it flashes.", cx);
+                        });
+                    }
+                    StatusDialogHandle::Status(dh) => {
+                        let _ = dh.update(cx, |d, cx| {
+                            d.set_loading("Applying configuration... Please touch your device if it flashes.", cx);
+                        });
+                    }
+                }
+            }).ok();
+
             let result = cx
                 .background_executor()
-                .spawn(async move { DeviceRepo::write_config_blocking(changes, method_clone, pin) })
+                .spawn(async move {
+                    DeviceRepo::write_config_blocking(changes, method_clone, pin)
+                })
                 .await;
+
+            let dialog_handle = dialog;
 
             let fresh_state = if result.is_ok() {
                 cx.background_executor()
@@ -516,6 +543,8 @@ impl ConfigViewModel {
 
                         if method == DeviceMethod::Fido && err_msg.contains("0x3E") {
                             err_msg = "The device firmware does not support being configured in fido only communication mode. \nHave a look at the troubleshooting guide to fix this".to_string();
+                        } else if method == DeviceMethod::Fido && err_msg.contains("0x27") {
+                            err_msg = "Configuration denied (Status: 0x27). This usually means the operation timed out waiting for you to touch the device's button, or the PIN token was rejected.".to_string();
                         }
 
                         match &dialog_handle {
@@ -677,10 +706,12 @@ impl ConfigViewModel {
             raw_curves_mask,
             led_order,
             enabled_usb_itf: final_enabled_usb_itf,
+            led_num: None,
         };
 
         if method == DeviceMethod::Fido {
-            if Self::status_supports_legacy_fido_config(status) {
+            let is_rskey = status.firmware_type == crate::ui::models::device::FirmwareType::RSKey;
+            if Self::status_supports_legacy_fido_config(status) || is_rskey {
                 self.open_pin_dialog(changes, window, cx);
             } else {
                 let handle =
@@ -707,7 +738,10 @@ impl ConfigViewModel {
 
     pub(super) fn status_supports_legacy_fido_config(status: &FullDeviceStatus) -> bool {
         status.method == DeviceMethod::Fido
-            && DeviceRepo::firmware_supports_legacy_fido_config(&status.info.firmware_version)
+            && DeviceRepo::firmware_supports_legacy_fido_config(
+                &status.firmware_type,
+                &status.info.firmware_version,
+            )
     }
 
     #[allow(dead_code)]
@@ -798,27 +832,194 @@ impl ConfigViewModel {
     }
 
     pub(super) fn apply_rskey_led_settings(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let steady = self.led_status_steady;
-        let colors = self.led_status_colors;
-        let brightnesses = self.led_status_brightness;
+        let config = LedStatusConfig {
+            steady: self.led_status_steady,
+            statuses: [
+                (self.led_status_colors[0], self.led_status_brightness[0]),
+                (self.led_status_colors[1], self.led_status_brightness[1]),
+                (self.led_status_colors[2], self.led_status_brightness[2]),
+                (self.led_status_colors[3], self.led_status_brightness[3]),
+            ],
+        };
 
+        let method = self
+            .device
+            .read(cx)
+            .status
+            .as_ref()
+            .map(|s| s.method.clone());
+
+        if method == Some(DeviceMethod::Fido) {
+            let view_handle = cx.entity().downgrade();
+            dialog::open_pin_prompt(
+                "Authentication Required",
+                "Enter your device PIN to update LED configuration.",
+                None,
+                "Confirm",
+                window,
+                cx,
+                move |pin, dialog_handle, cx| {
+                    let _ = view_handle.update(cx, |this, cx| {
+                        this.do_write_led_config(
+                            config.clone(),
+                            DeviceMethod::Fido,
+                            Some(pin),
+                            StatusDialogHandle::Pin(dialog_handle),
+                            cx,
+                        );
+                    });
+                },
+            );
+        } else {
+            let handle = dialog::open_status_dialog("Applying LED Configuration...", window, cx);
+            self.do_write_led_config(
+                config,
+                DeviceMethod::Rescue,
+                None,
+                StatusDialogHandle::Status(handle),
+                cx,
+            );
+        }
+    }
+
+    fn do_write_led_config(
+        &mut self,
+        config: LedStatusConfig,
+        method: DeviceMethod,
+        pin: Option<String>,
+        dialog_handle: StatusDialogHandle,
+        cx: &mut Context<Self>,
+    ) {
         self.loading = true;
-        let handle = dialog::open_status_dialog("Applying LED Configuration...", window, cx);
+        cx.notify();
+
+        let entity = cx.entity().downgrade();
+
+        self._task = Some(cx.spawn(async move |_, cx| {
+            let result = cx
+                .background_executor()
+                .spawn(async move { DeviceRepo::write_led_config_blocking(method, config, pin) })
+                .await;
+
+            let fresh_state = if result.is_ok() {
+                cx.background_executor()
+                    .spawn(async move { DeviceRepo::read_device_state_blocking().ok() })
+                    .await
+            } else {
+                None
+            };
+
+            let _ = entity.update(cx, |this, cx| {
+                this.loading = false;
+                match result {
+                    Ok(_) => {
+                        if let Some(fs) = fresh_state {
+                            this.device.update(cx, |repo, repo_cx| {
+                                repo.apply_fresh_state(fs, repo_cx);
+                            });
+                        }
+                        match &dialog_handle {
+                            StatusDialogHandle::Pin(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_success(
+                                        "LED configuration applied successfully.".to_string(),
+                                        cx,
+                                    );
+                                });
+                            }
+                            StatusDialogHandle::Status(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_success(
+                                        "LED configuration applied successfully.".to_string(),
+                                        cx,
+                                    );
+                                });
+                            }
+                        }
+                    }
+                    Err(e) => match &dialog_handle {
+                        StatusDialogHandle::Pin(dh) => {
+                            let _ = dh.update(cx, |d, cx| {
+                                d.set_error(format!("Failed to apply LED config: {}", e), cx);
+                            });
+                        }
+                        StatusDialogHandle::Status(dh) => {
+                            let _ = dh.update(cx, |d, cx| {
+                                d.set_error(format!("Failed to apply LED config: {}", e), cx);
+                            });
+                        }
+                    },
+                }
+                cx.notify();
+            });
+        }));
+    }
+
+    pub(super) fn apply_rskey_apps_settings(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let mask = self.usb_apps_enabled;
+
+        let method = self
+            .device
+            .read(cx)
+            .status
+            .as_ref()
+            .map(|s| s.method.clone());
+
+        if method == Some(DeviceMethod::Fido) {
+            let view_handle = cx.entity().downgrade();
+            dialog::open_pin_prompt(
+                "Authentication Required",
+                "Enter your device PIN to update USB application configuration.",
+                None,
+                "Confirm",
+                window,
+                cx,
+                move |pin, dialog_handle, cx| {
+                    let _ = view_handle.update(cx, |this, cx| {
+                        this.do_write_management_config(
+                            mask,
+                            DeviceMethod::Fido,
+                            Some(pin),
+                            StatusDialogHandle::Pin(dialog_handle),
+                            cx,
+                        );
+                    });
+                },
+            );
+        } else {
+            let handle = dialog::open_status_dialog("Applying USB Applications...", window, cx);
+            self.do_write_management_config(
+                mask,
+                DeviceMethod::Rescue,
+                None,
+                StatusDialogHandle::Status(handle),
+                cx,
+            );
+        }
+    }
+
+    fn do_write_management_config(
+        &mut self,
+        mask: u16,
+        method: DeviceMethod,
+        pin: Option<String>,
+        dialog_handle: StatusDialogHandle,
+        cx: &mut Context<Self>,
+    ) {
+        self.loading = true;
+        cx.notify();
+
         let entity = cx.entity().downgrade();
 
         self._task = Some(cx.spawn(async move |_, cx| {
             let result = cx
                 .background_executor()
                 .spawn(async move {
-                    for i in 0..4 {
-                        DeviceRepo::write_led_status_blocking(
-                            i as u8,
-                            colors[i],
-                            brightnesses[i],
-                            steady,
-                        )?;
-                    }
-                    Ok::<_, crate::error::PFError>(())
+                    DeviceRepo::write_management_config_blocking(method, mask, pin)
                 })
                 .await;
 
@@ -839,70 +1040,38 @@ impl ConfigViewModel {
                                 repo.apply_fresh_state(fs, repo_cx);
                             });
                         }
-                        let _ = handle.update(cx, |d, cx| {
-                            d.set_success(
-                                "LED configuration applied successfully.".to_string(),
-                                cx,
-                            );
-                        });
-                    }
-                    Err(e) => {
-                        let _ = handle.update(cx, |d, cx| {
-                            d.set_error(format!("Failed to apply LED config: {}", e), cx);
-                        });
-                    }
-                }
-                cx.notify();
-            });
-        }));
-    }
-
-    pub(super) fn apply_rskey_apps_settings(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let mask = self.usb_apps_enabled;
-
-        self.loading = true;
-        let handle = dialog::open_status_dialog("Applying USB Applications...", window, cx);
-        let entity = cx.entity().downgrade();
-
-        self._task = Some(cx.spawn(async move |_, cx| {
-            let result = cx
-                .background_executor()
-                .spawn(async move { DeviceRepo::write_management_config_blocking(mask) })
-                .await;
-
-            let fresh_state = if result.is_ok() {
-                cx.background_executor()
-                    .spawn(async move { DeviceRepo::read_device_state_blocking().ok() })
-                    .await
-            } else {
-                None
-            };
-
-            let _ = entity.update(cx, |this, cx| {
-                this.loading = false;
-                match result {
-                    Ok(_) => {
-                        if let Some(fs) = fresh_state {
-                            this.device.update(cx, |repo, repo_cx| {
-                                repo.apply_fresh_state(fs, repo_cx);
-                            });
+                        match &dialog_handle {
+                            StatusDialogHandle::Pin(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_success(
+                                        "USB applications updated successfully. Please re-plug the device.".to_string(),
+                                        cx,
+                                    );
+                                });
+                            }
+                            StatusDialogHandle::Status(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_success(
+                                        "USB applications updated successfully. Please re-plug the device.".to_string(),
+                                        cx,
+                                    );
+                                });
+                            }
                         }
-                        let _ = handle.update(cx, |d, cx| {
-                            d.set_success(
-                                "USB applications updated successfully. Please re-plug the device."
-                                    .to_string(),
-                                cx,
-                            );
-                        });
                     }
                     Err(e) => {
-                        let _ = handle.update(cx, |d, cx| {
-                            d.set_error(format!("Failed to apply USB applications: {}", e), cx);
-                        });
+                        match &dialog_handle {
+                            StatusDialogHandle::Pin(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_error(format!("Failed to apply USB applications: {}", e), cx);
+                                });
+                            }
+                            StatusDialogHandle::Status(dh) => {
+                                let _ = dh.update(cx, |d, cx| {
+                                    d.set_error(format!("Failed to apply USB applications: {}", e), cx);
+                                });
+                            }
+                        }
                     }
                 }
                 cx.notify();

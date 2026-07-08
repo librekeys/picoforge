@@ -1,12 +1,23 @@
-/// Custom error types for Pico Forge application.
+//! Application-wide error types.
+//!
+//! `PFError` is a single enum covering the four failure modes
+//! encountered during device discovery, communication, and I/O.
+//! Each variant carries enough context to render a user-facing message
+//! and to serialize through the UI layer.
+
+/// Custom error types for PicoForge operations.
 #[derive(Debug, thiserror::Error)]
 pub enum PFError {
+    /// No compatible FIDO device could be detected on any transport.
     #[error("No device found")]
     NoDevice,
+    /// Wrapped error from the PC/SC smart card subsystem.
     #[error("PCSC Error: {0}")]
     Pcsc(#[from] pcsc::Error),
+    /// An I/O or encoding/decoding failure (hex, CBOR, transport framing).
     #[error("IO/Hex Error: {0}")]
     Io(String),
+    /// A device-level error returned by the firmware or transport layer.
     #[error("Device Error: {0}")]
     Device(String),
 }

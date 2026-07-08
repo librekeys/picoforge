@@ -34,21 +34,31 @@ pub struct AppConfig {
     pub vid: String,
     pub pid: String,
     pub product_name: String,
+    /// GPIO pin the status LED is connected to.
     pub led_gpio: u8,
     pub led_brightness: u8,
+    /// Touch-button press timeout in seconds.
     pub touch_timeout: u8,
+    /// LED driver type identifier (e.g. PWM direct vs external driver).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub led_driver: Option<u8>,
     pub led_dimmable: bool,
     pub power_cycle_on_reset: bool,
+    /// When set, the LED stays on (not pulsed) for touch/processing states.
     pub led_steady: bool,
     pub enable_secp256k1: bool,
+    /// Bitmask of raw (unwrapped) curve identifiers supported by the firmware.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub raw_curves_mask: Option<u32>,
+    /// The order in which LED colours are sequenced during status transitions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub led_order: Option<u8>,
+    /// Bitmask of USB interface endpoints that are enabled.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enabled_usb_itf: Option<u8>,
+    /// Number of individual LEDs on the device.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub led_num: Option<u8>,
 }
 
 /// Partial config update; `None` fields are left unchanged on the device.
@@ -69,25 +79,34 @@ pub struct AppConfigInput {
     pub raw_curves_mask: Option<u32>,
     pub led_order: Option<u8>,
     pub enabled_usb_itf: Option<u8>,
+    pub led_num: Option<u8>,
 }
 
 /// Aggregated snapshot of device info, config, and security state.
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FullDeviceStatus {
+    /// Basic device identity and flash usage.
     pub info: DeviceInfo,
+    /// Full device configuration (USB descriptors, LED, touch, crypto).
     pub config: AppConfig,
+    /// Whether secure boot is enabled on the device.
     pub secure_boot: bool,
+    /// Whether the device's secure configuration is locked (read-only until reset).
     pub secure_lock: bool,
+    /// Protocol channel used for the last successful communication.
     pub method: DeviceMethod,
+    /// Detected firmware variant.
     pub firmware_type: FirmwareType,
 }
 
 /// Protocol channel used to communicate with the device.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum DeviceMethod {
+    /// Communication over FIDO HID (CTAPHID / CTAP2).
     #[serde(rename = "FIDO")]
     Fido,
+    /// Communication over PC/SC rescue channel (ISO 7816-4 APDU).
     Rescue,
 }
 
@@ -95,8 +114,13 @@ pub enum DeviceMethod {
 /// compatibility checks throughout the application.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub enum FirmwareType {
+    /// Pol Henarejos' pico-fido / pico-keys-sdk based firmware.
     PicoFido,
+    /// TheMaxMur's RS-Key firmware (SDK 5.x+).
     RSKey,
+    /// LibreKeys LK-ONE (pico-fido fork, same AAGUID as pico-fido).
+    LkOne,
+    /// Unrecognised or undetected firmware.
     #[default]
     Unknown,
 }
@@ -106,6 +130,7 @@ impl fmt::Display for FirmwareType {
         match self {
             Self::PicoFido => write!(f, "pico-fido"),
             Self::RSKey => write!(f, "RS-Key"),
+            Self::LkOne => write!(f, "LK-ONE"),
             Self::Unknown => write!(f, "Unknown"),
         }
     }
@@ -118,7 +143,10 @@ impl fmt::Display for FirmwareType {
 /// device status: Idle, Processing, Touch, Boot.
 #[derive(Serialize, Debug, Default, Clone, PartialEq)]
 pub struct LedStatusConfig {
+    /// Whether the LED stays on steady (true) or pulses (false).
     pub steady: bool,
+    /// Fixed array of `(color, brightness)` pairs indexed by device status:
+    /// Idle, Processing, Touch, Boot.
     pub statuses: [(u8, u8); 4],
 }
 
@@ -137,14 +165,20 @@ pub struct ManagementAppConfig {
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FidoDeviceInfo {
+    /// Supported CTAP versions reported by the authenticator.
     pub versions: Vec<String>,
+    /// Supported CTAP extensions.
     pub extensions: Vec<String>,
+    /// Authenticator Attestation GUID (hex-encoded, uppercase, no dashes).
     pub aaguid: String,
+    /// Authenticator options map from `authenticatorGetInfo`.
     pub options: std::collections::HashMap<String, bool>,
     pub max_msg_size: i128,
+    /// PIN/UV protocol versions supported.
     pub pin_protocols: Vec<u32>,
     pub remaining_discoverable_credentials: Option<i128>,
     pub min_pin_length: i128,
+    /// Firmware version as reported by the authenticator (may differ from the HAL-parsed version).
     pub firmware_version: String,
     /// Supported vendor config commands (human-readable names), parsed from CTAP GetInfo.
     pub vendor_config_commands: Vec<String>,
@@ -152,6 +186,7 @@ pub struct FidoDeviceInfo {
     pub certifications: std::collections::HashMap<String, bool>,
     pub max_credential_count_in_list: Option<i128>,
     pub max_credential_id_length: Option<i128>,
+    /// List of supported COSE algorithm display names.
     pub algorithms: Vec<String>,
     pub max_serialized_large_blob_array: Option<i128>,
     pub force_pin_change: Option<bool>,
@@ -176,3 +211,8 @@ pub struct StoredCredential {
 pub const RSKEY_AAGUID: &str = "2479C7BF6B3056839EC80E8171A918B7";
 /// AAGUID assigned to Pico-Fido hardware.
 pub const PICOFIDO_AAGUID: &str = "89FB94B706C936739B7E30526D968145";
+/// AAGUID assigned to LibreKeys LK-ONE hardware (same as pico-fido fork).
+pub const LKONE_AAGUID: &str = "89FB94B706C936739B7E30526D968145";
+/// LibreKeys USB VID:PID allocated by OpenMoko.
+pub const LKONE_VID: u16 = 0x1D50;
+pub const LKONE_PID: u16 = 0x619B;

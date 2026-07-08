@@ -1,3 +1,5 @@
+//! Application sidebar with navigation items and collapse support.
+
 use crate::ui::app::Destination;
 use crate::ui::components::button::PFIconButton;
 use crate::ui::models::device::{DeviceMethod, DeviceRepo};
@@ -43,14 +45,17 @@ impl AppSidebar {
         }
     }
 
+    /// The current animated sidebar width in pixels.
     pub fn current_width(&self) -> Pixels {
         self.current_width
     }
 
+    /// Whether the sidebar is currently collapsed.
     pub fn collapsed(&self) -> bool {
         self.collapsed
     }
 
+    /// Whether the sidebar toggle button is being hovered.
     pub fn toggle_hovered(&self) -> bool {
         self.toggle_hovered
     }

@@ -1,5 +1,8 @@
+//! Simple tag/badge component for displaying status or labels.
+
 use gpui::*;
 
+/// A small badge showing a status or category label.
 #[derive(IntoElement)]
 pub struct Tag {
     label: SharedString,

@@ -1,5 +1,11 @@
+//! Zinc color palette constants used throughout the UI layer.
+//!
+//! These map to the `picoforge-zinc.json` theme file and are referenced
+//! by name — never by hex value — in all component and screen code.
+
 // NOTE: This module is work in progress and more colors will be added. Also I am thinking of storing these as HSLA instead of u32 RGB values.
 // Reference: https://ui.shadcn.com/colors
+/// Zinc gray-scale palette constants (50–950).
 pub mod zinc {
     #![allow(unused)]
     pub const ZINC50: u32 = 0xfafafa;

@@ -37,6 +37,7 @@ pub struct ViewModelStore {
 }
 
 impl ViewModelStore {
+    /// Create an empty view-model store.
     pub fn new() -> Self {
         Self {
             home: None,

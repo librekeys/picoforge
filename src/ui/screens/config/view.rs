@@ -578,39 +578,44 @@ impl Render for ConfigViewModel {
         let device = self.device.read(cx);
         let status = device.status.clone();
         let is_fido = status.as_ref().map(|s| s.method.clone()) == Some(DeviceMethod::Fido);
+        let is_rskey = status.as_ref().map(|s| &s.firmware_type) == Some(&FirmwareType::RSKey);
+
         let supports_legacy_fido_config = status
             .as_ref()
             .map(ConfigViewModel::status_supports_legacy_fido_config)
             .unwrap_or(false);
-        let hardware_config_disabled = is_fido && !supports_legacy_fido_config;
+
+        let hardware_config_disabled = is_fido && !supports_legacy_fido_config && !is_rskey;
+
+        // RS-Key supports full config read/write over FIDO via CONFIG_READ/CONFIG_WRITE.
+        // Other firmwares (pico-fido) don't: product name, LED driver, curves, etc.
+        let fido_no_rskey = is_fido && !is_rskey;
 
         let led_card = self
-            .render_led_card(cx, is_fido, hardware_config_disabled)
+            .render_led_card(cx, fido_no_rskey, hardware_config_disabled)
             .into_any_element();
         let options_card = self
-            .render_options_card(cx, is_fido, hardware_config_disabled)
+            .render_options_card(cx, fido_no_rskey, hardware_config_disabled)
             .into_any_element();
 
         let identity_card = self
-            .render_identity_card(cx.theme(), is_fido, hardware_config_disabled)
+            .render_identity_card(cx.theme(), fido_no_rskey, hardware_config_disabled)
             .into_any_element();
         let touch_card = self
-            .render_touch_card(cx.theme(), is_fido)
+            .render_touch_card(cx.theme(), fido_no_rskey)
             .into_any_element();
 
         let is_wide = window.bounds().size.width > px(1100.0);
         let columns = if is_wide { 2 } else { 1 };
 
-        let is_rskey = status.as_ref().map(|s| &s.firmware_type) == Some(&FirmwareType::RSKey);
-
         let mut grid_children = vec![identity_card, led_card, touch_card, options_card];
 
         if is_rskey {
-            let rskey_led = self.render_rskey_led_card(cx, is_fido).into_any_element();
-            let rskey_apps = self.render_rskey_apps_card(cx, is_fido).into_any_element();
-            let rskey_usb_itf = self
-                .render_rskey_usb_itf_card(cx, is_fido)
-                .into_any_element();
+            // RS-Key cards always enabled in FIDO mode — they work via
+            // CONFIG_WRITE with PIN token.
+            let rskey_led = self.render_rskey_led_card(cx, false).into_any_element();
+            let rskey_apps = self.render_rskey_apps_card(cx, false).into_any_element();
+            let rskey_usb_itf = self.render_rskey_usb_itf_card(cx, false).into_any_element();
             grid_children.push(rskey_led);
             grid_children.push(rskey_apps);
             grid_children.push(rskey_usb_itf);

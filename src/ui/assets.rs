@@ -1,3 +1,9 @@
+//! Embedded asset loader for SVG icons used throughout the application.
+//!
+//! Uses `rust-embed` to bundle the contents of `static/icons/` into the
+//! binary at compile time. The [`Assets`] struct is registered as a GPUI
+//! `SharedString` source so that components can reference icons by filename.
+
 #[allow(unused)]
 use anyhow::anyhow;
 use gpui::*;

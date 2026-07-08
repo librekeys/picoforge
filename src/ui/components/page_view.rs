@@ -1,6 +1,9 @@
+//! Contained page layout wrapper for screen content.
+
 use gpui::*;
 use gpui_component::{StyledExt, Theme, v_flex};
 
+/// A contained page layout providing consistent padding and max-width for screen content.
 pub struct PageView;
 
 impl PageView {
