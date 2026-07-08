@@ -27,6 +27,8 @@
 
 use std::fmt;
 
+pub use crate::hal::common::cose::{CoseAlgorithm, CoseCurve, CoseKeyParam};
+
 // ══════════════════════════════════════════════════════════════════════════════
 // CTAP2 STANDARD — FIDO Alliance specification §8.1
 // ══════════════════════════════════════════════════════════════════════════════
@@ -343,169 +345,6 @@ bitflags::bitflags! {
     }
 }
 
-// ── COSE key types (RFC 8152) ───────────────────────────────────────────────
-
-/// COSE algorithm identifiers (IANA COSE Algorithms registry).
-///
-/// Used in `pubKeyCredParams` to specify which signature algorithms
-/// the platform supports. The authenticator picks the first match.
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CoseAlgorithm {
-    /// ECDSA with P-256 and SHA-256 (most common for WebAuthn).
-    ES256 = -7,
-    /// EdDSA with Ed25519.
-    EdDSA = -8,
-    /// ECDSA with P-256 (alternate ID, same as ES256).
-    ESP256 = -9,
-    /// EdDSA with Ed25519 (alternate ID).
-    Ed25519 = -19,
-    /// ECDH-ES with HKDF-256 key agreement.
-    EcdhEsHkdf256 = -25,
-    /// ECDSA with P-384 and SHA-384.
-    ES384 = -35,
-    /// ECDSA with P-521 and SHA-512.
-    ES512 = -36,
-    /// ECDSA with secp256k1 and SHA-256 (Bitcoin curve).
-    ES256K = -47,
-    /// ECDSA with P-384 (alternate ID).
-    ESP384 = -51,
-    /// ECDSA with P-521 (alternate ID).
-    ESP512 = -52,
-    /// EdDSA with Ed448.
-    Ed448 = -53,
-    /// RSASSA-PKCS1-v1_5 with SHA-256.
-    RS256 = -257,
-    /// RSASSA-PKCS1-v1_5 with SHA-384.
-    RS384 = -258,
-    /// RSASSA-PKCS1-v1_5 with SHA-512.
-    RS512 = -259,
-    /// ECDSA with brainpool256r1 and SHA-256.
-    ESB256 = -265,
-    /// ECDSA with brainpool384r1 and SHA-384.
-    ESB384 = -267,
-    /// ECDSA with brainpool512r1 and SHA-512.
-    ESB512 = -268,
-    /// ML-DSA-44 (FIPS 204, Level 2) — post-quantum signing.
-    ///
-    /// RS-Key specific. Uses COSE key type AKP (7) instead of EC2/OKP.
-    MLDSA44 = -48,
-    /// ML-DSA-65 (FIPS 204, Level 3) — declared in getInfo but may be
-    /// unsupported for credential creation.
-    MLDSA65 = -49,
-    /// ML-DSA-87 (FIPS 204, Level 5) — declared in getInfo but may be
-    /// unsupported for credential creation.
-    MLDSA87 = -50,
-}
-
-impl CoseAlgorithm {
-    /// Convert a raw i128 (from CBOR) to a [`CoseAlgorithm`].
-    pub fn from_i128(val: i128) -> Option<Self> {
-        match val as i32 {
-            -7 => Some(Self::ES256),
-            -8 => Some(Self::EdDSA),
-            -9 => Some(Self::ESP256),
-            -19 => Some(Self::Ed25519),
-            -25 => Some(Self::EcdhEsHkdf256),
-            -35 => Some(Self::ES384),
-            -36 => Some(Self::ES512),
-            -47 => Some(Self::ES256K),
-            -51 => Some(Self::ESP384),
-            -52 => Some(Self::ESP512),
-            -53 => Some(Self::Ed448),
-            -257 => Some(Self::RS256),
-            -258 => Some(Self::RS384),
-            -259 => Some(Self::RS512),
-            -265 => Some(Self::ESB256),
-            -267 => Some(Self::ESB384),
-            -268 => Some(Self::ESB512),
-            -48 => Some(Self::MLDSA44),
-            -49 => Some(Self::MLDSA65),
-            -50 => Some(Self::MLDSA87),
-            _ => None,
-        }
-    }
-}
-
-impl fmt::Display for CoseAlgorithm {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ES256 => write!(f, "ES256"),
-            Self::EdDSA => write!(f, "EdDSA"),
-            Self::ESP256 => write!(f, "ESP256"),
-            Self::Ed25519 => write!(f, "Ed25519"),
-            Self::EcdhEsHkdf256 => write!(f, "ECDH-ES-HKDF-256"),
-            Self::ES384 => write!(f, "ES384"),
-            Self::ES512 => write!(f, "ES512"),
-            Self::ES256K => write!(f, "ES256K"),
-            Self::ESP384 => write!(f, "ESP384"),
-            Self::ESP512 => write!(f, "ESP512"),
-            Self::Ed448 => write!(f, "Ed448"),
-            Self::RS256 => write!(f, "RS256"),
-            Self::RS384 => write!(f, "RS384"),
-            Self::RS512 => write!(f, "RS512"),
-            Self::ESB256 => write!(f, "ESB256"),
-            Self::ESB384 => write!(f, "ESB384"),
-            Self::ESB512 => write!(f, "ESB512"),
-            Self::MLDSA44 => write!(f, "ML-DSA-44"),
-            Self::MLDSA65 => write!(f, "ML-DSA-65"),
-            Self::MLDSA87 => write!(f, "ML-DSA-87"),
-        }
-    }
-}
-
-/// COSE elliptic curve identifiers (RFC 8152 §13.1.1).
-#[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CoseCurve {
-    /// NIST P-256 (secp256r1, prime256v1).
-    P256 = 1,
-    /// NIST P-384 (secp384r1).
-    P384 = 2,
-    /// NIST P-521 (secp521r1).
-    P521 = 3,
-    /// X25519 for key agreement.
-    X25519 = 4,
-    /// X448 for key agreement.
-    X448 = 5,
-    /// Ed25519 for signing.
-    Ed25519 = 6,
-    /// Ed448 for signing.
-    Ed448 = 7,
-    /// secp256k1 (Bitcoin/Ethereum curve).
-    P256K1 = 8,
-    /// BrainpoolP256R1.
-    BP256R1 = 9,
-    /// BrainpoolP384R1.
-    BP384R1 = 10,
-    /// BrainpoolP512R1.
-    BP512R1 = 11,
-}
-
-/// COSE key parameter identifiers (RFC 8152 §7.1).
-#[repr(i32)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CoseKeyParam {
-    /// Key type (OKP, EC2, RSA, etc.).
-    Kty = 1,
-    /// Key identifier.
-    Kid = 2,
-    /// Algorithm identifier.
-    Alg = 3,
-    /// Key operations (sign, verify, encrypt, etc.).
-    KeyOps = 4,
-    /// Base IV for symmetric operations.
-    BaseIV = 5,
-    /// Elliptic curve identifier.
-    Crv = -1,
-    /// X coordinate (EC2) or public key bytes (OKP).
-    X = -2,
-    /// Y coordinate (EC2).
-    Y = -3,
-    /// Private key (EC2 or OKP).
-    D = -4,
-}
-
 // ── CTAP2 errors (§8.2) ────────────────────────────────────────────────────
 
 /// CTAP2 error codes (§8.2).
@@ -609,7 +448,7 @@ pub enum Ctap2Error {
 /// - **All versions**: Backup(0x01), MSE(0x02), Unlock(0x03), EA(0x04)
 /// - **≤ v7.2**: PhysicalOptions(0x05), Memory(0x06) — removed in later
 ///   releases. PicoForge keeps them for legacy device support.
-/// - **Current**: AdminPin(0x08) added.
+/// - **≥ v7.6**: AdminPin(0x08) added.
 ///
 /// RS-Key uses a different vendor command scheme (CTAPHID 0x41 with
 /// 64-bit sub-command IDs) — this enum does NOT apply to RS-Key.
@@ -632,6 +471,8 @@ pub enum VendorCommand {
     ///
     /// **Legacy** (pico-fido ≤ v7.2 only). Removed in current firmware.
     Memory = 0x06,
+    /// Admin PIN operations (added in pico-fido v7.6).
+    AdminPin = 0x08,
 }
 
 /// Pico-fido vendor config command IDs (64-bit).
@@ -869,10 +710,30 @@ pub const CTAP_VENDOR_CONFIG_CMD: u8 = 0xC2;
 /// RS-Key CTAPHID vendor command (0x41).
 ///
 /// Carries CBOR-encoded sub-commands for seed backup, attestation,
-/// and audit operations. This is RS-Key specific and not part of pico-fido.
+/// audit operations, and PicoForge hardware config.
+/// This is RS-Key specific and not part of pico-fido.
 ///
 /// See [RS-Key protocol §9](https://themaxmur.github.io/RS-Key/develop/) for details.
 pub const RSKEY_CTAPHID_VENDOR_CMD: u8 = 0x41;
+
+/// RS-Key CONFIG_READ sub-command ID (0x0D).
+///
+/// Reads device configuration over FIDO. Supports DEV_CONF (0x00),
+/// PHY (0x01), and LED (0x02) targets. Ungated — no PIN needed.
+pub const RSKEY_CONFIG_READ: u8 = 0x0D;
+
+/// RS-Key CONFIG_WRITE sub-command ID (0x0C).
+///
+/// Writes device configuration over FIDO. Supports the same targets
+/// as CONFIG_READ. Requires ACFG-gated PIN token.
+pub const RSKEY_CONFIG_WRITE: u8 = 0x0C;
+
+/// RS-Key config target: device configuration (VID, PID, serial, product name).
+pub const RSKEY_CFG_TARGET_DEV_CONF: u8 = 0x00;
+/// RS-Key config target: physical config (LED GPIO, brightness, options).
+pub const RSKEY_CFG_TARGET_PHY: u8 = 0x01;
+/// RS-Key config target: LED status config.
+pub const RSKEY_CFG_TARGET_LED: u8 = 0x02;
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SHARED PROTOCOL CONSTANTS
@@ -1237,6 +1098,7 @@ mod tests {
         // PhysicalOptions(0x05) and Memory(0x06) are legacy <=v7.2
         assert_eq!(VendorCommand::PhysicalOptions as u8, 0x05);
         assert_eq!(VendorCommand::Memory as u8, 0x06);
+        assert_eq!(VendorCommand::AdminPin as u8, 0x08);
     }
 
     // ── RS-Key vendor command ────────────────────────────────────────────────
@@ -1271,20 +1133,17 @@ mod tests {
     }
 
     // ── Vendor config command IDs ────────────────────────────────────────────
-    // Reference: pico-fido src/fido/ctap.h (for auth/enable/disable/EA/PIN)
+    // Reference: pico-fido src/fido/ctap.h (tagged releases v3.0–v7.6)
     //            RS-Key protocol docs §11 (for physical config commands)
     //
-    // NOTE: The auth encryption and PIN policy IDs in PicoForge do NOT match the
-    // current pico-fido ctap.h values. The ctap.h values are documented below
-    // for reference but the PicoForge values may target an older firmware version.
+    // PicoForge values match all tagged releases (v3.0–v7.6). The `main`
+    // branch restructured these to a 0x000X... prefix (unreleased) — not
+    // relevant for current version targeting.
     //
-    // Firmware ctap.h values:
-    //   AuthEncryptionEnable:   0x00043f56b34285e2
-    //   AuthEncryptionDisable:  0x0001a40f04a25ed9
-    //   EnterpriseAttestationUpload: 0x0002a674c29a8dcf
-    //   PinComplexityPolicy:    0x0007d70fe96c3897
-    //
-    // PicoForge values (verified against RS-Key protocol for physical ones):
+    // v3.0+: AuthEncryptionEnable(0x03e4...), AuthEncryptionDisable(0x1831...)
+    // v7.0+: EnterpriseAttestationUpload(0x66f2...), PinComplexityPolicy(0x6c07...)
+    // v7.0+: PhysicalOptions changed from 0x969f... (v6.0–6.4) to 0x269f... (v7.0+)
+    // main (unreleased): all changed to 0x000X... prefix, PHY options removed
 
     #[test]
     fn test_vendor_config_command_from_u64() {

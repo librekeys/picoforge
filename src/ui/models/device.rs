@@ -14,6 +14,7 @@
 //! - **`apply_fresh_state()`** lets ViewModels push post-write HAL results
 //!   back into the repo so subscribers get the event.
 
+use crate::hal::firmwares::AnyFirmware;
 use crate::hal::io;
 use crate::hal::types;
 use gpui::*;
@@ -23,7 +24,8 @@ pub use crate::hal::rescue::constants::{
     USB_CAP_U2F,
 };
 pub use types::{
-    AppConfigInput, DeviceMethod, FidoDeviceInfo, FirmwareType, FullDeviceStatus, StoredCredential,
+    AppConfigInput, DeviceMethod, FidoDeviceInfo, FirmwareType, FullDeviceStatus, LedStatusConfig,
+    StoredCredential,
 };
 
 // ── Events ──────────────────────────────────────────────────────────────────
@@ -70,18 +72,19 @@ impl DeviceRepo {
 
     // ── HAL static methods (blocking — call from background executor) ──────
 
-    pub fn firmware_supports_legacy_fido_config(version: &str) -> bool {
-        crate::hal::fido::firmware_supports_legacy_fido_hardware_config(version)
+    pub fn firmware_supports_legacy_fido_config(
+        fw_type: &types::FirmwareType,
+        version: &str,
+    ) -> bool {
+        AnyFirmware::new(fw_type.clone(), version).supports_legacy_fido_hardware_config()
     }
 
     pub fn read_device_state_blocking() -> Result<FreshDeviceState, crate::error::PFError> {
         let status = io::read_device_details()?;
-        let (led_status, management_apps) = if status.firmware_type == types::FirmwareType::RSKey
-            && status.method == types::DeviceMethod::Rescue
-        {
+        let (led_status, management_apps) = if status.firmware_type == types::FirmwareType::RSKey {
             (
-                io::read_led_config().ok(),
-                io::read_management_config().ok(),
+                io::read_led_config(status.method.clone()).ok(),
+                io::read_management_config(status.method.clone()).ok(),
             )
         } else {
             (None, None)
@@ -101,19 +104,20 @@ impl DeviceRepo {
         io::write_config(config, method, pin)
     }
 
-    pub fn write_led_status_blocking(
-        status_idx: u8,
-        color: u8,
-        brightness: u8,
-        steady: bool,
+    pub fn write_led_config_blocking(
+        method: DeviceMethod,
+        config: LedStatusConfig,
+        pin: Option<String>,
     ) -> Result<String, crate::error::PFError> {
-        io::write_led_status(status_idx, color, brightness, steady)
+        io::write_led_config(method, config, pin)
     }
 
     pub fn write_management_config_blocking(
+        method: DeviceMethod,
         enabled_mask: u16,
+        pin: Option<String>,
     ) -> Result<String, crate::error::PFError> {
-        io::write_management_config(enabled_mask)
+        io::write_management_config(method, enabled_mask, pin)
     }
 
     pub fn get_fido_info_blocking() -> Result<types::FidoDeviceInfo, String> {
@@ -223,11 +227,9 @@ impl DeviceRepo {
                     }
                 }
 
-                if status.firmware_type == types::FirmwareType::RSKey
-                    && status.method == types::DeviceMethod::Rescue
-                {
-                    self.led_status = io::read_led_config().ok();
-                    self.management_apps = io::read_management_config().ok();
+                if status.firmware_type == types::FirmwareType::RSKey {
+                    self.led_status = io::read_led_config(status.method.clone()).ok();
+                    self.management_apps = io::read_management_config(status.method.clone()).ok();
                 } else {
                     self.led_status = None;
                     self.management_apps = None;

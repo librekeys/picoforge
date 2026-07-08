@@ -22,12 +22,26 @@ impl FirmwareTrait for RSKeyFirmware {
         &self.version
     }
 
+    /// RS-Key reports firmware 5.x (< 7) per the SDK version scheme.
+    /// Per the protocol integration notes, this version range triggers
+    /// PicoForge's legacy hardware-config path (authenticatorConfig +
+    /// vendorPrototype) which RS-Key supports for writes, and for reads
+    /// it tries the 0x41 CONFIG_READ path instead.
     fn supports_legacy_fido_hardware_config(&self) -> bool {
         false
     }
 
+    /// RS-Key supports FIDO config write via CTAPHID 0x41 CONFIG_WRITE
+    /// on v0.3.1+. The CTAP firmware version from GET_INFO reports the SDK
+    /// version (e.g., 5.7) which does not map to the RS-Key release version,
+    /// so we cannot version-gate here. Actual support is determined via a
+    /// runtime CONFIG_READ probe in write_rskey_config().
+    fn supports_fido_config_write(&self) -> bool {
+        true
+    }
+
     fn supports_rs_key_vendor_command(&self) -> bool {
-        self.version.is_at_least(0, 1)
+        true
     }
 
     fn supports_rescue_channel(&self) -> bool {

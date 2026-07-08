@@ -1,5 +1,5 @@
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
-use crate::ui::models::device::{DeviceMethod, FidoDeviceInfo, FullDeviceStatus};
+use crate::ui::models::device::{DeviceMethod, FidoDeviceInfo, FirmwareType, FullDeviceStatus};
 use crate::ui::screens::home::view_model::HomeViewModel;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
@@ -245,10 +245,12 @@ impl HomeViewModel {
 
     fn render_led_config(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         let config = &status.config;
+        let has_fido_config =
+            status.firmware_type == FirmwareType::RSKey || status.method != DeviceMethod::Fido;
         Card::new()
             .title("LED Configuration")
             .icon(Icon::default().path("icons/microchip.svg"))
-            .child(if status.method == DeviceMethod::Fido {
+            .child(if !has_fido_config {
                 v_flex()
                     .items_center()
                     .justify_center()

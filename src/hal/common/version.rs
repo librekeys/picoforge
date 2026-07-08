@@ -1,6 +1,6 @@
 #![allow(dead_code)]
-use std::fmt;
 
+use std::fmt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FirmwareVersion {
     pub major: u16,

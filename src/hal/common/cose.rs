@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use std::fmt;
 
 #[repr(i32)]

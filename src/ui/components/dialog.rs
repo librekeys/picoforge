@@ -36,6 +36,11 @@ pub struct PinPromptContent {
 }
 
 impl PinPromptContent {
+    pub fn set_loading_msg(&mut self, msg: impl Into<String>, cx: &mut Context<Self>) {
+        self.phase = DialogPhase::LoadingWithMessage(msg.into());
+        cx.notify();
+    }
+
     fn set_loading(&mut self, cx: &mut Context<Self>) {
         self.phase = DialogPhase::Loading;
         cx.notify();
@@ -95,23 +100,29 @@ impl Render for PinPromptContent {
                 )
                 .into_any_element(),
 
-            DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => v_flex()
-                .gap_4()
-                .child(self.description.clone())
-                .child(Input::new(&self.pin_input).disabled(true))
-                .child(
-                    h_flex()
-                        .justify_end()
-                        .gap_2()
-                        .child(Button::new("cancel").label("Cancel").disabled(true))
-                        .child(
-                            Button::new("confirm")
-                                .primary()
-                                .label("Loading...")
-                                .loading(true),
-                        ),
-                )
-                .into_any_element(),
+            DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => {
+                let text = match &self.phase {
+                    DialogPhase::LoadingWithMessage(msg) => msg.clone(),
+                    _ => self.description.to_string(),
+                };
+                v_flex()
+                    .gap_4()
+                    .child(text)
+                    .child(Input::new(&self.pin_input).disabled(true))
+                    .child(
+                        h_flex()
+                            .justify_end()
+                            .gap_2()
+                            .child(Button::new("cancel").label("Cancel").disabled(true))
+                            .child(
+                                Button::new("confirm")
+                                    .primary()
+                                    .label("Loading...")
+                                    .loading(true),
+                            ),
+                    )
+                    .into_any_element()
+            }
 
             DialogPhase::Error(err_msg) => {
                 let pin_input = self.pin_input.clone();

@@ -1882,6 +1882,80 @@ impl HidTransport {
         Ok(())
     }
 
+    /// Read physical configuration from an RS-Key via CTAPHID 0x41 CONFIG_READ.
+    ///
+    /// Sends `{1: 0x0D, 2: {1: target}}` CBOR payload to the RS-Key vendor
+    /// command handler inside a CTAPHID_CBOR message with the vendor sub-command
+    /// prefix. Returns raw TLV bytes for the requested target.
+    /// Ungated — no PIN needed.
+    ///
+    /// Targets: `RSKEY_CFG_TARGET_DEV_CONF` (0x00), `RSKEY_CFG_TARGET_PHY` (0x01),
+    /// `RSKEY_CFG_TARGET_LED` (0x02).
+    pub fn rs_key_config_read(&self, target: u8) -> Result<Vec<u8>, PFError> {
+        let mut params = BTreeMap::new();
+        params.insert(Value::Integer(1), Value::Integer(RSKEY_CONFIG_READ as i128));
+
+        let mut target_map = BTreeMap::new();
+        target_map.insert(Value::Integer(1), Value::Integer(target as i128));
+        params.insert(Value::Integer(2), Value::Map(target_map));
+
+        let inner = to_vec(&Value::Map(params)).map_err(|e| PFError::Io(e.to_string()))?;
+
+        let mut full_payload = vec![RSKEY_CTAPHID_VENDOR_CMD];
+        full_payload.extend(inner);
+        self.send_cbor(CTAPHID_CBOR, &full_payload)
+    }
+
+    /// Write physical configuration to an RS-Key via CTAPHID 0x41 CONFIG_WRITE.
+    ///
+    /// Sends `{1: 0x0C, 2: {1: target, 2: blob}, 3: protocol, 4: mac}` CBOR
+    /// to the RS-Key vendor command handler. Requires a PIN token obtained with
+    /// `AUTHENTICATOR_CONFIG` permission.
+    ///
+    /// The MAC is computed as `HMAC-SHA256(pin_token, 0xFF*32 || 0x41 || 0x0C || cbor_params)[..16]`
+    /// per the RS-Key protocol spec.
+    pub fn rs_key_config_write(
+        &self,
+        pin_token: &[u8],
+        target: u8,
+        blob: &[u8],
+    ) -> Result<(), PFError> {
+        let mut params_map = BTreeMap::new();
+        params_map.insert(Value::Integer(1), Value::Integer(target as i128));
+        params_map.insert(Value::Integer(2), Value::Bytes(blob.to_vec()));
+        let params = Value::Map(params_map);
+        let params_bytes = to_vec(&params).map_err(|e| PFError::Io(e.to_string()))?;
+
+        // MAC = HMAC-SHA256(pin_token, 0xFF*32 || vendor_cmd || sub_cmd || cbor_params)[..16]
+        let mac = {
+            let mut input = vec![0xFFu8; 32];
+            input.push(RSKEY_CTAPHID_VENDOR_CMD);
+            input.push(RSKEY_CONFIG_WRITE);
+            input.extend(&params_bytes);
+            let hmac_key = hmac::Key::new(hmac::HMAC_SHA256, pin_token);
+            hmac::sign(&hmac_key, &input).as_ref()[..16].to_vec()
+        };
+
+        let mut outer = BTreeMap::new();
+        outer.insert(
+            Value::Integer(1),
+            Value::Integer(RSKEY_CONFIG_WRITE as i128),
+        );
+        outer.insert(Value::Integer(2), params);
+        outer.insert(Value::Integer(3), Value::Integer(1)); // PIN protocol v1
+        outer.insert(Value::Integer(4), Value::Bytes(mac));
+
+        let inner = to_vec(&Value::Map(outer)).map_err(|e| PFError::Io(e.to_string()))?;
+
+        let mut full_payload = vec![RSKEY_CTAPHID_VENDOR_CMD];
+        full_payload.extend(inner);
+        // CONFIG_WRITE can involve flash erasure/write which takes
+        // several seconds on RP2040 — use a generous timeout.
+        const CONFIG_WRITE_TIMEOUT_MS: i32 = 30_000;
+        self.send_cbor_with_timeout(CTAPHID_CBOR, &full_payload, CONFIG_WRITE_TIMEOUT_MS)
+            .map(|_| ())
+    }
+
     /// Sign a credential management command using HMAC-SHA-256.
     ///
     /// Uses pico-fido's non-standard signing scheme: for sub-commands 0x01

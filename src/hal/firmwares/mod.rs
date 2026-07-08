@@ -6,7 +6,7 @@ pub use picofido::*;
 pub use rskey::*;
 
 use crate::hal::common::FirmwareVersion;
-use crate::hal::types::FirmwareType;
+use crate::hal::types::*;
 
 #[derive(Debug, Clone)]
 pub enum AnyFirmware {
@@ -25,6 +25,7 @@ pub trait FirmwareTrait {
     }
 
     fn supports_legacy_fido_hardware_config(&self) -> bool;
+    fn supports_fido_config_write(&self) -> bool;
     fn supports_rs_key_vendor_command(&self) -> bool;
     fn supports_rescue_channel(&self) -> bool;
 }
@@ -33,7 +34,9 @@ impl AnyFirmware {
     pub fn detect_by_aaguid(aaguid: &str) -> FirmwareType {
         if aaguid == crate::hal::types::RSKEY_AAGUID {
             FirmwareType::RSKey
-        } else if aaguid == crate::hal::types::PICOFIDO_AAGUID {
+        } else if aaguid == crate::hal::types::PICOFIDO_AAGUID
+            || aaguid == crate::hal::types::LKONE_AAGUID
+        {
             FirmwareType::PicoFido
         } else {
             FirmwareType::Unknown
@@ -45,7 +48,22 @@ impl AnyFirmware {
         match fw_type {
             FirmwareType::PicoFido => Self::PicoFido(PicoFidoFirmware::new(ver)),
             FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(ver)),
-            FirmwareType::Unknown => Self::PicoFido(PicoFidoFirmware::new(ver)),
+            FirmwareType::LkOne | FirmwareType::Unknown => {
+                Self::PicoFido(PicoFidoFirmware::new(ver))
+            }
+        }
+    }
+
+    pub fn new_with_legacy(fw_type: FirmwareType, version: &str, has_legacy_vendor: bool) -> Self {
+        let ver = FirmwareVersion::parse(version).unwrap_or_default();
+        match fw_type {
+            FirmwareType::PicoFido => {
+                Self::PicoFido(PicoFidoFirmware::new(ver).with_legacy_vendor(has_legacy_vendor))
+            }
+            FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(ver)),
+            FirmwareType::LkOne | FirmwareType::Unknown => {
+                Self::PicoFido(PicoFidoFirmware::new(ver))
+            }
         }
     }
 
@@ -67,6 +85,13 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(fw) => fw.supports_legacy_fido_hardware_config(),
             Self::RSKey(fw) => fw.supports_legacy_fido_hardware_config(),
+        }
+    }
+
+    pub fn supports_fido_config_write(&self) -> bool {
+        match self {
+            Self::PicoFido(fw) => fw.supports_fido_config_write(),
+            Self::RSKey(fw) => fw.supports_fido_config_write(),
         }
     }
 

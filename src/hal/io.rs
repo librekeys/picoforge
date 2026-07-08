@@ -1,26 +1,40 @@
 use crate::{
     error::PFError,
-    hal::{fido, rescue, types::*},
+    hal::{fido, rescue, transport::DeviceHandle, types::*},
 };
 
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     let mut fido_status: Option<FullDeviceStatus> = None;
     let mut rescue_status: Option<FullDeviceStatus> = None;
+    let mut rescue_fw_type: Option<FirmwareType> = None;
 
-    match fido::read_device_details() {
-        Ok(status) => {
-            log::info!("FIDO device details read successfully");
-            fido_status = Some(status);
-        }
-        Err(e) => log::warn!("FIDO read_device_details failed: {}", e),
+    // Discover via FIDO/HID transport
+    match DeviceHandle::try_fido() {
+        Ok(Some((_handle, _identity))) => match fido::read_device_details() {
+            Ok(status) => {
+                log::info!("FIDO device details read successfully");
+                fido_status = Some(status);
+            }
+            Err(e) => log::warn!("FIDO read_device_details failed: {}", e),
+        },
+        Ok(None) => log::info!("No FIDO HID device found"),
+        Err(e) => log::warn!("FIDO HID discovery error: {}", e),
     }
 
-    match rescue::read_device_details() {
-        Ok(status) => {
-            log::info!("Rescue device details read successfully");
-            rescue_status = Some(status);
+    // Discover via Rescue/PC/SC transport
+    match DeviceHandle::try_rescue() {
+        Ok(Some((handle, _identity))) => {
+            rescue_fw_type = Some(handle.firmware_type());
+            match rescue::read_device_details() {
+                Ok(status) => {
+                    log::info!("Rescue device details read successfully");
+                    rescue_status = Some(status);
+                }
+                Err(e) => log::warn!("Rescue read_device_details failed: {}", e),
+            }
         }
-        Err(e) => log::warn!("Rescue read_device_details failed: {}", e),
+        Ok(None) => log::info!("No Rescue PC/SC device found"),
+        Err(e) => log::warn!("Rescue PC/SC discovery error: {}", e),
     }
 
     match (fido_status, rescue_status) {
@@ -79,7 +93,17 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         }
         (None, Some(rescue)) => {
             log::info!("Using Rescue-only device details");
-            Ok(rescue)
+            let ft = rescue_fw_type.and_then(|ft| {
+                if rescue.firmware_type == FirmwareType::Unknown {
+                    Some(ft)
+                } else {
+                    None
+                }
+            });
+            Ok(FullDeviceStatus {
+                firmware_type: ft.unwrap_or(rescue.firmware_type),
+                ..rescue
+            })
         }
         (None, None) => {
             log::error!("Failed to read device details via both FIDO and Rescue");
@@ -110,25 +134,68 @@ pub fn write_config(
     }
 }
 
-pub fn read_led_config() -> Result<LedStatusConfig, PFError> {
-    rescue::read_led_config()
+pub fn read_led_config(method: DeviceMethod) -> Result<LedStatusConfig, PFError> {
+    match method {
+        DeviceMethod::Fido => {
+            let transport = crate::hal::fido::hid::HidTransport::open()?;
+            fido::read_rskey_led_config(&transport)
+        }
+        DeviceMethod::Rescue => rescue::read_led_config(),
+    }
 }
 
-pub fn write_led_status(
-    status: u8,
-    color: u8,
-    brightness: u8,
-    steady: bool,
+pub fn write_led_config(
+    method: DeviceMethod,
+    config: LedStatusConfig,
+    pin: Option<String>,
 ) -> Result<String, PFError> {
-    rescue::write_led_status(status, color, brightness, steady)
+    match method {
+        DeviceMethod::Fido => {
+            let pin = pin.ok_or_else(|| {
+                PFError::Device("PIN is required for FIDO LED config write".into())
+            })?;
+            let transport = crate::hal::fido::hid::HidTransport::open()?;
+            fido::write_rskey_led_config(&transport, &config, &pin)
+        }
+        DeviceMethod::Rescue => {
+            for i in 0..4 {
+                let (color, brightness) = config.statuses[i];
+                rescue::write_led_status(i as u8, color, brightness, config.steady)?;
+            }
+            Ok("LED configuration applied successfully.".to_string())
+        }
+    }
 }
 
-pub fn read_management_config() -> Result<ManagementAppConfig, PFError> {
-    rescue::read_management_config()
+pub fn read_management_config(method: DeviceMethod) -> Result<ManagementAppConfig, PFError> {
+    match method {
+        DeviceMethod::Fido => {
+            let transport = crate::hal::fido::hid::HidTransport::open()?;
+            let info = fido::read_rskey_management_info(&transport)?;
+            Ok(ManagementAppConfig {
+                usb_supported: info.usb_supported.unwrap_or(0),
+                usb_enabled: info.usb_enabled.unwrap_or(0),
+            })
+        }
+        DeviceMethod::Rescue => rescue::read_management_config(),
+    }
 }
 
-pub fn write_management_config(enabled_mask: u16) -> Result<String, PFError> {
-    rescue::write_management_config(enabled_mask)
+pub fn write_management_config(
+    method: DeviceMethod,
+    enabled_mask: u16,
+    pin: Option<String>,
+) -> Result<String, PFError> {
+    match method {
+        DeviceMethod::Fido => {
+            let pin = pin.ok_or_else(|| {
+                PFError::Device("PIN is required for FIDO management config write".into())
+            })?;
+            let transport = crate::hal::fido::hid::HidTransport::open()?;
+            fido::write_rskey_dev_config(&transport, enabled_mask, &pin)
+        }
+        DeviceMethod::Rescue => rescue::write_management_config(enabled_mask),
+    }
 }
 
 pub(crate) fn get_fido_info() -> Result<FidoDeviceInfo, String> {
