@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: rustsec/audit-check@v2.0.0
+      - uses: rustsec/audit-check@858dc40
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -126,20 +126,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v22
-
-      - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@v14
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
           languages: rust
-          build-mode: manual
-
-      - name: Build with Nix
-        run: nix develop --command cargo build --verbose
+          build-mode: none
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
