@@ -105,13 +105,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         }
         (None, Some(rescue)) => {
             log::info!("Using Rescue-only device details");
-            let ft = rescue_fw_type.and_then(|ft| {
-                if rescue.firmware_type == FirmwareType::Unknown {
-                    Some(ft)
-                } else {
-                    None
-                }
-            });
+            let ft = rescue_fw_type
+                .filter(|_| rescue.firmware_type == FirmwareType::Unknown);
             Ok(FullDeviceStatus {
                 firmware_type: ft.unwrap_or(rescue.firmware_type),
                 ..rescue
