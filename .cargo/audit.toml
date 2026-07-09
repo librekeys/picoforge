@@ -1,0 +1,15 @@
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]
+informational_warnings = []
+
+[output]
+format = "terminal"
+quiet = false
+show_tree = true
+
+[yanked]
+enabled = true
+update_index = true

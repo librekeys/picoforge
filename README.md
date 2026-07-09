@@ -16,25 +16,25 @@
 
 > [!IMPORTANT]
 > PicoForge is an independent, community-developed tool and is not affiliated with or endorsed by the official [pico-fido](https://github.com/polhenarejos/pico-fido) project. 
-> This software does not share any code with the official closed-source pico-fido application.
->
-> **BETA Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10 with the official Raspberry Pi Pico2 & ESP32-S3
+> This software does not share any code with the official closed-source pico-key application.
 >
 > Check application [Installation Wiki](https://github.com/librekeys/picoforge/wiki/Installation) for installation guide of the PicoForge app on your system.
 >
+> **RP2350 (Pico2) Notice:** If you are using an RP2350-based device (Pico2, etc.), please switch to [RS-Key](https://github.com/TheMaxMur/RS-Key) firmware instead of pico-fido for better support while using picoforge.
+>
 > **Supported Firmwares:**
-> - **[RSKeys](https://github.com/TheMaxMur/RS-Key)**: v0.3.X
+> - **[RS-Key](https://github.com/TheMaxMur/RS-Key)**: v0.3.X
 > - **[pico-fido](https://github.com/polhenarejos/pico-fido)**: v7.0, v7.2, v7.4, v7.6
 > - **[LibreKeys One](https://github.com/librekeys/pico-fido-firmwares/releases)**: v7.4.2
 >
 > **Configuration Support:**
+> - **RS-Key v0.3.X**: Hardware configuration via FIDO mode is supported. Changes to VID/PID, LED, and other hardware settings are available through the FIDO transport.
 > - **pico-fido v7.0/v7.2** & **LibreKeys One v7.4.2**: Hardware configuration via FIDO mode is supported.
 > - **pico-fido v7.4/v7.6**: Hardware configuration requires Rescue/PCSC mode. Configuration cannot be done via FIDO-only mode.
-> - **RSKeys v0.3.X**: Hardware configuration via FIDO mode is supported. Changes to VID/PID, LED, and other hardware settings are available through the FIDO transport.
 
 ## About
 
-PicoForge is a modern desktop application for configuring and managing Pico FIDO security keys. Built with Rust and GPUI, it provides an intuitive interface for:
+PicoForge is a modern desktop application for configuring and managing RS-Key and pico-fido security keys. Built with Rust and GPUI, it provides an intuitive interface for:
 
 - Reading device information and firmware details
 - Configuring USB VID/PID and product names
