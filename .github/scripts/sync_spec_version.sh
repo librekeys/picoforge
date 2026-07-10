@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-dnf install -y tito git
+dnf install -y tito git gh
 
 git config --global --add safe.directory /workspace
 git config --global user.email 'git@suyogtandel.in'
@@ -42,12 +42,21 @@ done
 
 sed -i "s/^Release:.*/Release:        ${NEW_RELEASE}%{?dist}/" picoforge.spec
 
+BRANCH_NAME="spec-sync/${NEW_VERSION}-${NEW_RELEASE}"
+git checkout -b "$BRANCH_NAME"
+
 if git diff --quiet picoforge.spec; then
-echo "No changes to spec file."
+    echo "No changes to spec file."
+    CHANGES_MADE=false
 else
-git add picoforge.spec
-git commit -m "chore: sync spec to $NEW_VERSION [skip ci]"
+    git add picoforge.spec
+    git commit -m "chore: sync spec to $NEW_VERSION-$NEW_RELEASE [skip ci]"
+    CHANGES_MADE=true
 fi
 
 tito tag --offline --accept-auto-changelog --keep-version
-git push --follow-tags origin HEAD:main HEAD:release
+git push origin "$BRANCH_NAME" --follow-tags
+
+if [ "$CHANGES_MADE" = true ]; then
+    gh pr create --base main --head "$BRANCH_NAME" --title "chore: sync spec to $NEW_VERSION-$NEW_RELEASE" --body "Automated spec/tag sync from release workflow."
+fi
