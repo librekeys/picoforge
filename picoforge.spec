@@ -72,6 +72,96 @@ install -m 644 static/appIcons/in.suyogtandel.picoforge.svg %{buildroot}%{_datad
 %{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %changelog
+* Sun Jul 19 2026 Suyog Tandel <git@suyogtandel.in> 0.7.0-1
+- chore: sync spec to 0.7.0-1 [skip ci] (git@suyogtandel.in)
+- feat: add wiki button in about screen and update application description
+  (git@suyogtandel.in)
+- fmt: Run cargo fmt (muravjev.mak@yandex.ru)
+- feat(ui): auto-detect device hot-plug and refresh live
+  (muravjev.mak@yandex.ru)
+- fix: correctly read and write RS-Key device configuration
+  (muravjev.mak@yandex.ru)
+- fix(hal): open the FIDO HID non-exclusively on macOS (muravjev.mak@yandex.ru)
+- chore: make UI more responsive and more wide (git@suyogtandel.in)
+- picoforge: 0.5.0+1 -> 0.6.0 (github-actions[bot]@users.noreply.github.com)
+- chore: automate spec sync via PRs and update release workflow
+  (git@suyogtandel.in)
+- fix(ci): security audit issues (git@suyogtandel.in)
+- fix(ci): add write perms to code CI workflow for security audit step
+  (git@suyogtandel.in)
+- chore: rename local variables across UI module for readability
+  (git@suyogtandel.in)
+- refactor(hal): rename variables for clarity and extract
+  format_firmware_version helper (git@suyogtandel.in)
+- fix(ci): codeql build failure and securiy audit node 20 deprecation
+  (git@suyogtandel.in)
+- fix(ci): docs workflow deps step missing (git@suyogtandel.in)
+- fix: codebase formatting (git@suyogtandel.in)
+- fix: replace manual and_then/filter pattern with Option::filter
+  (git@suyogtandel.in)
+- ci: replace Nix with rust-toolchain, add audit-check and CodeQL jobs
+  (git@suyogtandel.in)
+- feat: RS-Key curve selection card, transport priority fix, RescueCurves re-
+  export (git@suyogtandel.in)
+- docs: add module/item docs across all 43 source files and enable
+  #![deny(missing_docs)] (git@suyogtandel.in)
+- refactor(hal): extract transport layer and split rescue/fido ops
+  (git@suyogtandel.in)
+- feat(hal): introduce RS-Key(0.3.x) support and FirmwareTrait architecture
+  (git@suyogtandel.in)
+- feat: refactor hal module architecture and add tests in fido module
+  (git@suyogtandel.in)
+- fix(ci/cd): test build for macos-x64 (git@suyogtandel.in)
+- chore: Remove firmware type label from sidebar online status
+  (git@suyogtandel.in)
+- ci: add build matrix and cancel-in-progress concurrency (git@suyogtandel.in)
+- chore: update contributing.md with new mirror sources for picoforge
+  (git@suyogtandel.in)
+- feat(ci/cd): new workflow to keep mirror repos synced (git@suyogtandel.in)
+- refactor: establish DeviceRepo as sole HAL gateway; fix passkeys lifecycle
+  regressions (git@suyogtandel.in)
+- chore(docs): refactor and update the docs to point to correct dir locations
+  and explain the new UI architecture. (git@suyogtandel.in)
+- refactor: extract screens into view/view_model dirs, add AppModels DI, switch
+  to Entity<DeviceRepo> (git@suyogtandel.in)
+- chore: rename device dir to hal and create models module for repo storage
+  (git@suyogtandel.in)
+- fix: pr98 review, lock the storage before performing a sync to get new status
+  after device reset (git@suyogtandel.in)
+- fix(ui): sync cached FIDO state after mutations (kralonur1998@gmail.com)
+- chore: remove verbose internal-dialogue comments and minor code cleanup
+  (git@suyogtandel.in)
+- feat: add project info in project documentation (git@suyogtandel.in)
+- feat(device): add ML-DSA COSE algorithms and expand rescue curves Summary of
+  changes: - src/device/fido/constants.rs — added ML-DSA-44/65/87 post-quantum
+  COSE algorithm variants (-48 to -50); updated from_raw/Display; refreshed
+  VendorCommand docs with version history and RS-Key caveat; removed stale
+  CTAP2-vs-firmware discrepancy comment - src/device/rescue/constants.rs —
+  added 8 new curve flags to RescueCurves (SECP256R1, SECP384R1, SECP521R1,
+  BP256R1/384R1/512R1, ED25519, ED448, CURVE25519, CURVE448); corrected
+  MANAGEMENT_AID doc to say it's available on both firmwares Non-breaking. All
+  additions are purely additive: - CoseAlgorithm — only accessed via from_raw()
+  (has _ => None catch-all) — existing match arms unaffected - RescueCurves —
+  bitflags! type, existing code only touches SECP256K1 via contains/bits — new
+  flags don't affect those - cargo check and cargo clippy both pass clean with
+  no warnings (git@suyogtandel.in)
+- fix: picoforge docs workflow failure due to missing libs (git@suyogtandel.in)
+- feat: add documentation page for picoforge source code (git@suyogtandel.in)
+- fix: clippy errors in new documentedation of code in device mod
+  (git@suyogtandel.in)
+- fix: ci workflow name (git@suyogtandel.in)
+- feat: add basic rust ci workflow (git@suyogtandel.in)
+- docs: add documentation to src/device/module (git@suyogtandel.in)
+- chore: format code using cargo fmt (git@suyogtandel.in)
+- fix: tests and update crates to latest versions (git@suyogtandel.in)
+- fix: bug in fido curve config (git@suyogtandel.in)
+- feat: add hardware-endpoints panel to control usb interfaces for rskey
+  (git@suyogtandel.in)
+- chore: format code using cargo fmt (git@suyogtandel.in)
+- fix: config errors in config view (git@suyogtandel.in)
+- feat: add support for RS-Keys firmware and add optito reset the device
+  (git@suyogtandel.in)
+
 * Mon Jun 22 2026 Suyog Tandel <git@suyogtandel.in> 0.6.0-1
 - chore: sync spec to 0.6.0 [skip ci] (git@suyogtandel.in)
 - chore: update deps and fix tito spec update script (git@suyogtandel.in)
