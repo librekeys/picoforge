@@ -18,6 +18,11 @@ use crate::hal::firmwares::AnyFirmware;
 use crate::hal::io;
 use crate::hal::types;
 use gpui::*;
+use std::time::Duration;
+
+/// How often the hot-plug watcher samples device presence. Only a *change*
+/// triggers a refresh, so this is a detection-latency knob, not a poll cost.
+const HOTPLUG_POLL_MS: u64 = 1000;
 
 pub use crate::hal::rescue::constants::{
     LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP, USB_CAP_OTP, USB_CAP_PIV,
@@ -58,6 +63,8 @@ pub struct DeviceRepo {
     pub error: Option<String>,
     pub loading: bool,
     pub device_changed: bool,
+    /// Handle to the hot-plug watcher task; dropped (cancelled) with the repo.
+    hotplug_watch: Option<Task<()>>,
 }
 
 impl DeviceRepo {
@@ -71,6 +78,7 @@ impl DeviceRepo {
             error: None,
             loading: false,
             device_changed: false,
+            hotplug_watch: None,
         }
     }
 
@@ -177,6 +185,13 @@ impl DeviceRepo {
         crate::hal::transport::fido::HidTransport::open().is_ok()
     }
 
+    /// Cheap, non-intrusive presence fingerprint of the attached FIDO device
+    /// (`vid:pid:serial`, or `None` when absent). Enumerates only — does not
+    /// open the device — so it is safe to poll from the hot-plug watcher.
+    pub fn device_fingerprint_blocking() -> Option<String> {
+        crate::hal::transport::fido::HidTransport::fingerprint()
+    }
+
     // ── State mutation (called from ViewModel after background work) ───────
 
     /// Push a freshly-read [`FreshDeviceState`] into the repo and emit
@@ -205,6 +220,54 @@ impl DeviceRepo {
     }
 
     // ── Polling cycle ──────────────────────────────────────────────────────
+
+    /// Start the hot-plug watcher: a background timer that samples the device
+    /// fingerprint and, whenever it changes (plug / unplug / swap), triggers a
+    /// [`refresh`](Self::refresh) so every screen reflects the current key with
+    /// no manual Refresh. Idempotent — a second call is a no-op. The task is
+    /// owned by the repo and cancelled when it is dropped.
+    pub fn start_hotplug_watch(&mut self, cx: &mut Context<Self>) {
+        if self.hotplug_watch.is_some() {
+            return;
+        }
+        let weak = cx.entity().downgrade();
+        self.hotplug_watch = Some(cx.spawn(async move |_, cx| {
+            // Seed with the fingerprint the initial refresh already reflects so
+            // the first tick doesn't re-read an already-loaded device.
+            let mut last = cx
+                .background_executor()
+                .spawn(async { Self::device_fingerprint_blocking() })
+                .await;
+            loop {
+                cx.background_executor()
+                    .timer(Duration::from_millis(HOTPLUG_POLL_MS))
+                    .await;
+                let current = cx
+                    .background_executor()
+                    .spawn(async { Self::device_fingerprint_blocking() })
+                    .await;
+                if current == last {
+                    continue;
+                }
+                // Re-read on the main thread. Skip while a refresh/write is in
+                // flight and retry next tick (don't commit `last`, or we'd drop
+                // the change). Break when the repo — and thus the app — is gone.
+                let refreshed = weak.update(cx, |repo, cx| {
+                    if repo.loading {
+                        false
+                    } else {
+                        repo.refresh(cx);
+                        true
+                    }
+                });
+                match refreshed {
+                    Ok(true) => last = current,
+                    Ok(false) => {}
+                    Err(_) => break,
+                }
+            }
+        }));
+    }
 
     /// Initiate a device-details refresh (async, emits [`DeviceEvent::Updated`] on completion).
     pub fn refresh(&mut self, cx: &mut Context<Self>) {

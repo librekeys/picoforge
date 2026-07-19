@@ -217,6 +217,26 @@ impl HidTransport {
         })
     }
 
+    /// Cheap, non-intrusive presence fingerprint of the attached FIDO HID device.
+    ///
+    /// Returns `vid:pid:serial` (serial may be empty) for the first device with
+    /// the FIDO usage page, or `None` when none is present. It only *enumerates*
+    /// USB descriptors — it does not open the device or run `CTAPHID_INIT`, so it
+    /// is safe to poll on a timer even while another handle holds the device open.
+    /// A change in the returned value signals a plug / unplug / swap.
+    pub fn fingerprint() -> Option<String> {
+        let api = hidapi::HidApi::new().ok()?;
+        let info = api
+            .device_list()
+            .find(|d| d.usage_page() == HID_USAGE_PAGE_FIDO)?;
+        Some(format!(
+            "{:04x}:{:04x}:{}",
+            info.vendor_id(),
+            info.product_id(),
+            info.serial_number().unwrap_or("")
+        ))
+    }
+
     /// Negotiate a CTAPHID Channel ID via CTAPHID_INIT.
     ///
     /// Sends an INIT command to the broadcast CID (`0xFFFFFFFF`) with a random

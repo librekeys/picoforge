@@ -123,7 +123,10 @@ impl ApplicationRoot {
             focus_handle: cx.focus_handle(),
         };
 
-        device.update(cx, |repo, cx| repo.refresh(cx));
+        device.update(cx, |repo, cx| {
+            repo.refresh(cx);
+            repo.start_hotplug_watch(cx);
+        });
         this
     }
 
