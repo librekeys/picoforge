@@ -5,11 +5,7 @@ use crate::ui::models::device::{
 };
 use crate::ui::screens::config::view_model::ConfigViewModel;
 use gpui::*;
-use gpui_component::button::{ButtonCustomVariant, ButtonVariants};
-use gpui_component::{
-    ActiveTheme, Disableable, Icon, Theme, button::Button, input::Input, select::Select,
-    slider::Slider, switch::Switch, v_flex,
-};
+use gpui_component::{button::*, input::*, select::*, slider::*, switch::*, *};
 
 impl ConfigViewModel {
     fn render_identity_card(
@@ -89,24 +85,29 @@ impl ConfigViewModel {
         let content = v_flex()
             .gap_4()
             .child(
-                v_flex().gap_2().child("LED GPIO Pin").child(
-                    Input::new(&self.led_gpio_input)
-                        .bg(rgb(0x222225))
-                        .disabled(hardware_config_disabled),
-                ),
-            )
-            .child(
-                v_flex().gap_2().child("LED Driver").child(
-                    Select::new(&self.led_driver_select)
-                        .w_full()
-                        .bg(rgb(0x222225))
-                        .disabled(is_fido),
-                ),
+                h_flex()
+                    .gap_4()
+                    .flex_wrap()
+                    .child(
+                        v_flex().gap_2().flex_1().child("LED GPIO Pin").child(
+                            Input::new(&self.led_gpio_input)
+                                .bg(rgb(0x222225))
+                                .disabled(hardware_config_disabled),
+                        ),
+                    )
+                    .child(
+                        v_flex().gap_2().flex_1().child("LED Driver").child(
+                            Select::new(&self.led_driver_select)
+                                .w_full()
+                                .bg(rgb(0x222225))
+                                .disabled(is_fido),
+                        ),
+                    ),
             )
             .child(div().h_px().bg(theme.border))
             .child(
                 v_flex().gap_2().child("Brightness (0-15)").child(
-                    gpui_component::h_flex()
+                    h_flex()
                         .items_center()
                         .gap_4()
                         .child(
@@ -123,7 +124,7 @@ impl ConfigViewModel {
                 ),
             )
             .child(
-                gpui_component::h_flex()
+                h_flex()
                     .items_center()
                     .justify_between()
                     .child(
@@ -142,7 +143,7 @@ impl ConfigViewModel {
                     ),
             )
             .child(
-                gpui_component::h_flex()
+                h_flex()
                     .items_center()
                     .justify_between()
                     .child(
@@ -197,7 +198,7 @@ impl ConfigViewModel {
         let theme = cx.theme();
 
         let content = v_flex().gap_4().child(
-            gpui_component::h_flex()
+            h_flex()
                 .items_center()
                 .justify_between()
                 .child(
@@ -261,7 +262,7 @@ impl ConfigViewModel {
             });
 
             rows = rows.child(
-                gpui_component::h_flex()
+                h_flex()
                     .items_center()
                     .justify_between()
                     .child(
@@ -298,7 +299,7 @@ impl ConfigViewModel {
         });
 
         rows = rows.child(
-            gpui_component::h_flex()
+            h_flex()
                 .items_center()
                 .justify_between()
                 .child(
@@ -351,12 +352,12 @@ impl ConfigViewModel {
                 .unwrap_or("Unknown");
 
             rows = rows.child(
-                gpui_component::h_flex()
+                h_flex()
                     .items_center()
                     .justify_between()
                     .child(div().w_24().child(status.label()))
                     .child(
-                        gpui_component::h_flex()
+                        h_flex()
                             .gap_2()
                             .items_center()
                             .child(
@@ -412,7 +413,7 @@ impl ConfigViewModel {
 
         rows = rows.child(div().h_px().bg(theme.border));
         rows = rows.child(
-            gpui_component::h_flex().justify_end().child(
+            h_flex().justify_end().child(
                 Button::new("apply-rskey-leds")
                     .child("Save LED Status")
                     .custom(
@@ -468,7 +469,7 @@ impl ConfigViewModel {
 
             rows =
                 rows.child(
-                    gpui_component::h_flex()
+                    h_flex()
                         .items_center()
                         .justify_between()
                         .child(v_flex().gap_0p5().child(name).child(
@@ -491,7 +492,7 @@ impl ConfigViewModel {
 
         rows = rows.child(div().h_px().bg(theme.border));
         rows = rows.child(
-            gpui_component::h_flex().justify_end().child(
+            h_flex().justify_end().child(
                 Button::new("apply-rskey-apps")
                     .child("Save USB Applications")
                     .custom(
@@ -554,7 +555,7 @@ impl ConfigViewModel {
             });
 
             rows = rows.child(
-                gpui_component::h_flex()
+                h_flex()
                     .items_center()
                     .justify_between()
                     .child(
@@ -587,11 +588,11 @@ impl ConfigViewModel {
 }
 
 impl Render for ConfigViewModel {
-    fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let theme = cx.theme();
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let has_device = self.device.read(cx).status.is_some();
 
         if !has_device {
+            let theme = cx.theme();
             return PageView::build(
                 "Configuration",
                 "Customize device settings and behavior.",
@@ -643,56 +644,45 @@ impl Render for ConfigViewModel {
             .render_touch_card(cx.theme(), is_fido_no_rskey)
             .into_any_element();
 
-        let is_wide = window.bounds().size.width > px(1100.0);
-        let columns = if is_wide { 2 } else { 1 };
-
-        let mut grid_children = vec![identity_card, led_card, touch_card, options_card];
+        let mut inner = v_flex()
+            .gap_6()
+            .child(identity_card)
+            .child(led_card)
+            .child(touch_card)
+            .child(options_card);
 
         if is_rskey {
-            // RS-Key cards always enabled in FIDO mode — they work via
-            // CONFIG_WRITE with PIN token.
-            let rskey_curves = self.render_curves_card(cx, false).into_any_element();
-            let rskey_led = self.render_rskey_led_card(cx, false).into_any_element();
-            let rskey_apps = self.render_rskey_apps_card(cx, false).into_any_element();
-            let rskey_usb_itf = self.render_rskey_usb_itf_card(cx, false).into_any_element();
-            grid_children.push(rskey_curves);
-            grid_children.push(rskey_led);
-            grid_children.push(rskey_apps);
-            grid_children.push(rskey_usb_itf);
+            inner = inner
+                .child(self.render_curves_card(cx, false))
+                .child(self.render_rskey_led_card(cx, false))
+                .child(self.render_rskey_apps_card(cx, false))
+                .child(self.render_rskey_usb_itf_card(cx, false));
         }
 
-        let theme = cx.theme();
+        inner = inner.child(
+            h_flex().justify_end().pt_4().child(
+                Button::new("apply-changes")
+                    .icon(Icon::default().path("icons/save.svg"))
+                    .child("Apply Changes")
+                    .disabled(self.loading || hardware_config_disabled)
+                    .custom(
+                        ButtonCustomVariant::new(cx)
+                            .color(rgb(0xe3e3e6).into())
+                            .hover(rgb(0xcfcfd1).into())
+                            .active(rgb(0xe3e3e6).into())
+                            .foreground(rgb(0x4b4b4e).into()),
+                    )
+                    .on_click(cx.listener(|this, _, window, cx| {
+                        this.apply_changes(window, cx);
+                    })),
+            ),
+        );
 
+        let theme = cx.theme();
         PageView::build(
             "Configuration",
             "Customize device settings and behavior.",
-            v_flex()
-                .gap_6()
-                .child(
-                    div()
-                        .grid()
-                        .grid_cols(columns)
-                        .gap_6()
-                        .children(grid_children),
-                )
-                .child(
-                    gpui_component::h_flex().justify_end().pt_4().child(
-                        Button::new("apply-changes")
-                            .icon(Icon::default().path("icons/save.svg"))
-                            .child("Apply Changes")
-                            .disabled(self.loading || hardware_config_disabled)
-                            .custom(
-                                ButtonCustomVariant::new(cx)
-                                    .color(rgb(0xe3e3e6).into())
-                                    .hover(rgb(0xcfcfd1).into())
-                                    .active(rgb(0xe3e3e6).into())
-                                    .foreground(rgb(0x4b4b4e).into()),
-                            )
-                            .on_click(cx.listener(|this, _, window, cx| {
-                                this.apply_changes(window, cx);
-                            })),
-                    ),
-                ),
+            inner,
             theme,
         )
         .into_any_element()
