@@ -70,8 +70,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                     } else {
                         fido.config.pid
                     },
-                    led_gpio: rescue.config.led_gpio,
-                    led_brightness: rescue.config.led_brightness,
+                    led_gpio: rescue.config.led_gpio.or(fido.config.led_gpio),
+                    led_brightness: rescue.config.led_brightness.or(fido.config.led_brightness),
                     led_dimmable: rescue.config.led_dimmable,
                     power_cycle_on_reset: rescue.config.power_cycle_on_reset,
                     led_steady: rescue.config.led_steady,
@@ -83,8 +83,14 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                             None
                         }
                     }),
-                    product_name: rescue.config.product_name,
-                    touch_timeout: rescue.config.touch_timeout,
+                    // Prefer the phy record's product override; fall back to the
+                    // FIDO transport's USB product string when it has none.
+                    product_name: if !rescue.config.product_name.is_empty() {
+                        rescue.config.product_name
+                    } else {
+                        fido.config.product_name
+                    },
+                    touch_timeout: rescue.config.touch_timeout.or(fido.config.touch_timeout),
                     raw_curves_mask: rescue.config.raw_curves_mask,
                     led_order: rescue.config.led_order,
                     enabled_usb_itf: rescue.config.enabled_usb_itf,

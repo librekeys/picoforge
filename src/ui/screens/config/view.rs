@@ -224,71 +224,6 @@ impl ConfigViewModel {
             .child(content)
     }
 
-    fn render_curves_card(&mut self, cx: &mut Context<Self>, is_fido: bool) -> impl IntoElement {
-        let theme = cx.theme();
-        let mut rows = v_flex().gap_4();
-
-        let curves = [
-            ("curve-p256", "P-256 (secp256r1)", self.curve_p256),
-            ("curve-p384", "P-384 (secp384r1)", self.curve_p384),
-            ("curve-p521", "P-521 (secp521r1)", self.curve_p521),
-            ("curve-k1", "secp256k1 (Bitcoin)", self.curve_secp256k1),
-            ("curve-bp256", "Brainpool 256r1", self.curve_bp256),
-            ("curve-bp384", "Brainpool 384r1", self.curve_bp384),
-            ("curve-bp512", "Brainpool 512r1", self.curve_bp512),
-            ("curve-ed25519", "Ed25519", self.curve_ed25519),
-            ("curve-ed448", "Ed448", self.curve_ed448),
-            ("curve-x25519", "X25519", self.curve_x25519),
-            ("curve-x448", "X448", self.curve_x448),
-        ];
-
-        for (id, label, checked) in curves {
-            let toggle_listener = cx.listener(move |this, checked, _, cx| {
-                match id {
-                    "curve-p256" => this.curve_p256 = *checked,
-                    "curve-p384" => this.curve_p384 = *checked,
-                    "curve-p521" => this.curve_p521 = *checked,
-                    "curve-k1" => this.curve_secp256k1 = *checked,
-                    "curve-bp256" => this.curve_bp256 = *checked,
-                    "curve-bp384" => this.curve_bp384 = *checked,
-                    "curve-bp512" => this.curve_bp512 = *checked,
-                    "curve-ed25519" => this.curve_ed25519 = *checked,
-                    "curve-ed448" => this.curve_ed448 = *checked,
-                    "curve-x25519" => this.curve_x25519 = *checked,
-                    "curve-x448" => this.curve_x448 = *checked,
-                    _ => {}
-                }
-                cx.notify();
-            });
-
-            rows = rows.child(
-                h_flex()
-                    .items_center()
-                    .justify_between()
-                    .child(
-                        v_flex().gap_0p5().child(label).child(
-                            div()
-                                .text_sm()
-                                .text_color(theme.muted_foreground)
-                                .child("Cryptographic curve"),
-                        ),
-                    )
-                    .child(
-                        Switch::new(id)
-                            .checked(checked)
-                            .disabled(is_fido)
-                            .on_click(toggle_listener),
-                    ),
-            );
-        }
-
-        Card::new()
-            .title("Supported Curves")
-            .description("Enable or disable cryptographic curves for RS-Key")
-            .icon(Icon::default().path("icons/shield.svg"))
-            .child(rows)
-    }
-
     fn render_rskey_led_card(&mut self, cx: &mut Context<Self>, is_fido: bool) -> impl IntoElement {
         let theme = cx.theme();
         let mut rows = v_flex().gap_4();
@@ -652,8 +587,9 @@ impl Render for ConfigViewModel {
             .child(options_card);
 
         if is_rskey {
+            // No curves card: RS-Key's firmware ignores the phy ENABLED_CURVES
+            // tag (curve support is compile-time), so exposing it would only mislead.
             inner = inner
-                .child(self.render_curves_card(cx, false))
                 .child(self.render_rskey_led_card(cx, false))
                 .child(self.render_rskey_apps_card(cx, false))
                 .child(self.render_rskey_usb_itf_card(cx, false));

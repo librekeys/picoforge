@@ -34,11 +34,17 @@ pub struct AppConfig {
     pub vid: String,
     pub pid: String,
     pub product_name: String,
-    /// GPIO pin the status LED is connected to.
-    pub led_gpio: u8,
-    pub led_brightness: u8,
-    /// Touch-button press timeout in seconds.
-    pub touch_timeout: u8,
+    /// GPIO pin the status LED is connected to. `None` = no phy override, i.e.
+    /// the firmware's build-time default (which the device doesn't report back).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub led_gpio: Option<u8>,
+    /// Global LED brightness cap. `None` = no phy override (firmware default).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub led_brightness: Option<u8>,
+    /// Touch-button press timeout in seconds. `None` = no phy override; the
+    /// firmware then uses its built-in default (30 s), and `0` means the same.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub touch_timeout: Option<u8>,
     /// LED driver type identifier (e.g. PWM direct vs external driver).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub led_driver: Option<u8>,

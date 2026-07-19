@@ -598,31 +598,12 @@ pub(crate) struct ManagementInfo {
 pub(crate) fn read_rskey_management_info(
     transport: &HidTransport,
 ) -> Result<ManagementInfo, PFError> {
-    match transport.rs_key_config_read(RSKEY_CFG_TARGET_DEV_CONF) {
-        Ok(raw) if raw.len() > 1 => {
-            let data = if raw.first().copied() == Some(raw.len().saturating_sub(1) as u8) {
-                &raw[1..]
-            } else {
-                &raw[..]
-            };
-            parse_management_info(data).map_err(|e| {
-                PFError::Device(format!("Failed to parse RS-Key management config: {e}"))
-            })
-        }
-        Ok(_) => Err(PFError::Device(
-            "RS-Key FIDO management config response too short".to_string(),
-        )),
-        Err(_) => {
-            // DEV_CONF target not readable — fall back to legacy
-            // 0xC2 management info read (same as pico-fido).
-            read_management_info(transport).ok_or_else(|| {
-                PFError::Device(
-                    "Failed to read management info over FIDO (0x41 and 0xC2 both rejected)"
-                        .to_string(),
-                )
-            })
-        }
-    }
+    // Enabled-apps info is NOT readable over the 0x41 CONFIG_READ path — the
+    // firmware exposes only PHY/LED there and rejects DEV_CONF. Both RS-Key and
+    // pico-fido answer the CTAPHID vendor command 0xC2 (logical READ_CONFIG)
+    // with the Management DeviceInfo TLV, so read it there directly.
+    read_management_info(transport)
+        .ok_or_else(|| PFError::Device("Failed to read management info over FIDO".to_string()))
 }
 
 /// Read full device status (info, config, security flags) over the FIDO HID transport.
@@ -908,27 +889,16 @@ fn read_legacy_physical_config(transport: &HidTransport, mut config: AppConfig) 
 /// Read PHY configuration from an RS-Key via CTAPHID 0x41 CONFIG_READ.
 ///
 /// Falls back to returning the unchanged config if the command is not
-/// supported by the device.
+/// supported by the device (pre-v0.3.1 firmware) or the transport errors.
 fn read_rskey_physical_config(transport: &HidTransport, mut config: AppConfig) -> AppConfig {
-    let Ok(raw) = transport.rs_key_config_read(RSKEY_CFG_TARGET_PHY) else {
-        log::info!("RS-Key FIDO config read unavailable (transport error)");
+    // `rs_key_config_read` unwraps the CBOR `{1: blob}` and returns the raw
+    // `EF_PHY` TLV record — a bare `TAG LEN VALUE` sequence, no length prefix.
+    let Ok(data) = transport.rs_key_config_read(RSKEY_CFG_TARGET_PHY) else {
+        log::info!("RS-Key FIDO config read unavailable (pre-v0.3.1 firmware or transport error)");
         return config;
     };
 
-    if raw.len() <= 1 {
-        log::info!(
-            "RS-Key FIDO config read unavailable (response len={}, likely pre-v0.3.1 firmware)",
-            raw.len()
-        );
-        return config;
-    }
-
-    let data = if raw.first().copied() == Some(raw.len().saturating_sub(1) as u8) {
-        &raw[1..]
-    } else {
-        &raw[..]
-    };
-
+    let data = &data[..];
     let mut i = 0;
     while i + 1 < data.len() {
         if i + 2 > data.len() {
@@ -948,13 +918,13 @@ fn read_rskey_physical_config(transport: &HidTransport, mut config: AppConfig) -
                 config.pid = format!("{:04X}", u16::from_be_bytes([field_data[2], field_data[3]]));
             }
             RSKEY_PHY_TAG_LED_GPIO if !field_data.is_empty() => {
-                config.led_gpio = field_data[0];
+                config.led_gpio = Some(field_data[0]);
             }
             RSKEY_PHY_TAG_LED_BRIGHTNESS if !field_data.is_empty() => {
-                config.led_brightness = field_data[0];
+                config.led_brightness = Some(field_data[0]);
             }
             RSKEY_PHY_TAG_PRESENCE_TIMEOUT if !field_data.is_empty() => {
-                config.touch_timeout = field_data[0];
+                config.touch_timeout = Some(field_data[0]);
             }
             RSKEY_PHY_TAG_USB_PRODUCT => {
                 let product_str = std::str::from_utf8(field_data)
@@ -969,12 +939,14 @@ fn read_rskey_physical_config(transport: &HidTransport, mut config: AppConfig) -
                 config.led_steady = opts & RSKEY_OPT_LED_STEADY != 0;
             }
             RSKEY_PHY_TAG_CURVES if field_data.len() == 4 => {
-                config.raw_curves_mask = Some(u32::from_be_bytes([
+                let mask = u32::from_be_bytes([
                     field_data[0],
                     field_data[1],
                     field_data[2],
                     field_data[3],
-                ]));
+                ]);
+                config.raw_curves_mask = Some(mask);
+                config.enable_secp256k1 = mask & 0x08 != 0; // SECP256K1, mirrors the CCID read
             }
             RSKEY_PHY_TAG_LED_DRIVER if !field_data.is_empty() => {
                 config.led_driver = Some(field_data[0]);
@@ -999,8 +971,9 @@ fn read_rskey_physical_config(transport: &HidTransport, mut config: AppConfig) -
 /// Build a PHY TLV blob from `AppConfigInput` for RS-Key CONFIG_WRITE.
 ///
 /// The TLV format matches the Rescue PHY record and is sent as-is
-/// to the RS-Key 0x41 CONFIG_WRITE handler.
-fn build_rskey_phy_tlv(config: &AppConfigInput) -> Vec<u8> {
+/// to the RS-Key 0x41 CONFIG_WRITE handler. Errors if a field can't fit
+/// the record (e.g. an over-long product name).
+fn build_rskey_phy_tlv(config: &AppConfigInput) -> Result<Vec<u8>, PFError> {
     let mut tlv = Vec::new();
 
     if let (Some(vid_str), Some(pid_str)) = (&config.vid, &config.pid)
@@ -1055,6 +1028,11 @@ fn build_rskey_phy_tlv(config: &AppConfigInput) -> Vec<u8> {
 
     if let Some(name) = config.product_name.as_deref().filter(|n| !n.is_empty()) {
         let bytes = name.as_bytes();
+        // Firmware accepts a product record of 1..=33 bytes (name + trailing NUL),
+        // so the name must be <= 32 bytes — reject rather than emit a wrapped length.
+        if bytes.len() + 1 > 33 {
+            return Err(PFError::Device("Product name too long (max 32 bytes).".into()));
+        }
         tlv.push(RSKEY_PHY_TAG_USB_PRODUCT);
         tlv.push((bytes.len() + 1) as u8);
         tlv.extend_from_slice(bytes);
@@ -1099,7 +1077,7 @@ fn build_rskey_phy_tlv(config: &AppConfigInput) -> Vec<u8> {
         tlv.push(val);
     }
 
-    tlv
+    Ok(tlv)
 }
 
 /// Write PHY config to an RS-Key via CTAPHID 0x41 CONFIG_WRITE.
@@ -1108,23 +1086,25 @@ fn write_rskey_config(
     config: &AppConfigInput,
     pin: &str,
 ) -> Result<String, PFError> {
-    let tlv = build_rskey_phy_tlv(config);
+    let tlv = build_rskey_phy_tlv(config)?;
     if tlv.is_empty() {
         return Ok("No RS-Key configuration changes were needed.".to_string());
     }
 
-    // Probe: CONFIG_READ (0x41 subcommand 0x0D) is ungated and confirms
-    // the device supports the 0x41 CONFIG_WRITE/CONFIG_READ commands
-    // (RS-Key v0.3.1+). Pre-v0.3.1 devices return a CTAP error byte, which
-    // we detect as a response with len <= 1.
-    let cfg_read_resp = transport.rs_key_config_read(RSKEY_CFG_TARGET_PHY)?;
-    if cfg_read_resp.len() <= 1 {
-        return Err(PFError::Device(
-            "This RS-Key firmware does not support FIDO configuration. \
-             Please use Rescue mode (CCID/PCSC) or update to RS-Key v0.3.1+."
-                .into(),
-        ));
-    }
+    // Probe: CONFIG_READ (0x41 subcommand 0x0D) is ungated and, on success,
+    // confirms the device supports the 0x41 CONFIG_WRITE/CONFIG_READ commands
+    // (RS-Key v0.3.1+). Pre-v0.3.1 firmware rejects it with a CTAP error, which
+    // surfaces here as `Err`. A supported device may legitimately return an
+    // empty PHY blob, so success alone is the signal — never the blob length.
+    transport
+        .rs_key_config_read(RSKEY_CFG_TARGET_PHY)
+        .map_err(|_| {
+            PFError::Device(
+                "This RS-Key firmware does not support FIDO configuration. \
+                 Please use Rescue mode (CCID/PCSC) or update to RS-Key v0.3.1+."
+                    .into(),
+            )
+        })?;
 
     let pin_token = transport
         .get_pin_token_with_permission(pin, PinUvAuthTokenPermissions::AUTHENTICATOR_CONFIG, None)
@@ -1215,6 +1195,12 @@ fn is_empty_config_input(config: &AppConfigInput) -> bool {
         && config.power_cycle_on_reset.is_none()
         && config.led_steady.is_none()
         && config.enable_secp256k1.is_none()
+        // RS-Key-only PHY fields — `build_rskey_phy_tlv` writes these, so a
+        // change to any of them alone must not be treated as a no-op.
+        && config.raw_curves_mask.is_none()
+        && config.led_order.is_none()
+        && config.enabled_usb_itf.is_none()
+        && config.led_num.is_none()
 }
 
 fn validate_fido_config_changes(
@@ -1477,47 +1463,12 @@ const RSKEY_LED_CONF_LEN: usize = 17;
 /// [`LedStatusConfig`] type, keeping only color and brightness
 /// for backward compatibility with the Rescue LED UI.
 pub(crate) fn read_rskey_led_config(transport: &HidTransport) -> Result<LedStatusConfig, PFError> {
-    let raw = transport.rs_key_config_read(RSKEY_CFG_TARGET_LED)?;
-    if raw.len() < RSKEY_LED_CONF_LEN {
-        return Err(PFError::Device(format!(
-            "LED config response too short: {} bytes (expected {})",
-            raw.len(),
-            RSKEY_LED_CONF_LEN,
-        )));
-    }
-
-    let data = if raw.first().copied() == Some(raw.len().saturating_sub(1) as u8) {
-        &raw[1..]
-    } else {
-        &raw[..]
-    };
-
-    if data.len() < 9 {
-        return Err(PFError::Device(format!(
-            "LED config payload too short: {} bytes",
-            data.len(),
-        )));
-    }
-
-    let steady = data[0] != 0;
-    let statuses = if data.len() >= RSKEY_LED_CONF_LEN {
-        // Full block: [steady, (effect, color, brightness, speed) × N]
-        let mut s = [(0u8, 0u8); 4];
-        for (i, slot) in s.iter_mut().enumerate() {
-            *slot = (data[2 + 4 * i], data[3 + 4 * i]); // color, brightness
-        }
-        s
-    } else {
-        // Legacy 9-byte block: [steady, (color, brightness) × N]
-        let mut s = [(0u8, 0u8); 4];
-        for (i, slot) in s.iter_mut().enumerate() {
-            let off = 1 + 2 * i;
-            if off + 1 < data.len() {
-                *slot = (data[off], data[off + 1]);
-            }
-        }
-        s
-    };
+    // `rs_key_config_read` unwraps the CBOR `{1: blob}`, so `data` is the raw
+    // `EF_LED_CONF` block. `parse_led_block` handles the 17/13/9-byte layouts.
+    let data = transport.rs_key_config_read(RSKEY_CFG_TARGET_LED)?;
+    let (steady, statuses) = crate::hal::common::parse_led_block(&data).ok_or_else(|| {
+        PFError::Device(format!("LED config response too short: {} bytes", data.len()))
+    })?;
 
     log::info!(
         "RS-Key FIDO LED config: steady={}, statuses={:?}",
@@ -1539,14 +1490,20 @@ pub(crate) fn write_rskey_led_config(
     config: &LedStatusConfig,
     pin: &str,
 ) -> Result<String, PFError> {
+    // Read-modify-write: overwrite only steady/color/brightness so a WS2812 effect
+    // + speed set out-of-band (e.g. `rsk led`) survives a colour change. Fall back
+    // to a fresh solid block (effect/speed = 0) if the current one can't be read.
     let mut block = [0u8; RSKEY_LED_CONF_LEN];
+    if let Ok(current) = transport.rs_key_config_read(RSKEY_CFG_TARGET_LED)
+        && current.len() >= RSKEY_LED_CONF_LEN
+    {
+        block.copy_from_slice(&current[..RSKEY_LED_CONF_LEN]);
+    }
     block[0] = if config.steady { 0x01 } else { 0x00 };
     for (i, &(color, brightness)) in config.statuses.iter().enumerate() {
-        let off = 1 + 4 * i;
-        block[off] = 0x00; // effect = solid
-        block[off + 1] = color & 0x07;
-        block[off + 2] = brightness;
-        block[off + 3] = 0x00; // speed = default
+        // effect (1+4i) and speed (4+4i) are left untouched.
+        block[2 + 4 * i] = color & 0x07;
+        block[3 + 4 * i] = brightness;
     }
 
     let pin_token = transport.get_pin_token_with_permission(
@@ -1970,5 +1927,55 @@ mod tests {
         let mut c = empty_config_input();
         c.vid = Some("FEFF".to_string());
         assert!(!is_empty_config_input(&c));
+    }
+
+    #[test]
+    fn test_is_empty_config_input_counts_rskey_only_fields() {
+        // A change to any RS-Key-only PHY field alone must not be a no-op,
+        // otherwise write_config drops it before build_rskey_phy_tlv runs.
+        for c in [
+            {
+                let mut c = empty_config_input();
+                c.raw_curves_mask = Some(0x08);
+                c
+            },
+            {
+                let mut c = empty_config_input();
+                c.led_order = Some(1);
+                c
+            },
+            {
+                let mut c = empty_config_input();
+                c.enabled_usb_itf = Some(0x05);
+                c
+            },
+            {
+                let mut c = empty_config_input();
+                c.led_num = Some(3);
+                c
+            },
+        ] {
+            assert!(!is_empty_config_input(&c));
+        }
+    }
+
+    #[test]
+    fn test_build_rskey_phy_tlv_rejects_overlong_product_name() {
+        let mut c = empty_config_input();
+        c.product_name = Some("x".repeat(32)); // 32 + NUL = 33, the firmware max
+        assert!(build_rskey_phy_tlv(&c).is_ok());
+        c.product_name = Some("x".repeat(33)); // 33 + NUL = 34, over the limit
+        assert!(build_rskey_phy_tlv(&c).is_err());
+    }
+
+    #[test]
+    fn test_build_rskey_phy_tlv_emits_rskey_only_tags() {
+        let mut c = empty_config_input();
+        c.led_num = Some(3);
+        c.led_order = Some(1);
+        let tlv = build_rskey_phy_tlv(&c).unwrap();
+        // tag 0x0E len 0x01 val 0x03, and tag 0x0D len 0x01 val 0x01
+        assert!(tlv.windows(3).any(|w| w == [0x0E, 0x01, 0x03]));
+        assert!(tlv.windows(3).any(|w| w == [0x0D, 0x01, 0x01]));
     }
 }

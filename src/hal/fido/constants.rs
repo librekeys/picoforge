@@ -718,8 +718,9 @@ pub const RSKEY_CTAPHID_VENDOR_CMD: u8 = 0x41;
 
 /// RS-Key CONFIG_READ sub-command ID (0x0D).
 ///
-/// Reads device configuration over FIDO. Supports DEV_CONF (0x00),
-/// PHY (0x01), and LED (0x02) targets. Ungated — no PIN needed.
+/// Reads device configuration over FIDO. Supports PHY (0x01) and LED (0x02)
+/// targets only; DEV_CONF (0x00) is write-only over FIDO (read it via the CCID
+/// Management applet). Returns a CBOR `{1: blob}` map. Ungated — no PIN needed.
 pub const RSKEY_CONFIG_READ: u8 = 0x0D;
 
 /// RS-Key CONFIG_WRITE sub-command ID (0x0C).

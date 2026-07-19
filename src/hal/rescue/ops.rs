@@ -327,17 +327,17 @@ impl RescueOperations for PcscTransport {
                     }
                     PhyTag::LedGpio => {
                         if !field_data.is_empty() {
-                            config.led_gpio = field_data[0];
+                            config.led_gpio = Some(field_data[0]);
                         }
                     }
                     PhyTag::LedBrightness => {
                         if !field_data.is_empty() {
-                            config.led_brightness = field_data[0];
+                            config.led_brightness = Some(field_data[0]);
                         }
                     }
                     PhyTag::PresenceTimeout => {
                         if !field_data.is_empty() {
-                            config.touch_timeout = field_data[0];
+                            config.touch_timeout = Some(field_data[0]);
                         }
                     }
                     PhyTag::UsbProduct => {
@@ -553,6 +553,14 @@ impl RescueOperations for PcscTransport {
             tlv.push(val | UsbInterfaces::CCID.bits());
         }
 
+        // LED count (Tag 0x0E) — RS-Key extension; the rescue write is full-replace,
+        // so emit it here too or a CCID write silently drops the configured count.
+        if let Some(val) = config.led_num {
+            tlv.push(PhyTag::LedNum as u8);
+            tlv.push(0x01);
+            tlv.push(val);
+        }
+
         // 2. Connect and Send
         if tlv.is_empty() {
             log::warn!("No configuration changes to apply");
@@ -689,20 +697,16 @@ impl RescueOperations for PcscTransport {
         let mut rx_buf = [0; 256];
         let rx = self.transmit(&apdu, &mut rx_buf)?;
 
-        if !rx.ends_with(&SW_SUCCESS) || rx.len() < 11 {
+        if !rx.ends_with(&SW_SUCCESS) {
             return Err(PFError::Device("Failed to read LED config".into()));
         }
 
+        // The applet returns the raw `EF_LED_CONF` block (17 bytes on current
+        // firmware); `parse_led_block` reads colour/brightness at the right
+        // stride instead of assuming the legacy 9-byte layout.
         let data = &rx[..rx.len() - 2];
-        if data.len() < 9 {
-            return Err(PFError::Device("LED config response too short".into()));
-        }
-
-        let steady = data[0] != 0;
-        let mut statuses = [(0u8, 0u8); 4];
-        for s in 0..4 {
-            statuses[s] = (data[1 + 2 * s], data[2 + 2 * s]);
-        }
+        let (steady, statuses) = crate::hal::common::parse_led_block(data)
+            .ok_or_else(|| PFError::Device("LED config response too short".into()))?;
 
         log::info!("LED config: steady={}, statuses={:?}", steady, statuses);
         Ok(LedStatusConfig { steady, statuses })

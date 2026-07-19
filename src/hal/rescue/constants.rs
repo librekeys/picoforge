@@ -279,8 +279,8 @@ pub enum PhyTag {
 
     /// Touch presence timeout.
     ///
-    /// Data format: `[TIMEOUT_MS_LSB, TIMEOUT_MS_MSB]` (2 bytes).
-    /// Timeout in milliseconds for user presence verification.
+    /// Data format: `[TIMEOUT_SECONDS]` (1 byte); `0`/absent = firmware default.
+    /// How long the device waits for a user touch before giving up.
     PresenceTimeout = 0x08,
 
     /// USB product string.

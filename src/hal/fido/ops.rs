@@ -1432,15 +1432,16 @@ impl FidoOperations for HidTransport {
         Ok(())
     }
 
-    /// Read physical configuration from an RS-Key via CTAPHID 0x41 CONFIG_READ.
+    /// Read a device-config record from an RS-Key via CTAPHID 0x41 CONFIG_READ.
     ///
     /// Sends `{1: 0x0D, 2: {1: target}}` CBOR payload to the RS-Key vendor
-    /// command handler inside a CTAPHID_CBOR message with the vendor sub-command
-    /// prefix. Returns raw TLV bytes for the requested target.
-    /// Ungated — no PIN needed.
+    /// command handler inside a CTAPHID_CBOR message. The firmware answers with
+    /// a CBOR map `{1: blob}`; this unwraps key 1 and returns the raw record
+    /// bytes. Ungated — no PIN needed.
     ///
-    /// Targets: `RSKEY_CFG_TARGET_DEV_CONF` (0x00), `RSKEY_CFG_TARGET_PHY` (0x01),
-    /// `RSKEY_CFG_TARGET_LED` (0x02).
+    /// Targets: `RSKEY_CFG_TARGET_PHY` (0x01) and `RSKEY_CFG_TARGET_LED` (0x02).
+    /// `DEV_CONF` (0x00) is write-only over FIDO — the firmware rejects it here
+    /// (readable only via the CCID Management applet), so this returns an error.
     fn rs_key_config_read(&self, target: u8) -> Result<Vec<u8>, PFError> {
         let mut params = BTreeMap::new();
         params.insert(Value::Integer(1), Value::Integer(RSKEY_CONFIG_READ as i128));
@@ -1453,7 +1454,20 @@ impl FidoOperations for HidTransport {
 
         let mut full_payload = vec![RSKEY_CTAPHID_VENDOR_CMD];
         full_payload.extend(inner);
-        self.send_cbor(CTAPHID_CBOR, &full_payload)
+        let resp = self.send_cbor(CTAPHID_CBOR, &full_payload)?;
+
+        // Response is CBOR `{1: blob(bstr)}` — unwrap key 1 to the raw record.
+        match from_slice::<Value>(&resp) {
+            Ok(Value::Map(m)) => match m.get(&Value::Integer(1)) {
+                Some(Value::Bytes(b)) => Ok(b.clone()),
+                _ => Err(PFError::Device(
+                    "CONFIG_READ response missing blob (key 1)".into(),
+                )),
+            },
+            _ => Err(PFError::Device(
+                "CONFIG_READ response is not a CBOR map".into(),
+            )),
+        }
     }
 
     /// Write physical configuration to an RS-Key via CTAPHID 0x41 CONFIG_WRITE.

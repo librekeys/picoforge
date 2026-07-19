@@ -292,7 +292,12 @@ impl HomeViewModel {
                                     .text_color(theme.muted_foreground)
                                     .child("LED GPIO Pin"),
                             )
-                            .child(format!("GPIO {}", config.led_gpio)),
+                            .child(
+                                config
+                                    .led_gpio
+                                    .map(|g| format!("GPIO {}", g))
+                                    .unwrap_or_else(|| "Firmware default".into()),
+                            ),
                     )
                     .child(
                         h_flex()
@@ -302,7 +307,12 @@ impl HomeViewModel {
                                     .text_color(theme.muted_foreground)
                                     .child("LED Brightness"),
                             )
-                            .child(config.led_brightness.to_string()),
+                            .child(
+                                config
+                                    .led_brightness
+                                    .map(|b| b.to_string())
+                                    .unwrap_or_else(|| "Firmware default".into()),
+                            ),
                     )
                     .child(
                         h_flex()
@@ -312,7 +322,12 @@ impl HomeViewModel {
                                     .text_color(theme.muted_foreground)
                                     .child("Presence Touch Timeout"),
                             )
-                            .child(format!("{}s", config.touch_timeout)),
+                            .child(
+                                config
+                                    .touch_timeout
+                                    .map(|t| format!("{}s", t))
+                                    .unwrap_or_else(|| "Firmware default".into()),
+                            ),
                     )
                     .child(
                         h_flex()

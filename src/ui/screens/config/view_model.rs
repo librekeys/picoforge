@@ -13,6 +13,11 @@ use gpui_component::input::InputState;
 use gpui_component::select::{SelectItem, SelectState};
 use gpui_component::slider::SliderState;
 
+/// Slider position shown for LED brightness when the device has no phy override.
+/// Purely cosmetic: an unmoved slider is treated as "no override" on save, so this
+/// value is never written unless the user actually drags the slider.
+const DEFAULT_BRIGHTNESS: u8 = 8;
+
 /// Known USB vendor/product identity presets for various security keys.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UsbIdentityPreset {
@@ -260,13 +265,20 @@ impl ConfigViewModel {
         let current_product_name: SharedString = config
             .map(|c| c.product_name.clone().into())
             .unwrap_or_else(|| "My Key".into());
+        // `None` (no phy override) → blank input, so it reads as "firmware default"
+        // rather than a bogus "0" and isn't written back on save.
         let current_led_gpio: SharedString = config
-            .map(|c| c.led_gpio.to_string().into())
-            .unwrap_or_else(|| "25".into());
+            .and_then(|c| c.led_gpio)
+            .map(|g| g.to_string().into())
+            .unwrap_or_default();
         let current_touch_timeout: SharedString = config
-            .map(|c| c.touch_timeout.to_string().into())
-            .unwrap_or_else(|| "10".into());
-        let current_brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
+            .and_then(|c| c.touch_timeout)
+            .map(|t| t.to_string().into())
+            .unwrap_or_default();
+        let current_brightness = config
+            .and_then(|c| c.led_brightness)
+            .map(|b| b as f32)
+            .unwrap_or(DEFAULT_BRIGHTNESS as f32);
 
         let led_dimmable = config.map(|c| c.led_dimmable).unwrap_or(true);
         let led_steady = config.map(|c| c.led_steady).unwrap_or(false);
@@ -337,8 +349,11 @@ impl ConfigViewModel {
         let product_name_input =
             cx.new(|cx| InputState::new(window, cx).default_value(current_product_name.clone()));
 
-        let led_gpio_input =
-            cx.new(|cx| InputState::new(window, cx).default_value(current_led_gpio.clone()));
+        let led_gpio_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Firmware default")
+                .default_value(current_led_gpio.clone())
+        });
 
         let initial_driver_idx = LedDriverType::all()
             .iter()
@@ -384,8 +399,11 @@ impl ConfigViewModel {
                 .default_value(current_brightness)
         });
 
-        let touch_timeout_input =
-            cx.new(|cx| InputState::new(window, cx).default_value(current_touch_timeout.clone()));
+        let touch_timeout_input = cx.new(|cx| {
+            InputState::new(window, cx)
+                .placeholder("Firmware default (30s)")
+                .default_value(current_touch_timeout.clone())
+        });
 
         Self {
             device,
@@ -647,6 +665,7 @@ impl ConfigViewModel {
         let raw_curves_mask = status.config.raw_curves_mask;
         let led_order = status.config.led_order;
         let method = status.method.clone();
+        let is_rskey = status.firmware_type == crate::ui::models::device::FirmwareType::RSKey;
 
         let mut has_changes = false;
 
@@ -665,40 +684,65 @@ impl ConfigViewModel {
             has_changes = true;
         }
 
-        let mut final_led_gpio = current_led_gpio;
+        // LED GPIO: an empty input means "no phy override" (firmware default) and
+        // is not written; a value is written only when the user typed one.
         let led_gpio_str = self.led_gpio_input.read(cx).text().to_string();
-        if let Ok(parsed_gpio) = led_gpio_str.parse::<u8>() {
-            if parsed_gpio != current_led_gpio {
-                has_changes = true;
-            }
-            final_led_gpio = parsed_gpio;
-        }
-
-        let mut final_led_driver = current_led_driver;
-        let driver_idx = self.led_driver_select.read(cx).selected_index(cx);
-        if let Some(idx) = driver_idx
-            && let Some(driver) = LedDriverType::all().get(idx.row)
-        {
-            let driver_value = driver.value();
-            let current_driver_value = current_led_driver.unwrap_or(1);
-            if driver_value != current_driver_value {
-                has_changes = true;
-            }
-            final_led_driver = Some(driver_value);
-        }
-
-        let brightness = self.led_brightness_slider.read(cx).value().start() as u8;
-        if brightness != current_led_brightness {
+        let trimmed_gpio = led_gpio_str.trim();
+        let final_led_gpio = if trimmed_gpio.is_empty() {
+            None
+        } else {
+            trimmed_gpio.parse::<u8>().ok().or(current_led_gpio)
+        };
+        if final_led_gpio != current_led_gpio {
             has_changes = true;
         }
 
-        let mut final_touch_timeout = current_touch_timeout;
+        // LED driver: preserve the device's value (None = firmware default) unless
+        // the user picks a different entry than the one it booted with — an
+        // untouched select must not clobber a virgin phy with a bogus driver.
+        let init_driver_idx = LedDriverType::all()
+            .iter()
+            .position(|d| Some(d.value()) == current_led_driver)
+            .unwrap_or(0);
+        let sel_driver_idx = self
+            .led_driver_select
+            .read(cx)
+            .selected_index(cx)
+            .map(|p| p.row)
+            .unwrap_or(init_driver_idx);
+        let final_led_driver = if sel_driver_idx != init_driver_idx {
+            LedDriverType::all().get(sel_driver_idx).map(|d| d.value())
+        } else {
+            current_led_driver
+        };
+        if final_led_driver != current_led_driver {
+            has_changes = true;
+        }
+
+        // LED brightness: an unmoved slider preserves the device's value
+        // (None = firmware default) instead of writing its placeholder position.
+        let init_brightness = current_led_brightness.unwrap_or(DEFAULT_BRIGHTNESS);
+        let slider_brightness = self.led_brightness_slider.read(cx).value().start() as u8;
+        let final_led_brightness = if slider_brightness != init_brightness {
+            Some(slider_brightness)
+        } else {
+            current_led_brightness
+        };
+        if final_led_brightness != current_led_brightness {
+            has_changes = true;
+        }
+
+        // Touch timeout: empty input = "firmware default" (no override written).
+        // `0` firmware-side also means the 30 s default, so an empty field is honest.
         let touch_timeout_str = self.touch_timeout_input.read(cx).text().to_string();
-        if let Ok(val) = touch_timeout_str.parse::<u8>() {
-            if val != current_touch_timeout {
-                has_changes = true;
-            }
-            final_touch_timeout = val;
+        let trimmed_tt = touch_timeout_str.trim();
+        let final_touch_timeout = if trimmed_tt.is_empty() {
+            None
+        } else {
+            trimmed_tt.parse::<u8>().ok().or(current_touch_timeout)
+        };
+        if final_touch_timeout != current_touch_timeout {
+            has_changes = true;
         }
 
         if (self.led_dimmable != current_led_dimmable)
@@ -708,9 +752,17 @@ impl ConfigViewModel {
             has_changes = true;
         }
 
-        let new_curves_mask = Self::curves_mask_from_toggles(self);
-        let has_curve_changes = Some(new_curves_mask) != raw_curves_mask
-            || (raw_curves_mask.is_none() && new_curves_mask != 0);
+        // RS-Key ignores the phy ENABLED_CURVES tag (its curves card is hidden),
+        // so preserve the device's mask rather than rebuilding it from the hidden
+        // toggles — otherwise Apply Changes would write a meaningless curves tag.
+        let (has_curve_changes, built_curves_mask) = if is_rskey {
+            (false, raw_curves_mask)
+        } else {
+            let new_curves_mask = Self::curves_mask_from_toggles(self);
+            let changed = Some(new_curves_mask) != raw_curves_mask
+                || (raw_curves_mask.is_none() && new_curves_mask != 0);
+            (changed, if changed { Some(new_curves_mask) } else { raw_curves_mask })
+        };
         if has_curve_changes {
             has_changes = true;
         }
@@ -726,18 +778,13 @@ impl ConfigViewModel {
             return;
         }
 
-        let built_curves_mask = if has_curve_changes {
-            Some(new_curves_mask)
-        } else {
-            raw_curves_mask
-        };
         let changes = AppConfigInput {
             vid: Some(vid),
             pid: Some(pid),
             product_name: Some(product_name),
-            led_gpio: Some(final_led_gpio),
-            led_brightness: Some(brightness),
-            touch_timeout: Some(final_touch_timeout),
+            led_gpio: final_led_gpio,
+            led_brightness: final_led_brightness,
+            touch_timeout: final_touch_timeout,
             led_driver: final_led_driver,
             led_dimmable: Some(self.led_dimmable),
             power_cycle_on_reset: Some(self.power_cycle),
@@ -750,7 +797,6 @@ impl ConfigViewModel {
         };
 
         if method == DeviceMethod::Fido {
-            let is_rskey = status.firmware_type == crate::ui::models::device::FirmwareType::RSKey;
             if Self::status_supports_legacy_fido_config(status) || is_rskey {
                 self.open_pin_dialog(changes, window, cx);
             } else {
@@ -835,18 +881,23 @@ impl ConfigViewModel {
             .map(|c| c.product_name.clone())
             .unwrap_or_else(|| "My Key".into());
         let new_gpio = config
-            .map(|c| c.led_gpio.to_string())
-            .unwrap_or_else(|| "25".into());
+            .and_then(|c| c.led_gpio)
+            .map(|g| g.to_string())
+            .unwrap_or_default();
         let new_timeout = config
-            .map(|c| c.touch_timeout.to_string())
-            .unwrap_or_else(|| "10".into());
+            .and_then(|c| c.touch_timeout)
+            .map(|t| t.to_string())
+            .unwrap_or_default();
 
         self.led_dimmable = config.map(|c| c.led_dimmable).unwrap_or(true);
         self.led_steady = config.map(|c| c.led_steady).unwrap_or(false);
         self.power_cycle = config.map(|c| c.power_cycle_on_reset).unwrap_or(false);
         Self::sync_curve_toggles(self, config);
 
-        let brightness = config.map(|c| c.led_brightness as f32).unwrap_or(8.0);
+        let brightness = config
+            .and_then(|c| c.led_brightness)
+            .map(|b| b as f32)
+            .unwrap_or(DEFAULT_BRIGHTNESS as f32);
 
         let new_driver_val = config.and_then(|c| c.led_driver).unwrap_or(1);
 
