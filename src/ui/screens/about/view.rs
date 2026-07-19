@@ -42,7 +42,7 @@ impl Render for AboutViewModel {
                                             .text_color(theme.muted_foreground)
                                             .max_w(px(450.0))
                                             .child(
-                                                "An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI.",
+                                                "An open source commissioning tool for pico-fido and rs-key security keys. Developed with Rust and GPUI.",
                                             ),
                                     )
                                     .child(
@@ -80,7 +80,7 @@ impl Render for AboutViewModel {
                                                         div()
                                                             .font_medium()
                                                             .text_color(theme.foreground)
-                                                            .child("© 2026 Suyog Tandel"),
+                                                            .child("©2026 Suyog Tandel"),
                                                     ),
                                             ),
                                     )
@@ -104,6 +104,26 @@ impl Render for AboutViewModel {
                                                     )
                                                     .on_click(|_, _, cx| {
                                                         cx.open_url("https://github.com/librekeys/picoforge")
+                                                    }),
+                                            )
+                                            .child(
+                                                Button::new("wiki_btn")
+                                                    .outline()
+                                                    .bg(rgb(0x222225))
+                                                    .child(
+                                                        h_flex()
+                                                            .gap_2()
+                                                            .child(
+                                                                Icon::default()
+                                                                    .path("icons/book-open.svg")
+                                                                    .size_4(),
+                                                            )
+                                                            .child("Wiki"),
+                                                    )
+                                                    .on_click(|_, _, cx| {
+                                                        cx.open_url(
+                                                            "https://github.com/librekeys/picoforge/wiki",
+                                                        )
                                                     }),
                                             ),
                                     ),
