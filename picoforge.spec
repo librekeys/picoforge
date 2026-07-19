@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           picoforge
-Version:        0.6.0
+Version:        0.7.0
 Release:        1%{?dist}
 Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI.
 License:        AGPL-3.0
