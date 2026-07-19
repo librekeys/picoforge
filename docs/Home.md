@@ -1,6 +1,6 @@
 # Welcome to the PicoForge Wiki
 
-**PicoForge** is a modern desktop application for configuring and managing **Pico FIDO** security keys. Built with Rust, Tauri, and Svelte, it provides an intuitive interface.
+**PicoForge** is a modern desktop application for configuring and managing **pico-fido** and **rs-key** security keys. Built with Rust and GPUI.
 
 > [!WARNING]
 > **Beta Status**: This application is currently under active development and in beta stage. Users should expect bugs and are encouraged to report them. The app has been tested on Linux and Windows 10/11 with the official Raspberry Pi Pico2, WaveShare RP2350 One & ESP32-S3 and, currently targets Pico FIDO firmware version 7.6. FIDO-only hardware configuration is available only for legacy 7.0/7.2 firmware; 7.4/7.6 require rescue/PCSC mode for hardware configuration.

@@ -121,11 +121,8 @@ sudo dnf install picoforge
 
 #### Tumbleweed
 
-```bash
-sudo zypper addrepo https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/repo/opensuse-tumbleweed/lockedmutex-picoforge-opensuse-tumbleweed.repo
-sudo zypper refresh
-sudo zypper install picoforge
-```
+> [!IMPORTANT]
+> One more update, I am dropping support for OpenSUSE Tumbleweed builds via my [COPR Repository](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/), you can still install and use the leap 15.6 rpm from GitHub releases. However the official [COPR Repository](https://copr.fedorainfracloud.org/coprs/lockedmutex/picoforge/) will not be maintained anymore. Might move OpenSUSE builds to https://build.opensuse.org/ in future or use GitHub workflows to build RPMs specific to openSUSE tumbleweed.
 
 #### Leap 15.6
 
