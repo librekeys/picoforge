@@ -152,6 +152,8 @@ jobs:
           mkdir -p target/release
           echo "Running build inside container..."
           podman run --rm \
+            -e GITHUB_REPOSITORY_OWNER \
+            -e GITHUB_REPOSITORY \
             -v "${{ github.workspace }}":/workspace:z \
             "${IMAGE_NAME}" \
             /workspace/.github/scripts/build_appimage.sh ${{ matrix.appimage_variant }}
@@ -180,6 +182,7 @@ jobs:
             target/release/*.deb
             target/release/*.appimage
             target/release/*.AppImage
+            target/release/*.zsync
             target/release/*.tar.gz
             target/release/*.msi
             target/release/*.dmg
