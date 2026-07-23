@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
     - name: Install nix
       uses: cachix/install-nix-action@v31
       with:
@@ -26,7 +26,7 @@ jobs:
     - name: Show nixpkgs version
       run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
     - name: Update flake packages
-      uses: gepbird/nix-update-action@v2.1.1
+      uses: gepbird/nix-update-action@v3.1.0
       with:
         token: ${{ secrets.NIX_UPDATE_TOKEN }}
         blacklist: "default"
