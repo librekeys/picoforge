@@ -1,5 +1,6 @@
 %global debug_package %{nil}
 %bcond_without bootstrap
+%bcond_with vendor_tarball
 
 Name:           picoforge
 Version:        0.9.0
@@ -8,8 +9,7 @@ Summary:        An open source commissioning tool for Pico FIDO security keys. D
 License:        AGPL-3.0
 URL:            https://github.com/librekeys/picoforge
 Source0:        %{name}-%{version}.tar.gz
-
-%if 0%{?vendor_tarball}
+%if %{with vendor_tarball}
 Source1:        vendor.tar.xz
 %endif
 
@@ -50,14 +50,10 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Support for multiple hardware variants and vendors
 
 %prep
-%if 0%{?vendor_tarball}
-%setup -q -T -D
+%if %{with vendor_tarball}
+%setup -T -D -n %_sourcedir/%{name}-%{version} -a 1
 %else
 %autosetup
-%endif
-
-%if 0%{?vendor_tarball}
-tar -xJf %{SOURCE1} -C %_sourcedir/%{name}-%{version}
 %endif
 
 %if %{without bootstrap}
@@ -68,7 +64,7 @@ rustc --version
 %endif
 
 %build
-%if 0%{?vendor_tarball}
+%if %{with vendor_tarball}
 export CARGO_HOME=%_sourcedir/%{name}-%{version}/.cargo
 cargo build --release --frozen
 %else

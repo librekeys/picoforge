@@ -16,7 +16,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sync-obs-prep:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Sync changelog and bump spec
+        run: |
+          chmod +x .github/scripts/sync_changelog.sh
+          ./.github/scripts/sync_changelog.sh
+
+      - name: Commit and push
+        run: |
+          git config --global user.email 'git@suyogtandel.in'
+          git config --global user.name 'Suyog Tandel'
+          git add picoforge.spec picoforge.changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: sync spec and changes [skip ci]"
+            git push
+          else
+            echo "No changes to commit"
+          fi
+
   build-and-release:
+    needs: sync-obs-prep
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
@@ -176,12 +206,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Extract tag version
-        id: tag_version
+      - name: Extract tag
+        id: tag_name
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Install osc
         run: |
@@ -201,21 +229,16 @@ jobs:
 
       - name: Sync to OBS
         run: |
-          VERSION="${{ steps.tag_version.outputs.version }}"
-          TAG="${{ steps.tag_version.outputs.tag }}"
+          TAG="${{ steps.tag_name.outputs.tag }}"
           OBS_PROJECT="home:lockedmutex"
           OBS_PACKAGE="picoforge"
 
           osc checkout "$OBS_PROJECT/$OBS_PACKAGE"
           cd "$OBS_PROJECT/$OBS_PACKAGE"
 
-          # Copy spec + changes from the tag checkout
-          cp "$GITHUB_WORKSPACE/picoforge.spec" .
-          cp "$GITHUB_WORKSPACE/picoforge.changes" .
-
           # Update _service revision to match the tag
-          sed -i "s|<param name=\"revision\">.*</param>|<param name=\"revision\">refs/tags/$TAG</param>|" _service
-          sed -i "s|<param name=\"version\">.*</param>|<param name=\"version\">$VERSION</param>|" _service
+          # cargo_vendor service clones the repo and generates vendor tarball
+          sed -i "s|<param name=\"revision\">.*</param>|<param name=\"revision\">$TAG</param>|" _service
 
           osc addremove
           osc commit -m "Sync to $TAG"
