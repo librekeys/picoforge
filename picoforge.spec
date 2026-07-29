@@ -1,18 +1,29 @@
 %global debug_package %{nil}
+%bcond_without bootstrap
+
 Name:           picoforge
-Version:        0.8.0
+Version:        0.9.0
 Release:        1%{?dist}
 Summary:        An open source commissioning tool for Pico FIDO security keys. Developed with Rust and GPUI.
 License:        AGPL-3.0
 URL:            https://github.com/librekeys/picoforge
 Source0:        %{name}-%{version}.tar.gz
 
-# Dependencies needed to compile Rust
+%if 0%{?vendor_tarball}
+Source1:        vendor.tar.xz
+%endif
+
+%if %{without bootstrap}
+BuildRequires:  rust
+BuildRequires:  cargo
+%else
+BuildRequires:  curl
+%endif
+
 BuildRequires:  gcc
 BuildRequires:  gcc-c++
 BuildRequires:  make
 BuildRequires:  binutils
-BuildRequires:  curl
 BuildRequires:  unzip
 BuildRequires:  pkgconfig(fontconfig)
 BuildRequires:  pkgconfig(freetype2)
@@ -22,10 +33,9 @@ BuildRequires:  pkgconfig(xcb-render)
 BuildRequires:  pkgconfig(xcb-shape)
 BuildRequires:  pkgconfig(xkbcommon)
 BuildRequires:  pkgconfig(xkbcommon-x11)
-# BuildRequires:  pkgconfig(vulkan)
-# BuildRequires:  pkgconfig(wayland-client)
+BuildRequires:  pkgconfig(vulkan)
+BuildRequires:  pkgconfig(wayland-client)
 
-# HARDWARE / FIDO Specific
 BuildRequires:  pkgconfig(libpcsclite)
 BuildRequires:  pkgconfig(libudev)
 
@@ -40,33 +50,51 @@ PicoForge is a modern desktop application for configuring and managing Pico FIDO
 - Support for multiple hardware variants and vendors
 
 %prep
+%if 0%{?vendor_tarball}
+%setup -q -T -D
+%else
 %autosetup
+%endif
 
+%if 0%{?vendor_tarball}
+tar -xJf %{SOURCE1} -C %_sourcedir/%{name}-%{version}
+%endif
+
+%if %{without bootstrap}
+%else
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 export PATH="$HOME/.cargo/bin:$PATH"
 rustc --version
+%endif
 
 %build
-export PATH="$HOME/.cargo/bin:$PATH"
-
-# Build the App
+%if 0%{?vendor_tarball}
+export CARGO_HOME=%_sourcedir/%{name}-%{version}/.cargo
+cargo build --release --frozen
+%else
+%if %{without bootstrap}
 cargo build --release
+%else
+export PATH="$HOME/.cargo/bin:$PATH"
+cargo build --release
+%endif
+%endif
 
 %install
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_datadir}/applications
 mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
 
-# 1. Install Binary
 install -m 755 target/release/picoforge %{buildroot}%{_bindir}/%{name}
 
-# 2. Install Desktop File
 install -m 644 data/in.suyogtandel.picoforge.desktop %{buildroot}%{_datadir}/applications/%{name}.desktop
 
-# 3. Install Icon
 install -m 644 static/appIcons/in.suyogtandel.picoforge.svg %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg
 
 %files
+%dir %{_datadir}/icons/hicolor
+%dir %{_datadir}/icons/hicolor/scalable
+%dir %{_datadir}/icons/hicolor/scalable/apps
 %{_bindir}/%{name}
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/in.suyogtandel.picoforge.svg

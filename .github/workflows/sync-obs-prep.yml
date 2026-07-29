@@ -1,0 +1,41 @@
+name: sync-obs-prep
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prep:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep -m 1 '^version' Cargo.toml \
+            | sed -E 's/.*"([0-9]+\.[0-9]+\.[0-9]+)".*/\1/')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Sync changelog and bump version
+        run: |
+          chmod +x .github/scripts/sync_changelog.sh
+          ./.github/scripts/sync_changelog.sh
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: sync spec and changes to v${{ steps.version.outputs.version }} [skip ci]"
+          branch: spec-sync/v${{ steps.version.outputs.version }}
+          delete-branch: true
+          title: "chore: sync spec and changes to v${{ steps.version.outputs.version }}"
+          body: |
+            Automated spec/changelog sync triggered via workflow_dispatch.
+
+            - Updates `picoforge.spec` Version + Release + %changelog
+            - Updates `picoforge.changes` with latest commits

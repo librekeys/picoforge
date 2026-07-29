@@ -1,4 +1,4 @@
-name: "publish-stable"
+name: publish-stable
 on:
   workflow_dispatch:
   workflow_run:
@@ -7,10 +7,19 @@ on:
       - release
     types:
       - completed
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-release:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
     permissions:
       contents: write
       issues: write
@@ -154,27 +163,59 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  sync-spec:
-    needs: build-and-release
+  sync-obs:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: read
     env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      OBS_USERNAME: ${{ secrets.OBS_USERNAME }}
+      OBS_API_TOKEN: ${{ secrets.OBS_API_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - name: Sync Spec Version & Tag
+
+      - name: Extract tag version
+        id: tag_version
         run: |
-          chmod +x .github/scripts/sync_spec_version.sh
-          podman run --rm \
-            --security-opt label=disable \
-            -v "$PWD":/workspace \
-            -w /workspace \
-            -e GITHUB_TOKEN=$GITHUB_TOKEN \
-            -e GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
-            fedora:latest \
-            /workspace/.github/scripts/sync_spec_version.sh
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+
+      - name: Install osc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y osc
+
+      - name: Configure osc
+        run: |
+          mkdir -p ~/.config/osc
+          cat > ~/.config/osc/oscrc <<EOF
+          [general]
+          apiurl = https://api.opensuse.org
+          [https://api.opensuse.org]
+          user = $OBS_USERNAME
+          pass = $OBS_API_TOKEN
+          EOF
+
+      - name: Sync to OBS
+        run: |
+          VERSION="${{ steps.tag_version.outputs.version }}"
+          TAG="${{ steps.tag_version.outputs.tag }}"
+          OBS_PROJECT="home:lockedmutex"
+          OBS_PACKAGE="picoforge"
+
+          osc checkout "$OBS_PROJECT/$OBS_PACKAGE"
+          cd "$OBS_PROJECT/$OBS_PACKAGE"
+
+          # Copy spec + changes from the tag checkout
+          cp "$GITHUB_WORKSPACE/picoforge.spec" .
+          cp "$GITHUB_WORKSPACE/picoforge.changes" .
+
+          # Update _service revision to match the tag
+          sed -i "s|<param name=\"revision\">.*</param>|<param name=\"revision\">refs/tags/$TAG</param>|" _service
+          sed -i "s|<param name=\"version\">.*</param>|<param name=\"version\">$VERSION</param>|" _service
+
+          osc addremove
+          osc commit -m "Sync to $TAG"

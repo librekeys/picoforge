@@ -1,0 +1,117 @@
+-------------------------------------------------------------------
+Tue Jul 28 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.8.0
+  - sync spec to 0.8.0-1
+  - update screenshot urls in metainfo file
+  - add totp and slot support with pico-fido firmware
+  - fix config screen ui overflowing out of the window view
+  - fix bare url doc error in home view_model failing ci
+  - map RS-Key bcdDevice to release tag, convert buttons to PFButton, fix sidebar clipping
+  - bump app ver to 0.8
+  - fix rustdoc issues
+  - fix clippy issues on latest rustc
+  - feat(ui): RS-Key applet + management screens
+  - feat(hal): RS-Key CCID applets + FIDO vendor management
+  - refactor: flatpak build script
+  - ci/cd: new improved appimage builds for picoforge release workflow
+  - docs: update installation guide for openSUSE Tumbleweed
+
+-------------------------------------------------------------------
+Sun Jul 19 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.7.1
+  - update flathub metainfo and increment app ver to 0.7.1
+
+-------------------------------------------------------------------
+Sun Jul 19 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.7.0
+  - add wiki button in about screen and update application description
+  - feat(ui): auto-detect device hot-plug and refresh live
+  - fix: correctly read and write RS-Key device configuration
+  - feat(hal): introduce RS-Key(0.3.x) support and FirmwareTrait architecture
+  - docs: add module/item docs across all 43 source files
+  - ci: replace Nix with rust-toolchain, add audit-check and CodeQL jobs
+  - refactor: extract transport layer and split rescue/fido ops
+
+-------------------------------------------------------------------
+Mon Jun 22 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.6.0
+  - update deps and fix tito spec update script
+  - refactor(fido): split raw HID and CBOR response handling
+  - Add Enterprise attestation features
+  - fix(pkg): appstream syntax error
+
+-------------------------------------------------------------------
+Fri Mar 06 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.5.0
+  - fix(ui): migrate views to read device state from ApplicationRoot
+  - refactor: ApplicationRoot restructure
+  - feat(ui): Add LibreKeys One Vendor Config to PicoForge
+  - remove dependency on ctap-hid-fido2 and use our own implementation
+  - support pico-fido version 7.4
+  - feat(pkg): add flatpak build manifest and workflow
+
+-------------------------------------------------------------------
+Sun Feb 22 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.4.1
+  - fix(ui): Setup pin for a newly flashed pico-key
+
+-------------------------------------------------------------------
+Sun Feb 22 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.4.0
+  - change topbar/sidebar layout
+  - feat(ui): Add passkey info bottom sheet to the passkeyview
+  - feat(ui): add tag component to match the shadcn-ui pills
+  - feat(ui): Restore original shadcn-ui based zinc theme
+  - chore(ci/cd): Modify release workflow to build gpui version
+
+-------------------------------------------------------------------
+Wed Feb 18 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.4.0 (cargo packager)
+  - update release workflow to use cargo packager and drop appimage build
+
+-------------------------------------------------------------------
+Wed Feb 18 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.4.0 (GPUI frontend)
+  - cleanup spec file
+  - update specfile with gpui deps for rpm build
+  - add cargo packager config file
+  - feat: init gpui frontend migration
+
+-------------------------------------------------------------------
+Thu Jan 29 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.3.1
+  - fix clippy warnings
+  - refactoring fido module
+  - feat(docs): add building from source docs to wiki
+
+-------------------------------------------------------------------
+Thu Jan 22 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.3.0
+  - implement fido fallback for writeConfig
+  - display device connection method on frontend
+  - Fallback to fido::read_device_details when rescue::read_device_details fails
+  - ci: update release workflow to handle tito version update
+
+-------------------------------------------------------------------
+Sat Jan 17 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.2.1
+  - fix: use universal pkgconfig names
+  - fix: rust install command in spec file
+  - feat: Packaging picoforge for Fedora, CentOS/RHEL and OpenSuse
+
+-------------------------------------------------------------------
+Fri Jan 16 2026 Suyog Tandel <git@suyogtandel.in>
+
+- picoforge 0.2.1 Initial release
