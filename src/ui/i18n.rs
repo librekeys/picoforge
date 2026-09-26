@@ -285,10 +285,10 @@ fn apply_spec(value: &str, spec: Option<&str>) -> String {
 
     // Floating-point precision, e.g. `{:.1}`.
     if let Some(prec) = spec.strip_prefix('.') {
-        if let Ok(prec) = prec.parse::<usize>() {
-            if let Ok(num) = value.trim().parse::<f64>() {
-                return format!("{:.prec$}", num, prec = prec);
-            }
+        if let Ok(prec) = prec.parse::<usize>()
+            && let Ok(num) = value.trim().parse::<f64>()
+        {
+            return format!("{:.prec$}", num, prec = prec);
         }
         return value.to_string();
     }
@@ -380,6 +380,29 @@ macro_rules! __tr_push {
     };
 }
 
+/// Translate `key`, substituting any `format!`-style arguments.
+///
+/// With no arguments the key is returned translated verbatim. With arguments it
+/// also substitutes `format!`-style placeholders:
+///
+/// ```ignore
+/// crate::tr!("Apply Changes");
+/// crate::tr!("Error: {e}", e = err);
+/// crate::tr!("{} credentials stored", count);
+/// ```
+#[macro_export]
+macro_rules! tr {
+    ($key:literal) => {
+        $crate::ui::i18n::translate($key)
+    };
+    ($key:literal, $($args:tt)+) => {{
+        let mut __tr_args: ::std::vec::Vec<(::std::string::String, ::std::string::String)> =
+            ::std::vec::Vec::new();
+        $crate::__tr_push!(__tr_args, $($args)+);
+        $crate::ui::i18n::translate_args($key, &__tr_args)
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -419,25 +442,4 @@ mod tests {
         assert_eq!(translate("Not a real key"), "Not a real key");
         set_locale(previous);
     }
-}
-///
-/// With no arguments the key is returned translated verbatim. With arguments it
-/// also substitutes `format!`-style placeholders:
-///
-/// ```ignore
-/// crate::tr!("Apply Changes");
-/// crate::tr!("Error: {e}", e = err);
-/// crate::tr!("{} credentials stored", count);
-/// ```
-#[macro_export]
-macro_rules! tr {
-    ($key:literal) => {
-        $crate::ui::i18n::translate($key)
-    };
-    ($key:literal, $($args:tt)+) => {{
-        let mut __tr_args: ::std::vec::Vec<(::std::string::String, ::std::string::String)> =
-            ::std::vec::Vec::new();
-        $crate::__tr_push!(__tr_args, $($args)+);
-        $crate::ui::i18n::translate_args($key, &__tr_args)
-    }};
 }
