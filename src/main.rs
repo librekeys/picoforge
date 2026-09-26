@@ -899,6 +899,7 @@ mod ui;
 
 fn main() {
     logging::logger_init();
+    ui::i18n::init();
     let app = Application::new().with_assets(ui::assets::Assets);
 
     app.run(move |cx| {

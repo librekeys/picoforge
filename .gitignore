@@ -32,3 +32,14 @@ packaging
 llm-texts
 opencode.jsonc
 AGENTS.md
+
+# Code-intelligence index (regenerable via `codegraph init`)
+.codegraph/
+
+# Agent scratch artifacts (the i18n *.py tooling is committed on purpose)
+temp/**/__pycache__/
+temp/**/*.pyc
+temp/**/*.png
+temp/**/*.log
+temp/**/check.txt
+temp/**/strings.txt

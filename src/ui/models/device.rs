@@ -707,7 +707,7 @@ impl DeviceRepo {
                 match io::get_fido_info() {
                     Ok(fido) => self.fido_info = Some(fido),
                     Err(e) => {
-                        log::error!("FIDO Info fetch failed: {}", e);
+                        log::error!("{}", crate::tr!("FIDO Info fetch failed: {}", e));
                         self.fido_info = None;
                     }
                 }
@@ -721,7 +721,7 @@ impl DeviceRepo {
                 }
             }
             Err(e) => {
-                self.set_error(format!("{}", e));
+                self.set_error(crate::tr!("{}", e));
                 self.device_changed = false;
             }
         }

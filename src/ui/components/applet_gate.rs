@@ -27,17 +27,17 @@ impl AppletGate {
         match self {
             Self::Ready => None,
             Self::CcidOff => Some((
-                "Smart-card interface off",
-                "Enable the CCID interface in Configuration → Hardware Endpoints, then reconnect the device."
+                crate::tr!("Smart-card interface off"),
+                crate::tr!("Enable the CCID interface in Configuration → Hardware Endpoints, then reconnect the device.")
                     .into(),
             )),
             Self::Disabled(name) => Some((
-                "Applet disabled",
-                format!("{name} is turned off. Enable it in Configuration → USB Applications."),
+                crate::tr!("Applet disabled"),
+                crate::tr!("{name} is turned off. Enable it in Configuration → USB Applications.", name = name),
             )),
             Self::Unsupported => Some((
-                "Not available",
-                "This firmware does not expose this applet.".into(),
+                crate::tr!("Not available"),
+                crate::tr!("This firmware does not expose this applet.").into(),
             )),
         }
     }

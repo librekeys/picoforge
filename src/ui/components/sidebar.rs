@@ -8,6 +8,7 @@ use gpui_component::{
     ActiveTheme, Icon, IconName, Side,
     button::{Button, ButtonVariants},
     h_flex,
+    menu::{DropdownMenu, PopupMenuItem},
     sidebar::*,
     v_flex,
 };
@@ -18,6 +19,8 @@ pub enum SidebarEvent {
     Navigate(Destination),
     /// Re-poll device hardware.
     RefreshDevice,
+    /// Switch the active UI language.
+    SetLocale(crate::ui::i18n::Locale),
 }
 
 impl EventEmitter<SidebarEvent> for AppSidebar {}
@@ -65,10 +68,62 @@ impl AppSidebar {
         self.active_destination = dest;
     }
 
+    /// A button that opens a popup list of the supported languages.
+    ///
+    /// `compact` renders only the flag (collapsed sidebar); otherwise the
+    /// language's endonym is shown next to its flag. Selecting an entry
+    /// switches the active locale immediately.
+    fn language_button(
+        &self,
+        locale: crate::ui::i18n::Locale,
+        compact: bool,
+        cx: &mut Context<Self>,
+    ) -> impl IntoElement {
+        let weak = cx.entity().downgrade();
+        let id = if compact {
+            "locale-menu-collapsed"
+        } else {
+            "locale-menu"
+        };
+
+        let mut button = Button::new(id).ghost();
+        button = if compact {
+            button.child(locale.flag()).w_full()
+        } else {
+            button.label(format!("{} {}", locale.flag(), locale.native_name()))
+        };
+
+        button
+            .tooltip(format!(
+                "{} · {} {}",
+                locale.native_name(),
+                locale.english_name(),
+                if locale.is_rtl() { "(RTL)" } else { "" }
+            ))
+            .dropdown_menu(move |menu, _window, _cx| {
+                let mut menu = menu.min_w(px(170.)).check_side(Side::Left);
+                for option in crate::ui::i18n::Locale::ALL {
+                    let weak = weak.clone();
+                    menu = menu.item(
+                        PopupMenuItem::new(format!("{} {}", option.flag(), option.native_name()))
+                            .checked(option == locale)
+                            .on_click(move |_, _window, cx| {
+                                let _ = weak.update(cx, |_, cx| {
+                                    crate::ui::i18n::set_locale(option);
+                                    cx.emit(SidebarEvent::SetLocale(option));
+                                    cx.notify();
+                                });
+                            }),
+                    );
+                }
+                menu
+            })
+    }
+
     fn menu_item(
         &self,
         cx: &mut Context<Self>,
-        label: &'static str,
+        label: impl Into<SharedString>,
         icon_path: &'static str,
         dest: Destination,
     ) -> SidebarMenuItem {
@@ -83,7 +138,7 @@ impl AppSidebar {
     fn menu_item_icon_name(
         &self,
         cx: &mut Context<Self>,
-        label: &'static str,
+        label: impl Into<SharedString>,
         icon: IconName,
         dest: Destination,
     ) -> SidebarMenuItem {
@@ -177,86 +232,98 @@ impl Render for AppSidebar {
             // features, then device-wide system actions (Offboard sits just
             // above About as a bottom-of-list decommission action).
             .child(
-                SidebarGroup::new("Device").child(SidebarMenu::new().child(self.menu_item(
-                    cx,
-                    "Home",
-                    "icons/house.svg",
-                    Destination::Home,
-                ))),
+                SidebarGroup::new(crate::tr!("Device")).child(SidebarMenu::new().child(
+                    self.menu_item(cx, crate::tr!("Home"), "icons/house.svg", Destination::Home),
+                )),
             )
             .child(
-                SidebarGroup::new("Credentials").child(
+                SidebarGroup::new(crate::tr!("Credentials")).child(
                     SidebarMenu::new()
                         .child(self.menu_item(
                             cx,
-                            "Passkeys",
+                            crate::tr!("Passkeys"),
                             "icons/key-round.svg",
                             Destination::Passkeys,
                         ))
                         .child(self.menu_item(
                             cx,
-                            "Accounts",
+                            crate::tr!("Accounts"),
                             "icons/users-round.svg",
                             Destination::Accounts,
                         ))
                         .child(self.menu_item(
                             cx,
-                            "Slots",
+                            crate::tr!("Slots"),
                             "icons/touch-app.svg",
                             Destination::Slots,
                         ))
-                        .child(self.menu_item(cx, "PIV", "icons/shield.svg", Destination::Piv))
                         .child(self.menu_item(
                             cx,
-                            "OpenPGP",
+                            crate::tr!("PIV"),
+                            "icons/shield.svg",
+                            Destination::Piv,
+                        ))
+                        .child(self.menu_item(
+                            cx,
+                            crate::tr!("OpenPGP"),
                             "icons/scroll-text.svg",
                             Destination::OpenPgp,
                         )),
                 ),
             )
             .child(
-                SidebarGroup::new("Protection").child(
+                SidebarGroup::new(crate::tr!("Protection")).child(
                     SidebarMenu::new()
                         .child(self.menu_item(
                             cx,
-                            "Audit",
+                            crate::tr!("Audit"),
                             "icons/book-open.svg",
                             Destination::Audit,
                         ))
-                        .child(self.menu_item(cx, "Backup", "icons/save.svg", Destination::Backup))
-                        .child(self.menu_item(cx, "Lock", "icons/lock.svg", Destination::Lock))
                         .child(self.menu_item(
                             cx,
-                            "Attestation",
+                            crate::tr!("Backup"),
+                            "icons/save.svg",
+                            Destination::Backup,
+                        ))
+                        .child(self.menu_item(
+                            cx,
+                            crate::tr!("Lock"),
+                            "icons/lock.svg",
+                            Destination::Lock,
+                        ))
+                        .child(self.menu_item(
+                            cx,
+                            crate::tr!("Attestation"),
                             "icons/building-2.svg",
                             Destination::Attestation,
                         )),
                 ),
             )
             .child(
-                SidebarGroup::new("System").child(
+                SidebarGroup::new(crate::tr!("System")).child(
                     SidebarMenu::new()
                         .child(self.menu_item(
                             cx,
-                            "Configuration",
+                            crate::tr!("Configuration"),
                             "icons/settings.svg",
                             Destination::Configuration,
                         ))
                         .child(self.menu_item(
                             cx,
-                            "Security",
+                            crate::tr!("Security"),
                             "icons/shield-check.svg",
                             Destination::Security,
                         ))
                         .child(self.menu_item(
                             cx,
-                            "Offboard",
+                            crate::tr!("Offboard"),
                             "icons/trash-2.svg",
                             Destination::Offboard,
                         ))
                         .child(self.menu_item_icon_name(
                             cx,
-                            "About",
+                            crate::tr!("About"),
                             IconName::Info,
                             Destination::About,
                         )),
@@ -264,6 +331,7 @@ impl Render for AppSidebar {
             );
 
         // ── Footer (device status + refresh) ─────────────────────────
+        let locale = crate::ui::i18n::current();
         let footer = v_flex()
             .w_full()
             .bg(rgb(0x111113))
@@ -286,6 +354,7 @@ impl Render for AppSidebar {
                             }))
                             .w_full(),
                     )
+                    .child(self.language_button(locale, true, cx))
                     .child(div().w(px(8.)).h(px(8.)).rounded_full().bg(
                         if let Some(s) = &status_owned {
                             if s.method == DeviceMethod::Fido {
@@ -311,19 +380,48 @@ impl Render for AppSidebar {
                                     .text_size(px(12.))
                                     .font_weight(gpui::FontWeight::MEDIUM)
                                     .text_color(muted_foreground)
-                                    .child("Device Status"),
+                                    .child(crate::tr!("Language")),
+                            )
+                            .child(self.language_button(locale, false, cx)),
+                    )
+                    .child(
+                        h_flex()
+                            .items_center()
+                            .justify_between()
+                            .child(
+                                div()
+                                    .text_size(px(12.))
+                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .text_color(muted_foreground)
+                                    .child(crate::tr!("Device Status")),
                             )
                             .child({
                                 let (text, color_bg, color_text) = if let Some(s) = &status_owned {
                                     if s.method == DeviceMethod::Fido {
-                                        ("Online - FIDO".to_string(), rgb(0xf59e0b), rgb(0xffffff))
+                                        (
+                                            crate::tr!("Online - FIDO").to_string(),
+                                            rgb(0xf59e0b),
+                                            rgb(0xffffff),
+                                        )
                                     } else {
-                                        ("Online".to_string(), rgb(0x16a34a), rgb(0xffffff))
+                                        (
+                                            crate::tr!("Online").to_string(),
+                                            rgb(0x16a34a),
+                                            rgb(0xffffff),
+                                        )
                                     }
                                 } else if error_owned.is_some() {
-                                    ("Error".to_string(), rgb(0xd97706), rgb(0xffffff))
+                                    (
+                                        crate::tr!("Error").to_string(),
+                                        rgb(0xd97706),
+                                        rgb(0xffffff),
+                                    )
                                 } else {
-                                    ("Offline".to_string(), rgb(0xef4444), rgb(0xffffff))
+                                    (
+                                        crate::tr!("Offline").to_string(),
+                                        rgb(0xef4444),
+                                        rgb(0xffffff),
+                                    )
                                 };
 
                                 div()
@@ -343,10 +441,13 @@ impl Render for AppSidebar {
                             }),
                     )
                     .child(
-                        PFIconButton::new(Icon::default().path("icons/refresh-cw.svg"), "Refresh")
-                            .on_click(cx.listener(|_, _, _, cx| {
-                                cx.emit(SidebarEvent::RefreshDevice);
-                            })),
+                        PFIconButton::new(
+                            Icon::default().path("icons/refresh-cw.svg"),
+                            crate::tr!("Refresh"),
+                        )
+                        .on_click(cx.listener(|_, _, _, cx| {
+                            cx.emit(SidebarEvent::RefreshDevice);
+                        })),
                     )
             });
 

@@ -58,9 +58,17 @@ impl OpenPgpViewModel {
         let d = self.loading;
         let has_fp = k.fingerprint.chars().any(|c| c != '0');
         let status = if k.present {
-            format!("{} · touch {}", k.algo, if k.touch { "on" } else { "off" })
+            crate::tr!(
+                "{} · touch {}",
+                k.algo,
+                if k.touch {
+                    crate::tr!("on")
+                } else {
+                    crate::tr!("off")
+                }
+            )
         } else {
-            "Empty".to_string()
+            crate::tr!("Empty").to_string()
         };
 
         let mut col = v_flex()
@@ -80,7 +88,7 @@ impl OpenPgpViewModel {
             col = col.child(
                 div()
                     .text_xs()
-                    .font_family("monospace")
+                    .font_family(crate::tr!("monospace"))
                     .text_color(theme.muted_foreground)
                     .child(group_fp(&k.fingerprint)),
             );
@@ -98,17 +106,23 @@ impl OpenPgpViewModel {
                     .gap_2()
                     .flex_wrap()
                     .child(
-                        PFButton::new(if k.present { "Regenerate" } else { "Generate" })
-                            .id(format!("gen-{}", slot.label()))
-                            .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
-                            .disabled(d)
-                            .on_click(cx.listener(move |this, _, window, cx| {
+                        PFButton::new(if k.present {
+                            crate::tr!("Regenerate")
+                        } else {
+                            crate::tr!("Generate")
+                        })
+                        .id(crate::tr!("gen-{}", slot.label()))
+                        .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+                        .disabled(d)
+                        .on_click(cx.listener(
+                            move |this, _, window, cx| {
                                 this.open_generate(slot, window, cx);
-                            })),
+                            },
+                        )),
                     )
                     .child(
-                        PFButton::new("Touch policy")
-                            .id(format!("touch-{}", slot.label()))
+                        PFButton::new(crate::tr!("Touch policy"))
+                            .id(crate::tr!("touch-{}", slot.label()))
                             .disabled(d)
                             .on_click(cx.listener(move |this, _, window, cx| {
                                 this.open_touch(slot, window, cx);
@@ -149,12 +163,12 @@ impl OpenPgpViewModel {
 
 impl Render for OpenPgpViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "OpenPGP";
-        const SUBTITLE: &str = "OpenPGP smart card — keys, PINs, and cardholder.";
+        let title: &str = crate::tr!("OpenPGP");
+        let subtitle: &str = crate::tr!("OpenPGP smart card — keys, PINs, and cardholder.");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -178,32 +192,32 @@ impl Render for OpenPgpViewModel {
             )
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
-        let change_user_btn = PFButton::new("Change User PIN")
+        let change_user_btn = PFButton::new(crate::tr!("Change User PIN"))
             .id("pgp-change-user")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_change_user_pin(window, cx)));
-        let change_admin_btn = PFButton::new("Change Admin PIN")
+        let change_admin_btn = PFButton::new(crate::tr!("Change Admin PIN"))
             .id("pgp-change-admin")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_change_admin_pin(window, cx)));
-        let unblock_code_btn = PFButton::new("Reset code")
+        let unblock_code_btn = PFButton::new(crate::tr!("Reset code"))
             .id("pgp-unblock-code")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_unblock_with_code(window, cx)));
-        let unblock_admin_btn = PFButton::new("Admin PIN")
+        let unblock_admin_btn = PFButton::new(crate::tr!("Admin PIN"))
             .id("pgp-unblock-admin")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_unblock_with_admin(window, cx)));
-        let reset_code_btn = PFButton::new("Set reset code")
+        let reset_code_btn = PFButton::new(crate::tr!("Set reset code"))
             .id("pgp-set-rc")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_set_reset_code(window, cx)));
-        let cardholder_btn = PFButton::new("Edit")
+        let cardholder_btn = PFButton::new(crate::tr!("Edit"))
             .id("pgp-cardholder")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_cardholder(window, cx)));
         let reset_btn = Button::new("pgp-reset")
-            .label("Reset OpenPGP applet")
+            .label(crate::tr!("Reset OpenPGP applet"))
             .danger()
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, window, cx| this.open_reset_dialog(window, cx)));
@@ -228,17 +242,17 @@ impl Render for OpenPgpViewModel {
                         .grid_cols(2)
                         .gap_4()
                         .child(kv(
-                            "Version",
-                            format!("{}.{}.{}", i.version[0], i.version[1], i.version[2]),
+                            crate::tr!("Version"),
+                            crate::tr!("{}.{}.{}", i.version[0], i.version[1], i.version[2]),
                             theme,
                         ))
-                        .child(kv("Serial", serial, theme))
-                        .child(kv("Name", field(&i.name), theme))
-                        .child(kv("Login", field(&i.login), theme))
-                        .child(kv("URL", field(&i.url), theme))
+                        .child(kv(crate::tr!("Serial"), serial, theme))
+                        .child(kv(crate::tr!("Name"), field(&i.name), theme))
+                        .child(kv(crate::tr!("Login"), field(&i.login), theme))
+                        .child(kv(crate::tr!("URL"), field(&i.url), theme))
                         .child(kv(
-                            "PIN tries (user / reset / admin)",
-                            format!("{} / {} / {}", i.pw1_retries, i.rc_retries, i.pw3_retries),
+                            crate::tr!("PIN tries (user / reset / admin)"),
+                            crate::tr!("{} / {} / {}", i.pw1_retries, i.rc_retries, i.pw3_retries),
                             theme,
                         ))
                         .into_any_element()
@@ -246,80 +260,80 @@ impl Render for OpenPgpViewModel {
                 None => div()
                     .text_sm()
                     .text_color(theme.muted_foreground)
-                    .child("Reading card…")
+                    .child(crate::tr!("Reading card…"))
                     .into_any_element(),
             };
             Card::new()
-                .title("Card information")
-                .description("OpenPGP card status")
+                .title(crate::tr!("Card information"))
+                .description(crate::tr!("OpenPGP card status"))
                 .icon(Icon::default().path("icons/cpu.svg"))
                 .header_right(refresh_btn)
                 .child(body)
         };
 
         let keys_card = Card::new()
-            .title("Keys")
-            .description("Signature / Encryption / Authentication slots")
+            .title(crate::tr!("Keys"))
+            .description(crate::tr!("Signature / Encryption / Authentication slots"))
             .icon(Icon::default().path("icons/key.svg"))
             .child(v_flex().gap_2().children(key_rows));
 
         let pin_card = Card::new()
-            .title("PINs")
-            .description("User PIN (PW1) and admin PIN (PW3)")
+            .title(crate::tr!("PINs"))
+            .description(crate::tr!("User PIN (PW1) and admin PIN (PW3)"))
             .icon(Icon::default().path("icons/lock.svg"))
             .child(
                 v_flex()
                     .gap_2()
                     .child(self.action_row(
-                        "User PIN",
-                        "Change the user PIN (PW1)",
+                        crate::tr!("User PIN"),
+                        crate::tr!("Change the user PIN (PW1)"),
                         change_user_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Admin PIN",
-                        "Change the admin PIN (PW3)",
+                        crate::tr!("Admin PIN"),
+                        crate::tr!("Change the admin PIN (PW3)"),
                         change_admin_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Unblock user PIN",
-                        "Reset a blocked user PIN with the reset code",
+                        crate::tr!("Unblock user PIN"),
+                        crate::tr!("Reset a blocked user PIN with the reset code"),
                         unblock_code_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Unblock via admin",
-                        "Reset a blocked user PIN with the admin PIN",
+                        crate::tr!("Unblock via admin"),
+                        crate::tr!("Reset a blocked user PIN with the admin PIN"),
                         unblock_admin_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Reset code",
-                        "Set or clear the reset code (needs the admin PIN)",
+                        crate::tr!("Reset code"),
+                        crate::tr!("Set or clear the reset code (needs the admin PIN)"),
                         reset_code_btn,
                         theme,
                     )),
             );
 
         let cardholder_card = Card::new()
-            .title("Cardholder")
-            .description("Name, login, and URL stored on the card")
+            .title(crate::tr!("Cardholder"))
+            .description(crate::tr!("Name, login, and URL stored on the card"))
             .icon(Icon::default().path("icons/user.svg"))
             .child(self.action_row(
-                "Cardholder details",
-                "Edit the cardholder name, login, and URL",
+                crate::tr!("Cardholder details"),
+                crate::tr!("Edit the cardholder name, login, and URL"),
                 cardholder_btn,
                 theme,
             ));
 
         let reset_card = Card::new()
-            .title("Reset")
-            .description("Erase all OpenPGP keys and data")
+            .title(crate::tr!("Reset"))
+            .description(crate::tr!("Erase all OpenPGP keys and data"))
             .icon(Icon::default().path("icons/trash.svg"))
             .child(self.action_row(
-                "Factory reset OpenPGP",
-                "Blocks both PINs then wipes everything. Cannot be undone.",
+                crate::tr!("Factory reset OpenPGP"),
+                crate::tr!("Blocks both PINs then wipes everything. Cannot be undone."),
                 reset_btn,
                 theme,
             ));
@@ -332,6 +346,6 @@ impl Render for OpenPgpViewModel {
             .child(cardholder_card)
             .child(reset_card);
 
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }
