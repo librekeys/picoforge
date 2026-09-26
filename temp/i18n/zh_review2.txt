@@ -1,0 +1,1074 @@
+ (default)
+    => （默认）
+ · 
+    => ·
+ · certificate
+    => · 证书
+ · touch
+    => · 触碰
+-----BEGIN CERTIFICATE-----
+    => None
+-----BEGIN CERTIFICATE-----
+
+    => None
+-----END
+    => None
+-----END CERTIFICATE-----
+
+    => None
+24 words separated by spaces
+    => 24个单词，以空格分隔
+24-word lock key
+    => 24字锁密钥
+Access code (hex, if a slot is protected)
+    => 访问代码（十六进制，如果槽位受保护）
+Access code (hex, if the slot is protected)
+    => 访问代码（十六进制，如果槽位受保护）
+Access code (hex, leave empty if unprotected)
+    => 访问代码（十六进制，如果不受保护则留空）
+Access code must be empty or up to 12 hex chars (6 bytes)
+    => 访问代码必须为空或最多 12 个十六进制字符（6 个字节）
+Access codes must be hex, ≤ 6 bytes
+    => 访问码必须是十六进制，≤ 6 个字节
+Account (e.g. you@example.com)
+    => 账户（例如 you@example.com）
+Acknowledged
+    => 已确认
+Add an account from an otpauth:// URI or a base32 secret.
+    => 从 otpauth:// URI 或 base32 密钥添加账户。
+Adding Account
+    => 添加账户
+Admin PIN (PW3)
+    => 管理员PIN (PW3)
+Admin PIN changed.
+    => 管理员PIN 已更改。
+Advanced. HID off disables all FIDO2/U2F; CCID off disables every smart-card app (and the rescue applet). The firmware always keeps one of them, so you can't lock yourself out here.
+    => 先进的。 HID off 禁用所有FIDO2/U2F； CCID off 禁用每个智能卡应用程序（以及救援小程序）。固件始终保留其中之一，因此您无法将自己锁在此处。
+All wiped · receipt signed
+    => 全部擦除·凭据签名
+All wiped · receipt unsigned
+    => 全部擦除·凭据未签名
+Anyone with this phrase can clone your FIDO identity. Store it offline; never paste it into a website.
+    => 任何知道这句话的人都可以克隆您的FIDO身份。离线存储；切勿将其粘贴到网站中。
+Applet disabled
+    => 小程序已禁用
+ApplicationRoot
+    => 应用程序根目录
+Applying Configuration
+    => 应用配置
+Applying configuration...
+    => 正在应用配置...
+Applying configuration... Press the device button to confirm.
+    => 正在应用配置... 按设备按钮进行确认。
+Applying configuration... Touch your device if it flashes.
+    => 正在应用配置...如果设备闪烁，请触摸您的设备。
+Attest
+    => 证明
+Attestation fingerprint (match against inventory)
+    => 证明指纹（与库存匹配）
+Attestation key MISMATCH — not the enrolled device.
+    => 证明密钥不匹配 — 不是注册的设备。
+Attestation status
+    => 认证状态
+Audit journal
+    => 审计日志
+Authentic ✓
+    => 正品 ✓
+Backup status
+    => 备份状态
+Base32 secret, or paste an otpauth:// URI
+    => Base32 秘密，或粘贴 otpauth:// URI
+Blocks PIN+PUK then wipes everything. Cannot be undone.
+    => 阻止PIN+PUK，然后擦除所有内容。无法撤消。
+Blocks both PINs then wipes everything. Cannot be undone.
+    => 阻止两个 PIN，然后擦除所有内容。无法撤消。
+CSR retrieved
+    => CSR 已检索
+CSR retrieved from device. Click "View CSR" to inspect or save it.
+    => CSR 从设备中检索。单击“查看CSR”进行检查或保存。
+CSR retrieved successfully ({} bytes).
+    => CSR 已成功检索（{} 字节）。
+Certificate Request
+    => 证书申请
+Certificate Signing Request
+    => 证书签名请求
+Certificate deleted.
+    => 证书已删除。
+Certificate slots 9A / 9C / 9D / 9E
+    => 证书槽 9A / 9C / 9D / 9E
+Certificate upload failed: {}
+    => 证书上传失败：{}
+Chain hash
+    => 链式哈希
+Challenge (hex)
+    => 挑战（十六进制）
+Challenge-Response
+    => 挑战-响应
+Challenge-response programmed.
+    => 挑战-响应已编程。
+Change Management Key
+    => 变更管理关键
+Change key
+    => 更改密钥
+Change password
+    => 更改密码
+Change the 6–8 digit PIV PIN
+    => 更改 6–8 位数字 PIV PIN
+Change the PIN Unblock Key
+    => 更改PIN解锁密钥
+Change the PIV management key
+    => 更改PIV管理密钥
+Change the admin PIN (PW3)
+    => 更改管理员PIN (PW3)
+Change the user PIN (PW1)
+    => 更改用户PIN (PW1)
+Changing FIDO PIN...
+    => 改变FIDO PIN...
+Changing Management Key
+    => 更改管理密钥
+Changing PIN...
+    => 改变PIN...
+Checkpoint verification
+    => 检查点验证
+Choose a different destination slot
+    => 选择不同的目的地槽位
+Clear from screen
+    => 从屏幕上清除
+Code By:
+    => 代码由：
+Code copied
+    => 复制代码
+Collapse
+    => 坍塌
+Configuration Requires Rescue Mode
+    => 配置需要救援模式
+Configuration applied successfully.
+    => 配置应用成功。
+Configuration denied (Status: 0x27). This usually means the operation timed out waiting for you to touch the device's button, or the PIN token was rejected.
+    => 配置被拒绝（状态：0x27）。这通常意味着等待您触摸设备按钮的操作超时，或者 PIN 令牌被拒绝。
+Configure enterprise-specific features
+    => 配置企业特定功能
+Confirmation
+    => 确认
+Copy to Clipboard
+    => 复制到剪贴板
+Could not read file
+    => 无法读取文件
+Could not read the chain file
+    => 无法读取链文件
+Could not read the key file
+    => 无法读取密钥文件
+Credential details for user
+    => 用户的凭据详细信息
+Credential type
+    => 凭证类型
+Current PIN (PW1)
+    => 当前PIN (PW1)
+Current PIN Status
+    => 当前 PIN 状态
+Current PUK
+    => 当前PUK
+Current access code, if protected
+    => 当前访问代码（如果受保护）
+Current admin PIN (PW3)
+    => 当前管理员PIN (PW3)
+Current code
+    => 当前代码
+Current management key (hex)
+    => 当前管理密钥（十六进制）
+Current: {} characters
+    => 当前：{} 个字符
+Custom (Manual Entry)
+    => 自定义（手动输入）
+Delete certificate — {}
+    => 删除证书 — {}
+Delete key — {}
+    => 删除键 — {}
+Deleting Certificate
+    => 删除证书
+Deleting Key
+    => 删除密钥
+Destination slot
+    => 目的地槽位
+Development
+    => 发展
+Device Reset: {}
+    => 设备重置：{}
+Device changed before write could complete. Refresh and try again.
+    => 在写入完成之前设备已更改。刷新并重试。
+Device changed during config write, discarding stale status
+    => 设备在配置写入期间发生更改，丢弃陈旧状态
+Device reset successfully
+    => 设备重置成功
+Disable At-Rest Lock
+    => 禁用静态锁定
+Disable lock
+    => 禁用锁定
+Disabling Journalling
+    => 禁用日志功能
+Disabling Lock
+    => 禁用锁定
+Display Name
+    => 显示名称
+ESP32 Neopixel
+    => ESP32 Neopixel
+Edit the cardholder name, login, and URL
+    => 编辑持卡人姓名、登录名和 URL
+Enable the CCID interface in Configuration → Hardware Endpoints, then reconnect the device.
+    => 在配置→硬件端点中启用CCID接口，然后重新连接设备。
+Enabling Journalling
+    => 启用日志功能
+Enabling enterprise attestation...
+    => 启用企业认证...
+Engage lock
+    => 接合锁
+Engage, unlock, or disable the at-rest lock
+    => 接合、解锁或禁用静止锁
+Engaging Lock
+    => 接合锁
+Engaging… touch the device (BOOTSEL).
+    => 参与……触摸设备（BOOTSEL）。
+Enter a new OATH password, or leave empty to remove password protection.
+    => 输入新的 OATH 密码，或留空以删除密码保护。
+Enter a valid hex challenge
+    => 输入有效的十六进制挑战
+Enter an account name
+    => 输入账户名
+Enter the OATH password to view your codes.
+    => 输入OATH密码即可查看您的代码。
+Enter the PIN to unlock the management key
+    => 输入PIN解锁管理密钥
+Enter your current PIN and choose a new one.
+    => 输入您当前的PIN 并选择一个新的。
+Enter your device PIN to apply changes.
+    => 输入您的设备PIN以应用更改。
+Enter your device PIN to enable enterprise attestation
+    => 输入您的设备PIN以启用企业认证
+Enter your device PIN to upload the certificate to the device
+    => 输入您的设备PIN将证书上传到设备
+Enterprise attestation
+    => 企业认证
+Erases OTP, OATH, PIV, OpenPGP, the FIDO seed, passkeys, PINs, and org attestation. Irreversible. Needs the CCID interface and several touches.
+    => 删除OTP、OATH、PIV、OpenPGP、FIDO 种子、密钥、PIN 和组织证明。不可逆转。需要 CCID 界面和几次触摸。
+Error deleting credential: {}
+    => 删除凭据时出错：{}
+Error deleting: {}
+    => 删除时出错：{}
+Error resetting device: {}
+    => 重置设备时出错：{}
+Error saving config: {}
+    => 保存配置时出错：{}
+Error: {}
+    => 错误：{}
+Expand
+    => 扩张
+Expected key (optional)
+    => 预期密钥（可选）
+Export window sealed.
+    => 导出窗口封存。
+Exporting Seed
+    => 导出种子
+Exporting… touch the device (BOOTSEL).
+    => 正在导出...触摸设备 (BOOTSEL)。
+FIDO Info fetch failed: {}
+    => FIDO 信息获取失败：{}
+FIDO PIN (required)
+    => FIDO PIN（必填）
+FIDO information not available
+    => FIDO 信息不可用
+FIDO2
+    => FIDO2
+Failed to apply configuration: {}
+    => 未能应用配置：{}
+Failed to enable EA: {}
+    => 启用 EA 失败：{}
+Failed to retrieve CSR: {}
+    => 检索CSR失败：{}
+Failed to set length: {}
+    => 设置长度失败：{}
+Failed to set minimum PIN length: {}
+    => 无法设置最小PIN长度：{}
+Failed to unlock storage: {}
+    => 无法解锁存储：{}
+Failed to unlock: {}
+    => 解锁失败：{}
+Fingerprint (pin later with Expected key)
+    => 指纹（稍后使用预期密钥进行锁定）
+Finished with failures
+    => 以失败告终
+Firmware
+    => 固件
+Firmware Type
+    => 固件类型
+Firmware Version
+    => 固件版本
+Firmware default
+    => 固件默认值
+Firmware default (30s)
+    => 固件默认（30 秒）
+Firmware default (GPIO {g})
+    => 固件默认值 (GPIO {g})
+Firmware default ({t}s)
+    => 固件默认值 ({t}s)
+Firmware default — {}
+    => 固件默认值 — {}
+Flash chip
+    => 闪存芯片
+GPIO {g} (default)
+    => GPIO {g}（默认）
+GPIO {}
+    => GPIO{}
+GRB (swap red/green)
+    => GRB（交换红/绿）
+Generate — {}
+    => 生成 — {}
+Generates a new key pair in this slot (overwrites any existing key). This can take several seconds for RSA.
+    => 在此槽中生成新的密钥对（覆盖任何现有密钥）。对于RSA，这可能需要几秒钟的时间。
+Generating Key
+    => 生成密钥
+Generic (FEFF:FCFD)
+    => 通用 (FEFF:FCFD)
+Get a CSR for enterprise attestation enrollment
+    => 获得CSR用于企业认证注册
+GitHub
+    => GitHub
+GnuPG (234B:0000)
+    => GnuPG (234B:0000)
+Gnuk Token (234B:0000)
+    => Gnuk 令牌 (234B:0000)
+Have a look at the
+    => 看看
+I understand the risks of bricking my device.
+    => 我了解设备变砖的风险。
+INVALID
+    => 无效的
+Import cert
+    => 导入证书
+Import key
+    => 导入密钥
+Import key + chain
+    => 导入密钥+链
+Importing Attestation
+    => 导入证明
+Importing Certificate
+    => 导入证书
+Importing Key
+    => 导入密钥
+Install a seed from a 24-word phrase
+    => 安装 24 个单词短语的种子
+Installs the org attestation key and chain (P-256). Requires the FIDO PIN, or a touch if none is set.
+    => 安装组织证明密钥和链 (P-256)。需要 FIDO PIN，或者如果未设置则触摸。
+Issuer (e.g. GitHub)
+    => 发行人（例如GitHub）
+Journal read — {n} entries.
+    => 日志已读 — {n} 条目。
+Journalling
+    => 日志
+Key deleted.
+    => 密钥已删除。
+Key imported.
+    => 密钥已导入。
+Key moved.
+    => 密钥动了。
+Keys
+    => 密钥
+LED Brightness
+    => LED亮度
+LED Configuration
+    => LED 配置
+Language (ISO-639, e.g. en)
+    => 语言（ISO-639，例如 en）
+Length set, but PIN change failed: {}
+    => 长度已设置，但 PIN 更改失败：{}
+Level {}
+    => 等级{}
+LibreKeys One (1D50:619B)
+    => LibreKeys 一 (1D50:619B)
+Load the seed for this power-cycle (lock key)
+    => 加载此电源周期的种子（锁定键）
+Loads the seed into RAM for this power cycle using the lock key.
+    => 使用锁定密钥将种子加载到 RAM 中以进行本次电源循环。
+Lock Settings
+    => 锁定设置
+Lock disabled — plaintext seed restored.
+    => 锁定已禁用 - 明文种子已恢复。
+Lock key (24 words)
+    => 锁定键（24字）
+Lock status
+    => 锁定状态
+Locked — write down the lock key shown below; you need it every power-cycle.
+    => 锁定 — 记下如下所示的锁定密钥；每次开机都需要它。
+Lose this and the only recovery is a FIDO factory reset, which destroys this identity. Store it offline.
+    => 失去这个，唯一的恢复是FIDO工厂重置，这会破坏这个身份。离线存储。
+MISMATCH
+    => 不匹配
+MISMATCH ✗
+    => 不匹配 ✗
+Manage the PIV PIN and PUK
+    => 管理PIV PIN 和PUK
+Management key (hex)
+    => 管理密钥（十六进制）
+Management key must be 16/24/32-byte hex
+    => 管理密钥必须是 16/24/32 字节十六进制
+Min PIN Length
+    => 最小PIN长度
+Minimum PIN Length ({})
+    => 最小PIN长度({})
+Minimum PIN length updated to {}.
+    => 最小PIN 长度更新为{}。
+Minimum length and PIN updated successfully.
+    => 最小长度和PIN已成功更新。
+Minimum length and PIN updated.
+    => 更新了最小长度和PIN。
+Minimum length updated to {}.
+    => 最小长度更新为{}。
+Move key from {}
+    => 从{} 移动密钥
+Moving Key
+    => 移动键
+My Key
+    => 我的密钥
+N/A
+    => 不适用
+Name, login, and URL stored on the card
+    => 卡上存储的姓名、登录名和 URL
+New OATH password
+    => 新OATH密码
+New PIN (min {} chars)
+    => 新PIN（最少{}字符）
+New PUK
+    => 新PUK
+New admin PIN
+    => 新管理员PIN
+New algorithm
+    => 新算法
+New key (hex)
+    => 新密钥（十六进制）
+New key length must match the algorithm (16/24/32 bytes)
+    => 新密钥长度必须与算法匹配（16/24/32 字节）
+New reset code
+    => 新的重置代码
+New user PIN
+    => 新用户PIN
+NitroFIDO2 (20A0:42D4)
+    => NitroFIDO2 (20A0:42D4)
+NitroHSM (20A0:4230)
+    => NitroHSM (20A0:4230)
+NitroPro (20A0:4108)
+    => NitroPro (20A0:4108)
+NitroStart (20A0:4211)
+    => NitroStart (20A0:4211)
+Nitrokey 3 (20A0:42B2)
+    => Nitrokey 3 (20A0:42B2)
+No PIN configured
+    => 未配置PIN
+No live entries in the window.
+    => 窗口中没有实时条目。
+Not a valid PEM/DER certificate
+    => 不是有效的PEM/DER 证书
+Not installed — self-signed device certificate in use
+    => 未安装 — 自签名设备证书正在使用
+Not trusted ✗
+    => 不被信任✗
+OATH
+    => OATH
+OATH applet reset.
+    => OATH 小程序重置。
+OATH load failed: {e}
+    => OATH加载失败：{e}
+OATH password
+    => OATH密码
+OATH probe failed: {e}
+    => OATH探测失败：{e}
+OATH-HOTP programmed.
+    => OATH-HOTP 已编程。
+OTP
+    => OTP
+OTP status read failed: {e}
+    => OTP状态读取失败：{e}
+Off — journalling is opt-in; nothing is being recorded.
+    => 关闭 — 可选择加入日志；没有任何记录。
+Offboard receipt
+    => 场外凭据
+Offboard {serial}
+    => 机外{serial}
+Offboarded — all applets wiped (receipt UNSIGNED: no OTP DEVK).
+    => 已关闭 — 所有小程序均已擦除（凭据未签名：无 OTP DEVK）。
+Offboarded — all applets wiped, receipt signed.
+    => 已下线 — 所有小程序均已擦除，凭据已签名。
+Offboarding
+    => 离职
+On — recording security events to the key's flash.
+    => 开 — 将安全事件记录到密钥的闪存中。
+OpenPGP
+    => OpenPGP
+OpenPGP applet reset.
+    => OpenPGP 小程序重置。
+OpenPGP card status
+    => OpenPGP卡状态
+OpenPGP read failed: {e}
+    => OpenPGP读取失败：{e}
+Org attestation installed
+    => 已安装组织认证
+Org attestation installed.
+    => 安装了组织认证。
+Org attestation removed.
+    => 组织证明已删除。
+P-256 key (PEM/DER) and certificate chain (PIN or touch)
+    => P-256密钥（PEM/DER）和证书链（PIN或触摸）
+PIN
+    => PIN
+PIN (the management key is PIN-protected)
+    => PIN（管理密钥受PIN保护）
+PIN (unlocks the current management key)
+    => PIN（解锁当前管理密钥）
+PIN Set
+    => PIN套装
+PIN change failed: {}
+    => PIN 更改失败：{}
+PIN changed: {}
+    => PIN 已更改：{}
+PIN configured successfully.
+    => PIN 配置成功。
+PIN configured: {}
+    => PIN 配置：{}
+PIN is set
+    => PIN已设置
+PIN policy
+    => PIN政策
+PIN setup failed: {}
+    => PIN 设置失败：{}
+PIN tries
+    => PIN尝试
+PIN tries (user / reset / admin)
+    => PIN 尝试（用户/重置/管理员）
+PIN unblocked.
+    => PIN 已解锁。
+PINs
+    => PINs
+PIV
+    => PIV
+PIV applet reset.
+    => PIV 小程序重置。
+PIV card status
+    => PIV卡状态
+PIV read failed: {e}
+    => PIV读取失败：{e}
+PIV: {e}
+    => PIV：{e}
+PUK tries
+    => PUK尝试
+Password (ASCII, 1–38 characters)
+    => 密码（ASCII，1–38 个字符）
+Password must be ASCII, 1–38 characters
+    => 密码必须是 ASCII，1–38 个字符
+Password removed.
+    => 密码已删除。
+Password saved.
+    => 密码已保存。
+Password to type (ASCII)
+    => 要输入的密码 (ASCII)
+Perform a destructive factory reset
+    => 执行破坏性恢复出厂设置
+Permanently deletes this slot's key and certificate. Requires the management key.
+    => 永久删除该槽位的密钥和证书。需要管理密钥。
+Permanently lock this device to the current firmware vendor.
+    => 将此设备永久锁定到当前固件供应商。
+Permanently refuses further seed exports until a FIDO factory reset. Only do this after you have safely recorded the phrase. Touch the device to confirm.
+    => 永久拒绝进一步导出种子，直到 FIDO 恢复出厂设置。仅在安全录制该短语后才执行此操作。触摸设备进行确认。
+Pico (2E8A:0003)
+    => 皮克 (2E8A:0003)
+Pico (Standard GPIO)
+    => 皮克（标准GPIO）
+Pico Keys Fido (2E8A:10FE)
+    => Pico Keys Fido (2E8A:10FE)
+Pico Keys HSM (2E8A:10FD)
+    => 微微键 HSM (2E8A:10FD)
+Pico Keys OpenPGP (2E8A:10FF)
+    => 微微键 OpenPGP (2E8A:10FF)
+PicoForge Contributers
+    => PicoForge 贡献者
+Pimoroni (RGB)
+    => 皮莫罗尼 (RGB)
+Pinned key
+    => 固定键
+Presence Touch Timeout
+    => 存在触摸超时
+Private ID (hex, 6 bytes)
+    => 私有 ID（十六进制，6 字节）
+Private ID must be 6 bytes of hex — use Generate
+    => 私有 ID 必须是 6 字节的十六进制 — 使用生成
+Programming Slot
+    => 编程槽
+Provision or remove the org attestation
+    => 配置或删除组织证明
+Public ID must be modhex (≤ 16 bytes) — use Generate
+    => 公共 ID 必须为 modhex（≤ 16 字节） — 使用生成
+RGB
+    => RGB
+RS-Key build 0x{:04X}
+    => RS-Key 构建 0x{:04X}
+RS-Key {} (build 0x{:04X})
+    => RS-Key {}（版本 0x{:04X}）
+Read-out Locked
+    => 读出锁定
+Reading Journal
+    => 阅读日志
+Reading attestation state…
+    => 阅读认证状态...
+Reading backup state…
+    => 正在读取备份状态...
+Reading lock state…
+    => 读取锁定状态...
+Reading… touch the device (BOOTSEL) if it blinks.
+    => 正在读取...如果设备闪烁，请触摸该设备 (BOOTSEL)。
+Refreshed device status. LED Steady: {}
+    => 刷新了设备状态。 LED稳定：{}
+Refuse further exports until a factory reset
+    => 拒绝进一步导出，直到恢复出厂设置
+Remove attestation
+    => 删除证明
+Removes the org attestation and reverts to the self-signed device certificate. Requires the FIDO PIN, or a touch if none is set.
+    => 删除组织证明并恢复为自签名设备证书。需要 FIDO PIN，或者如果未设置则触摸。
+Removing Attestation
+    => 删除证明
+Rename Account
+    => 重命名账户
+Renaming Account
+    => 重命名账户
+Replace the FIDO identity from a recovery phrase
+    => 替换恢复短语中的 FIDO 身份
+Request Attestation CSR...
+    => 请求证明CSR...
+Reset Device
+    => 重置设备
+Reset OATH applet
+    => 重置OATH小程序
+Reset OpenPGP applet
+    => 重置OpenPGP小程序
+Reset PIV applet
+    => 重置PIV小程序
+Reset a blocked PIN using the PUK
+    => 使用PUK重置被阻止的PIN
+Reset a blocked user PIN with the admin PIN
+    => 使用管理员PIN重置被阻止的用户PIN
+Reset a blocked user PIN with the reset code
+    => 使用重置代码重置被阻止的用户PIN
+Reset code updated.
+    => 重置代码已更新。
+Reset failed: {}
+    => 重置失败：{}
+Resetting Device...
+    => 正在重置设备...
+Resetting OATH Applet
+    => 正在重置OATH小程序
+Resetting OpenPGP
+    => 重置OpenPGP
+Resetting PIV
+    => 重置PIV
+Response: {}
+    => 回复：{}
+Restore the plaintext seed (lock key + PIN)
+    => 恢复明文种子（锁定密钥+PIN）
+Restoring Seed
+    => 恢复种子
+Retry counters updated (PIN/PUK reset to defaults).
+    => 重试计数器已更新（PIN/PUK 重置为默认值）。
+Retry limits
+    => 重试限制
+Revert to the self-signed device certificate
+    => 恢复为自签名设备证书
+Save receipt (JSON)
+    => 保存凭据 (JSON)
+Save to File
+    => 保存到文件
+Saving Cardholder
+    => 储蓄卡持卡人
+Seal Export Window
+    => 封存导出窗口
+Seal export window
+    => 封存导出窗口
+Seal window
+    => 封存窗
+Sealing Window
+    => 封存窗
+Secret key (hex, 16 bytes)
+    => 密钥（十六进制，16 字节）
+Secret key (hex, ≤ 20 bytes)
+    => 密钥（十六进制，≤ 20 字节）
+Secret key must be 16 bytes of hex — use Generate
+    => 密钥必须是 16 字节的十六进制 — 使用生成
+Secret must be 1–20 bytes of hex
+    => 秘密必须是 1–20 字节的十六进制
+Secure Lock
+    => 安全锁
+Seed exported — write down the phrase shown below, then seal the window.
+    => 种子导出 — 写下下面所示的短语，然后封存窗口。
+Seed present: {}
+    => 种子礼物：{}
+Seed restored — the FIDO identity now matches the backup.
+    => 种子已恢复 — FIDO 身份现在与备份匹配。
+Select Certificate File (PEM or DER)
+    => 选择证书文件（PEM 或 DER）
+Select attestation P-256 private key (PEM/DER)
+    => 选择证明P-256私钥（PEM/DER）
+Select certificate (PEM or DER)
+    => 选择证书（PEM 或 DER）
+Select certificate chain, leaf first (PEM/DER)
+    => 选择证书链，首先选择叶 (PEM/DER)
+Select private key (PEM or DER)
+    => 选择私钥（PEM 或 DER）
+Serial
+    => 串行
+Serial Number
+    => 序列号
+Session expired, please unlock again.
+    => 会话已过期，请重新解锁。
+Set PIN/PUK retries (resets both to defaults)
+    => 设置PIN/PUK重试（将两者重置为默认值）
+Set Reset Code
+    => 设置重置代码
+Set an access code (hex, optional)
+    => 设置访问代码（十六进制，可选）
+Set new code
+    => 设置新代码
+Set or clear the reset code (needs the admin PIN)
+    => 设置或清除重置代码（需要管理员PIN）
+Set password
+    => 设置密码
+Set reset code
+    => 设置重置代码
+Set retries
+    => 设置重试次数
+Set up PIN
+    => 设置PIN
+Sets a new PIV management key. Store it safely — it is required for all key/cert changes.
+    => 设置新的PIV 管理密钥。安全地存储它——所有密钥/证书更改都需要它。
+Setting PIN...
+    => 设置PIN...
+Setting Retries
+    => 设置重试次数
+Setting up FIDO PIN...
+    => 正在设置FIDO PIN...
+Sex
+    => 性别
+Show the recovery phrase (offline; PIN or touch)
+    => 显示恢复短语（离线；PIN 或触摸）
+Shown once — write it down now, then seal the window
+    => 显示一次 - 现在写下来，然后封存窗口
+Shown once — you need it to unlock after every power-cycle
+    => 显示一次 - 每次重启后您都需要它来解锁
+Signature / Encryption / Authentication slots
+    => 签名/加密/身份验证槽
+Signing checkpoint… touch the device (BOOTSEL).
+    => 签名检查点...触摸设备（BOOTSEL）。
+Slot access code (optional)
+    => 槽位访问代码（可选）
+Slots: {e}
+    => 槽位：{e}
+Smart-card interface off
+    => 智能卡接口关闭
+SoloKeys (0483:A2CA)
+    => SoloKeys (0483:A2CA)
+State: {state}
+    => 状态：{state}
+Static password programmed.
+    => 已编程静态密码。
+Storage unlocked successfully.
+    => 存储解锁成功。
+Storage unlocked. {} credentials found.
+    => 存储已解锁。找到 {} 凭据。
+Stored objects
+    => 存储的对象
+Success: {}
+    => 成功：{}
+Swap the contents of slot 1 and slot 2?
+    => 交换槽 1 和槽 2 的内容？
+The device firmware does not support being configured in fido only communication mode.
+    => 设备固件不支持配置为仅 fido 通信模式。
+The device firmware does not support being configured in fido only communication mode. 
+Have a look at the troubleshooting guide to fix this
+    => 设备固件不支持配置为仅 fido 通信模式。 
+查看故障排除指南来解决此问题
+This blocks both PINs, then factory-resets the OpenPGP applet — deleting ALL keys and restoring the default PINs (123456 / 12345678). This cannot be undone.
+    => 这会阻止PINs，然后将OpenPGP小程序恢复出厂设置 - 删除所有键并恢复默认的PINs (123456 / 12345678)。此操作无法撤消。
+This blocks the PIN and PUK, then factory-resets PIV — deleting ALL keys and certificates and restoring the default PIN/PUK/management key. This cannot be undone.
+    => 这会阻止PIN和PUK，然后将PIV恢复出厂设置 - 删除所有密钥和证书并恢复默认的PIN/PUK/管理密钥。此操作无法撤消。
+This firmware does not expose this applet.
+    => 该固件不公开该小程序。
+This operation is irreversible
+    => 此操作不可逆
+This permanently deletes ALL accounts and the OATH password. This cannot be undone.
+    => 这将永久删除所有账户和OATH 密码。此操作无法撤消。
+Timeout waiting for device reconnection. Reset canceled.
+    => 等待设备重新连接超时。重置已取消。
+Touch
+    => 触碰
+Touch policy
+    => 触摸政策
+Touch policy updated.
+    => 触摸政策已更新。
+Touch the device (BOOTSEL) to confirm.
+    => 触摸设备 (BOOTSEL) 进行确认。
+Touch to reveal
+    => 触摸即可显示
+Touch your security key now to confirm the reset...
+    => 现在触摸您的安全密钥以确认重置...
+Touch — {}
+    => 触摸 — {}
+Type OFFBOARD to confirm
+    => 输入 OFFBOARD 进行确认
+U2F
+    => U2F
+URL
+    => 网址
+Unblock via admin
+    => 通过管理员解锁
+Unblock with Admin PIN
+    => 通过管理员PIN 解锁
+Unblock with Reset Code
+    => 使用重置代码解锁
+Unknown Service
+    => 未知服务
+Unlock Seed
+    => 解锁种子
+Unlocked — FIDO works until power-off.
+    => 解锁 — FIDO 一直工作到断电为止。
+Unlocking
+    => 解锁
+Unplug your security key, then plug it back in within 10 seconds.
+    => 拔下安全密钥，然后在 10 秒内将其重新插入。
+Update Minimum Length
+    => 更新最小长度
+Updating Touch Policy
+    => 更新触摸策略
+Updating minimum PIN length to {}...
+    => 正在将最小PIN 长度更新为{}...
+Upload Certificate
+    => 上传证书
+Upload failed: {}
+    => 上传失败：{}
+Upload the signed certificate to the device
+    => 将签名的证书上传到设备
+User PIN (PW1) and admin PIN (PW3)
+    => 用户PIN (PW1) 和管理员PIN (PW3)
+User PIN changed.
+    => 用户PIN 已更改。
+User PIN unblocked.
+    => 用户PIN已解锁。
+VID-derived default
+    => VID-派生默认值
+VID:PID
+    => VID:PID
+Verify a signed checkpoint to prove the journal is authentic and the device genuine.
+    => 验证签名的检查点以证明日志是真实的并且设备是真实的。
+Verifying Checkpoint
+    => 验证检查点
+WS2812 (Neopixel)
+    => WS2812 (Neopixel)
+Whether the seed is wrapped at rest
+    => 静置时种子是否被包裹
+Wiki
+    => 维基百科
+Wipe every applet and finish with a cryptographic receipt
+    => 擦除每个小程序并以加密凭据结束
+Wiping… touch the device (BOOTSEL) when it blinks (several times).
+    => 正在擦拭…当设备闪烁时（BOOTSEL）触摸它（几次）。
+Working… touch the device (BOOTSEL) if it blinks.
+    => 正在工作...如果设备闪烁，请触摸该设备 (BOOTSEL)。
+Wrap the seed and reveal a new lock key (PIN + touch)
+    => 包裹种子并露出新的锁密钥（PIN +触摸）
+YubiHSM 2 (1050:0030)
+    => YubiHSM 2 (1050:0030)
+YubiKey 5 (1050:0407)
+    => YubiKey 5 (1050:0407)
+YubiKey Neo (1050:0116)
+    => YubiKey尼奥 (1050:0116)
+app-toggle-{}
+    => 应用程序切换-{}
+att
+    => 附加值
+aux
+    => 辅助
+bdec-btn-{}
+    => bdec-btn-{}
+binc-btn-{}
+    => binc-btn-{}
+bound
+    => 边界
+calc-{id}
+    => 计算-{id}
+cancel
+    => 取消
+close
+    => 关闭
+confirm
+    => 确认
+copy-{id}
+    => 复制-{id}
+del
+    => 德尔
+del-{id}
+    => 德尔-{id}
+del-{slot}
+    => 德尔-{slot}
+delc
+    => 德尔克
+delete
+    => 删除
+detail
+    => 细节
+device_attestation.csr
+    => 设备证明.csr
+disabled
+    => 残疾人
+done
+    => 完毕
+enabled
+    => 已启用
+epoch  {}
+    => 纪元{}
+event
+    => 事件
+exp
+    => 经验值
+gen
+    => 根
+gen-{slot:02x}
+    => 根-{slot:02x}
+gen-{}
+    => 根-{}
+generated
+    => 生成的
+go
+    => 去
+head   {}  (chain OK)
+    => 头{}（链正常）
+impc
+    => 冲击波
+impk
+    => 因普克
+imported
+    => 导入的
+loading
+    => 加载中
+locked — unlock before any FIDO login
+    => 锁定 — 在任何 FIDO 登录之前解锁
+locked, unlocked for this power-cycle
+    => 锁定、解锁本次电源循环
+matches ✓
+    => 匹配 ✓
+monospace
+    => 等宽字体
+mv
+    => MV
+no
+    => 不
+no seed present
+    => 没有种子存在
+not locked (plaintext seed)
+    => 未锁定（明文种子）
+off
+    => 离开
+offboard-{}.json
+    => Offboard-{}.js​​on
+ok
+    => 好的
+on
+    => 在
+open — seed can be exported once
+    => open — 种子可以导出一次
+piv-{slot:02x}-attestation.pem
+    => piv-{slot:02x}-attestation.pem
+piv-{slot:02x}.pem
+    => piv-{slot:02x}.pem
+prog-{slot}
+    => 前卫-{slot}
+program
+    => 程序
+ren-{id}
+    => 任-{id}
+rename
+    => 重命名
+run
+    => 跑步
+sealed (export refused until a factory reset)
+    => 封存（在恢复出厂设置之前拒绝导出）
+seq
+    => 序列
+swap
+    => 交换
+test-{slot}
+    => 测试-{slot}
+to fix this
+    => 解决这个问题
+touch-{id}
+    => 触摸-{id}
+touch-{}
+    => 触摸-{}
+troubleshooting guide
+    => 故障排除指南
+update
+    => 更新
+uptime
+    => 正常运行时间
+v0.4.0
+    => v0.4.0
+v0.4.1
+    => v0.4.1
+v0.4.2
+    => v0.4.2
+v0.4.3
+    => v0.4.3
+v0.4.4
+    => v0.4.4
+v0.9.0
+    => v0.9.0
+v{}
+    => v{}
+yes
+    => 是的
+{:.0} / {:.0} KB
+    => {:.0} / {:.0} KB
+{:.1}s
+    => {:.1}s
+{count} configurable slots
+    => {count}可配置槽位
+{e}
+    => {e}
+{name} is turned off. Enable it in Configuration → USB Applications.
+    => {name} 已关闭。在配置 → USB 应用程序中启用它。
+{rem}s
+    => {rem}s
+{t}s (default)
+    => {t}s（默认）
+{}
+    => {}
+{} / {} / {}
+    => {} / {} / {}
+{} B
+    => {}B
+{} KB
+    => {} KB
+{} MB
+    => {}MB
+{} credentials stored
+    => {} 凭据已存储
+{} stored
+    => {}已存储
+{} {}
+    => {}{}
+{} · {}
+    => {}·{}
+{}-{slot:02x}
+    => {}-{slot:02x}
+{}.{}.{}
+    => {}。{}。{}
+{}:{}
+    => {}:{}
+{}s
+    => {}s
+{}…{}
+    => {}…{}
+©2026 Suyog Tandel
+    => ©2026 苏约格·坦德尔

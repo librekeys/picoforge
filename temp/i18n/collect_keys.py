@@ -2,7 +2,7 @@ import json
 import os
 import re
 
-TR = re.compile(r'crate::tr!\("((?:[^"\\]|\\.)*)"')
+TR = re.compile(r'crate::tr!\(\s*"((?:[^"\\]|\\.)*)"')
 
 keys = {}
 
