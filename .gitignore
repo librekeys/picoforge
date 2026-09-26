@@ -43,3 +43,4 @@ temp/**/*.png
 temp/**/*.log
 temp/**/check.txt
 temp/**/strings.txt
+temp/**/target/

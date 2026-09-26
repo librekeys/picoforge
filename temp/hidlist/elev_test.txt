@@ -1,0 +1,2 @@
+hidapi FIDO entry: vid=0x1050 pid=0x0407 iface=1 path="\\\\?\\HID#VID_1050&PID_0407&MI_01#7&3a1fed9c&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}"
+hidapi FIDO entries=1
