@@ -86,6 +86,8 @@
 //! ├── assets.rs          # AssetLoaderImpl via rust-embed (loads SVGs from static/)
 //! ├── colors.rs          # Zinc palette constants (u32 RGB). WIP — HSLA migration planned.
 //! │                       # Reference: https://ui.shadcn.com/colors
+//! ├── i18n.rs            # Runtime i18n: Locale enum, embedded `locales/*.json`,
+//! │                       # `tr!` macro, locale persistence. Six UN languages.
 //! ├── models/
 //! │   ├── mod.rs         # pub mod device
 //! │   └── device.rs      # DeviceRepo — reactive state for device status, FIDO info,
@@ -152,6 +154,7 @@ pub mod app;
 pub mod assets;
 pub mod colors;
 pub mod components;
+pub mod i18n;
 pub mod models;
 pub mod screens;
 

@@ -60,12 +60,12 @@ impl AttestationViewModel {
 
 impl Render for AttestationViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "Attestation";
-        const SUBTITLE: &str = "Organisation (enterprise) attestation key and chain.";
+        let title: &str = crate::tr!("Attestation");
+        let subtitle: &str = crate::tr!("Organisation (enterprise) attestation key and chain.");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -84,13 +84,17 @@ impl Render for AttestationViewModel {
             )
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
-        let import_btn = PFButton::new(if installed { "Replace" } else { "Import" })
-            .id("att-import")
-            .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
-            .disabled(self.loading)
-            .on_click(cx.listener(|this, _, window, cx| this.open_import(window, cx)));
+        let import_btn = PFButton::new(if installed {
+            crate::tr!("Replace")
+        } else {
+            crate::tr!("Import")
+        })
+        .id("att-import")
+        .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+        .disabled(self.loading)
+        .on_click(cx.listener(|this, _, window, cx| this.open_import(window, cx)));
         let clear_btn = Button::new("att-clear")
-            .label("Remove")
+            .label(crate::tr!("Remove"))
             .danger()
             .disabled(self.loading || !installed)
             .on_click(cx.listener(|this, _, window, cx| this.open_clear(window, cx)));
@@ -112,9 +116,9 @@ impl Render for AttestationViewModel {
                                     .child("●"),
                             )
                             .child(div().text_sm().child(if s.installed {
-                                "Org attestation installed"
+                                crate::tr!("Org attestation installed")
                             } else {
-                                "Not installed — self-signed device certificate in use"
+                                crate::tr!("Not installed — self-signed device certificate in use")
                             })),
                     );
                     if let Some(h) = &s.chain_hash {
@@ -125,9 +129,14 @@ impl Render for AttestationViewModel {
                                     div()
                                         .text_xs()
                                         .text_color(theme.muted_foreground)
-                                        .child("Chain hash"),
+                                        .child(crate::tr!("Chain hash")),
                                 )
-                                .child(div().font_family("monospace").text_xs().child(h.clone())),
+                                .child(
+                                    div()
+                                        .font_family(crate::tr!("monospace"))
+                                        .text_xs()
+                                        .child(h.clone()),
+                                ),
                         );
                     }
                     col.into_any_element()
@@ -135,39 +144,41 @@ impl Render for AttestationViewModel {
                 None => div()
                     .text_sm()
                     .text_color(theme.muted_foreground)
-                    .child("Reading attestation state…")
+                    .child(crate::tr!("Reading attestation state…"))
                     .into_any_element(),
             };
             Card::new()
-                .title("Attestation status")
-                .description("Whether an org attestation key + chain is installed")
+                .title(crate::tr!("Attestation status"))
+                .description(crate::tr!(
+                    "Whether an org attestation key + chain is installed"
+                ))
                 .icon(Icon::default().path("icons/building-2.svg"))
                 .header_right(refresh_btn)
                 .child(body)
         };
 
         let actions_card = Card::new()
-            .title("Manage")
-            .description("Provision or remove the org attestation")
+            .title(crate::tr!("Manage"))
+            .description(crate::tr!("Provision or remove the org attestation"))
             .icon(Icon::default().path("icons/shield-check.svg"))
             .child(
                 v_flex()
                     .gap_2()
                     .child(self.action_row(
-                        "Import key + chain",
-                        "P-256 key (PEM/DER) and certificate chain (PIN or touch)",
+                        crate::tr!("Import key + chain"),
+                        crate::tr!("P-256 key (PEM/DER) and certificate chain (PIN or touch)"),
                         import_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Remove attestation",
-                        "Revert to the self-signed device certificate",
+                        crate::tr!("Remove attestation"),
+                        crate::tr!("Revert to the self-signed device certificate"),
                         clear_btn,
                         theme,
                     )),
             );
 
         let content = v_flex().gap_6().child(status_card).child(actions_card);
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

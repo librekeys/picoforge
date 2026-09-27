@@ -31,7 +31,7 @@ pub fn select_state(
     let opts: Vec<LabeledU8> = options
         .iter()
         .map(|(label, key)| LabeledU8 {
-            label: (*label).to_string().into(),
+            label: crate::ui::i18n::translate(label).into(),
             key: *key,
         })
         .collect();

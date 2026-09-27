@@ -120,7 +120,9 @@ impl AccountsViewModel {
         match repo.oath_features() {
             None => AppletGate::Unsupported,
             Some(_) if !repo.ccid_on() => AppletGate::CcidOff,
-            Some(_) if !repo.applet_enabled(USB_CAP_OATH) => AppletGate::Disabled("OATH"),
+            Some(_) if !repo.applet_enabled(USB_CAP_OATH) => {
+                AppletGate::Disabled(crate::tr!("OATH"))
+            }
             Some(_) => AppletGate::Ready,
         }
     }
@@ -155,7 +157,7 @@ impl AccountsViewModel {
                 Err(e) => {
                     let _ = weak.update(cx, |this, cx| {
                         this.loading = false;
-                        log::warn!("OATH probe failed: {e}");
+                        log::warn!("{}", crate::tr!("OATH probe failed: {e}", e = e));
                         cx.notify();
                     });
                 }
@@ -181,8 +183,11 @@ impl AccountsViewModel {
                 }
             }
             Err(e) => {
-                log::warn!("OATH load failed: {e}");
-                cx.emit(AccountsEvent::Notification(format!("Accounts: {e}")));
+                log::warn!("{}", crate::tr!("OATH load failed: {e}", e = e));
+                cx.emit(AccountsEvent::Notification(crate::tr!(
+                    "Accounts: {e}",
+                    e = e
+                )));
             }
         }
         cx.notify();
@@ -210,11 +215,11 @@ impl AccountsViewModel {
     pub(super) fn open_unlock_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let view = cx.entity().downgrade();
         dialog::open_pin_prompt(
-            "Unlock Accounts",
-            "Enter the OATH password for this device.",
-            "OATH password",
+            crate::tr!("Unlock Accounts"),
+            crate::tr!("Enter the OATH password for this device."),
+            crate::tr!("OATH password"),
             None,
-            "Unlock",
+            crate::tr!("Unlock"),
             window,
             cx,
             move |password, dialog_handle, cx| {
@@ -244,10 +249,12 @@ impl AccountsViewModel {
             let _ = weak.update(cx, |this, cx| {
                 match &list {
                     Ok(_) => {
-                        let _ = dh.update(cx, |d, cx| d.set_success("Unlocked.".into(), cx));
+                        let _ = dh.update(cx, |d, cx| {
+                            d.set_success(crate::tr!("Unlocked.").into(), cx)
+                        });
                     }
                     Err(e) => {
-                        let _ = dh.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ = dh.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 this.apply_load(list, Some(password), cx);
@@ -268,11 +275,11 @@ impl AccountsViewModel {
         let current = self.password.clone();
         let view = cx.entity().downgrade();
         dialog::open_pin_prompt(
-            "OATH Password",
-            "Enter a new OATH password, or leave empty to remove password protection.",
-            "New OATH password",
+            crate::tr!("OATH Password"),
+            crate::tr!("Enter a new OATH password, or leave empty to remove password protection."),
+            crate::tr!("New OATH password"),
             None,
-            "Save",
+            crate::tr!("Save"),
             window,
             cx,
             move |new_password, dialog_handle, cx| {
@@ -309,15 +316,15 @@ impl AccountsViewModel {
                     Ok(_) => {
                         this.password = new_cache;
                         let msg = if this.password.is_some() {
-                            "Password saved."
+                            crate::tr!("Password saved.")
                         } else {
-                            "Password removed."
+                            crate::tr!("Password removed.")
                         };
                         let _ = dh.update(cx, |d, cx| d.set_success(msg.into(), cx));
                         this.reload(cx);
                     }
                     Err(e) => {
-                        let _ = dh.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ = dh.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();
@@ -327,7 +334,9 @@ impl AccountsViewModel {
 
     pub(super) fn copy_code(&self, code: String, cx: &mut Context<Self>) {
         cx.write_to_clipboard(ClipboardItem::new_string(code));
-        cx.emit(AccountsEvent::Notification("Code copied".into()));
+        cx.emit(AccountsEvent::Notification(
+            crate::tr!("Code copied").into(),
+        ));
     }
 
     /// Compute a single credential's code on demand (HOTP or touch-gated).
@@ -356,7 +365,10 @@ impl AccountsViewModel {
                             };
                         }
                     }
-                    Err(e) => cx.emit(AccountsEvent::Notification(format!("Calculate: {e}"))),
+                    Err(e) => cx.emit(AccountsEvent::Notification(crate::tr!(
+                        "Calculate: {e}",
+                        e = e
+                    ))),
                 }
                 cx.notify();
             });
@@ -365,15 +377,16 @@ impl AccountsViewModel {
 
     pub(super) fn open_add_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let issuer = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx).placeholder("Issuer (e.g. GitHub)")
+            gpui_component::input::InputState::new(window, cx)
+                .placeholder(crate::tr!("Issuer (e.g. GitHub)"))
         });
         let account = cx.new(|cx| {
             gpui_component::input::InputState::new(window, cx)
-                .placeholder("Account (e.g. you@example.com)")
+                .placeholder(crate::tr!("Account (e.g. you@example.com)"))
         });
         let secret = cx.new(|cx| {
             gpui_component::input::InputState::new(window, cx)
-                .placeholder("Base32 secret, or paste an otpauth:// URI")
+                .placeholder(crate::tr!("Base32 secret, or paste an otpauth:// URI"))
         });
         let type_sel = select_state(window, cx, OPT_TYPE, 0);
         let algo_sel = select_state(window, cx, OPT_ALGO, 0);
@@ -397,16 +410,16 @@ impl AccountsViewModel {
                 if secret_v.is_empty() {
                     return;
                 }
-                let parsed = if secret_v.starts_with("otpauth://") {
+                let parsed = if secret_v.starts_with(crate::tr!("otpauth://")) {
                     // A pasted URI carries every field itself; the form is ignored.
                     oath::parse_otpauth(&secret_v)
                 } else {
                     let account_v = account.read(cx).text().to_string().trim().to_string();
                     if account_v.is_empty() {
-                        Err("Enter an account name".to_string())
+                        Err(crate::tr!("Enter an account name").to_string())
                     } else {
                         match oath::base32_decode(&secret_v).filter(|s| !s.is_empty()) {
-                            None => Err("Invalid base32 secret".to_string()),
+                            None => Err(crate::tr!("Invalid base32 secret").to_string()),
                             Some(bytes) => {
                                 let issuer_v =
                                     issuer.read(cx).text().to_string().trim().to_string();
@@ -438,7 +451,8 @@ impl AccountsViewModel {
                 match parsed {
                     Ok(cred) => {
                         window.close_dialog(cx);
-                        let status = dialog::open_status_dialog("Adding Account", window, cx);
+                        let status =
+                            dialog::open_status_dialog(crate::tr!("Adding Account"), window, cx);
                         let _ = view.update(cx, |this, cx| this.execute_add(cred, status, cx));
                     }
                     Err(e) => {
@@ -473,31 +487,33 @@ impl AccountsViewModel {
                     )
             };
             dialog
-                .title("Add Account")
-                .child("Fill in the details, or paste an otpauth:// URI into the secret field.")
+                .title(crate::tr!("Add Account"))
+                .child(crate::tr!(
+                    "Fill in the details, or paste an otpauth:// URI into the secret field."
+                ))
                 .child(
                     gpui_component::v_flex()
                         .gap_3()
                         .pb_2()
-                        .child("Issuer")
+                        .child(crate::tr!("Issuer"))
                         .child(gpui_component::input::Input::new(&issuer))
-                        .child("Account")
+                        .child(crate::tr!("Account"))
                         .child(gpui_component::input::Input::new(&account))
-                        .child("Secret")
+                        .child(crate::tr!("Secret"))
                         .child(gpui_component::input::Input::new(&secret))
                         .child(
                             gpui_component::h_flex()
                                 .gap_3()
-                                .child(field("Account type", &type_sel))
-                                .child(field("Algorithm", &algo_sel)),
+                                .child(field(crate::tr!("Account type"), &type_sel))
+                                .child(field(crate::tr!("Algorithm"), &algo_sel)),
                         )
                         .child(
                             gpui_component::h_flex()
                                 .gap_3()
-                                .child(field("Period (time-based)", &period_sel))
-                                .child(field("Digits", &digits_sel)),
+                                .child(field(crate::tr!("Period (time-based)"), &period_sel))
+                                .child(field(crate::tr!("Digits"), &digits_sel)),
                         )
-                        .child(field("Touch", &touch_sel)),
+                        .child(field(crate::tr!("Touch"), &touch_sel)),
                 )
                 .on_ok(move |_, window, cx| {
                     submit_ok(window, cx);
@@ -506,8 +522,8 @@ impl AccountsViewModel {
                 .footer(move |_, _window, _cx, _| {
                     let submit = submit_btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
                         gpui_component::button::Button::new("add")
                             .primary()
@@ -537,12 +553,14 @@ impl AccountsViewModel {
                 this.loading = false;
                 match res {
                     Ok(_) => {
-                        let _ =
-                            status.update(cx, |d, cx| d.set_success("Account added.".into(), cx));
+                        let _ = status.update(cx, |d, cx| {
+                            d.set_success(crate::tr!("Account added.").into(), cx)
+                        });
                         this.reload(cx);
                     }
                     Err(e) => {
-                        let _ = status.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ =
+                            status.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();
@@ -561,12 +579,12 @@ impl AccountsViewModel {
         let period = acc.period;
         let issuer = cx.new(|cx| {
             gpui_component::input::InputState::new(window, cx)
-                .placeholder("Issuer")
+                .placeholder(crate::tr!("Issuer"))
                 .default_value(acc.issuer.clone().unwrap_or_default())
         });
         let account = cx.new(|cx| {
             gpui_component::input::InputState::new(window, cx)
-                .placeholder("Account")
+                .placeholder(crate::tr!("Account"))
                 .default_value(acc.account.clone())
         });
 
@@ -589,7 +607,7 @@ impl AccountsViewModel {
                 if new_id == old_id {
                     return;
                 }
-                let status = dialog::open_status_dialog("Renaming Account", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Renaming Account"), window, cx);
                 let old = old_id.clone();
                 let _ = view.update(cx, |this, cx| this.execute_rename(old, new_id, status, cx));
             })
@@ -601,15 +619,15 @@ impl AccountsViewModel {
             let submit_ok = submit.clone();
             let submit_btn = submit.clone();
             dialog
-                .title("Rename Account")
-                .child("Change the issuer and account name.")
+                .title(crate::tr!("Rename Account"))
+                .child(crate::tr!("Change the issuer and account name."))
                 .child(
                     gpui_component::v_flex()
                         .gap_3()
                         .pb_2()
-                        .child("Issuer")
+                        .child(crate::tr!("Issuer"))
                         .child(gpui_component::input::Input::new(&issuer))
-                        .child("Account")
+                        .child(crate::tr!("Account"))
                         .child(gpui_component::input::Input::new(&account)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -619,12 +637,12 @@ impl AccountsViewModel {
                 .footer(move |_, _window, _cx, _| {
                     let submit = submit_btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("rename")
+                        gpui_component::button::Button::new(crate::tr!("rename"))
                             .primary()
-                            .label("Rename")
+                            .label(crate::tr!("Rename"))
                             .on_click(move |_, window, cx| submit(window, cx)),
                     ]
                 })
@@ -651,12 +669,14 @@ impl AccountsViewModel {
                 this.loading = false;
                 match res {
                     Ok(_) => {
-                        let _ =
-                            status.update(cx, |d, cx| d.set_success("Account renamed.".into(), cx));
+                        let _ = status.update(cx, |d, cx| {
+                            d.set_success(crate::tr!("Account renamed.").into(), cx)
+                        });
                         this.reload(cx);
                     }
                     Err(e) => {
-                        let _ = status.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ =
+                            status.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();
@@ -674,9 +694,12 @@ impl AccountsViewModel {
         let label = acc.issuer.clone().unwrap_or_else(|| acc.account.clone());
         let view = cx.entity().downgrade();
         dialog::open_confirm(
-            "Delete Account",
-            format!("Delete the account \"{label}\"? This cannot be undone."),
-            "Delete",
+            crate::tr!("Delete Account"),
+            crate::tr!(
+                "Delete the account \"{label}\"? This cannot be undone.",
+                label = label
+            ),
+            crate::tr!("Delete"),
             gpui_component::button::ButtonVariant::Danger,
             window,
             cx,
@@ -707,11 +730,13 @@ impl AccountsViewModel {
                 this.loading = false;
                 match res {
                     Ok(_) => {
-                        let _ = dh.update(cx, |d, cx| d.set_success("Account deleted.".into(), cx));
+                        let _ = dh.update(cx, |d, cx| {
+                            d.set_success(crate::tr!("Account deleted.").into(), cx)
+                        });
                         this.reload(cx);
                     }
                     Err(e) => {
-                        let _ = dh.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ = dh.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();
@@ -722,10 +747,10 @@ impl AccountsViewModel {
     pub(super) fn open_reset_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let view = cx.entity().downgrade();
         dialog::open_confirm(
-            "Reset OATH Applet",
-            "This permanently deletes ALL accounts and the OATH password. This cannot be undone."
+            crate::tr!("Reset OATH Applet"),
+            crate::tr!("This permanently deletes ALL accounts and the OATH password. This cannot be undone.")
                 .to_string(),
-            "Reset",
+            crate::tr!("Reset"),
             gpui_component::button::ButtonVariant::Danger,
             window,
             cx,
@@ -742,7 +767,7 @@ impl AccountsViewModel {
         }
         self.loading = true;
         cx.notify();
-        let status = dialog::open_status_dialog("Resetting OATH Applet", window, cx);
+        let status = dialog::open_status_dialog(crate::tr!("Resetting OATH Applet"), window, cx);
         let weak = cx.entity().downgrade();
         self._task = Some(cx.spawn(async move |_, cx| {
             let res = cx
@@ -753,15 +778,17 @@ impl AccountsViewModel {
                 this.loading = false;
                 match res {
                     Ok(_) => {
-                        let _ = status
-                            .update(cx, |d, cx| d.set_success("OATH applet reset.".into(), cx));
+                        let _ = status.update(cx, |d, cx| {
+                            d.set_success(crate::tr!("OATH applet reset.").into(), cx)
+                        });
                         this.accounts.clear();
                         this.loaded = false;
                         this.password = None;
                         this.try_initial_load(cx);
                     }
                     Err(e) => {
-                        let _ = status.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ =
+                            status.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();

@@ -43,8 +43,8 @@ fn kv(label: &str, value: String, theme: &Theme) -> impl IntoElement {
 
 fn origin_label(o: u8) -> &'static str {
     match o {
-        piv::ORIGIN_GENERATED => "generated",
-        piv::ORIGIN_IMPORTED => "imported",
+        piv::ORIGIN_GENERATED => crate::tr!("generated"),
+        piv::ORIGIN_IMPORTED => crate::tr!("imported"),
         _ => "?",
     }
 }
@@ -59,16 +59,20 @@ impl PivViewModel {
             .map(|m| m.origin == piv::ORIGIN_GENERATED)
             .unwrap_or(false);
         let status_text = match s.meta {
-            Some(m) => format!("{} · {}", piv::algo_label(m.algo), origin_label(m.origin)),
-            None => "Empty".to_string(),
+            Some(m) => crate::tr!("{} · {}", piv::algo_label(m.algo), origin_label(m.origin)),
+            None => crate::tr!("Empty").to_string(),
         };
-        let cert = if s.has_cert { " · certificate" } else { "" };
+        let cert = if s.has_cert {
+            crate::tr!(" · certificate")
+        } else {
+            ""
+        };
         let d = self.loading;
 
         macro_rules! btn {
             ($id:expr, $label:expr, $method:ident) => {
                 PFButton::new($label)
-                    .id(format!("{}-{slot:02x}", $id))
+                    .id(crate::tr!("{}-{slot:02x}", $id, slot = slot))
                     .disabled(d)
                     .on_click(
                         cx.listener(move |this, _, window, cx| this.$method(slot, window, cx)),
@@ -78,40 +82,63 @@ impl PivViewModel {
         }
 
         let mut btns: Vec<AnyElement> = vec![
-            PFButton::new(if has_key { "Regenerate" } else { "Generate" })
-                .id(format!("gen-{slot:02x}"))
-                .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
-                .disabled(d)
-                .on_click(cx.listener(move |this, _, window, cx| {
-                    this.open_generate_dialog(slot, window, cx);
-                }))
-                .into_any_element(),
-            btn!("impk", "Import key", open_import_key),
-            btn!("impc", "Import cert", open_import_cert),
+            PFButton::new(if has_key {
+                crate::tr!("Regenerate")
+            } else {
+                crate::tr!("Generate")
+            })
+            .id(crate::tr!("gen-{slot:02x}", slot = slot))
+            .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+            .disabled(d)
+            .on_click(cx.listener(move |this, _, window, cx| {
+                this.open_generate_dialog(slot, window, cx);
+            }))
+            .into_any_element(),
+            btn!(
+                crate::tr!("impk"),
+                crate::tr!("Import key"),
+                open_import_key
+            ),
+            btn!(
+                crate::tr!("impc"),
+                crate::tr!("Import cert"),
+                open_import_cert
+            ),
         ];
         if s.has_cert {
-            btns.push(btn!("exp", "Export cert", open_export_cert));
+            btns.push(btn!(
+                crate::tr!("exp"),
+                crate::tr!("Export cert"),
+                open_export_cert
+            ));
         }
         if is_generated {
-            btns.push(btn!("att", "Attest", open_attest));
+            btns.push(btn!(crate::tr!("att"), crate::tr!("Attest"), open_attest));
         }
         if has_key {
-            btns.push(btn!("mv", "Move", open_move_key));
+            btns.push(btn!(crate::tr!("mv"), crate::tr!("Move"), open_move_key));
         }
         if s.has_cert {
-            btns.push(btn!("delc", "Delete cert", open_delete_cert));
+            btns.push(btn!(
+                crate::tr!("delc"),
+                crate::tr!("Delete cert"),
+                open_delete_cert
+            ));
         }
         if has_key {
             btns.push(
-                Button::new(SharedString::from(format!("delk-{slot:02x}")))
-                    .icon(Icon::default().path("icons/trash-2.svg"))
-                    .label("Delete key")
-                    .ghost()
-                    .disabled(d)
-                    .on_click(cx.listener(move |this, _, window, cx| {
-                        this.open_delete_key(slot, window, cx);
-                    }))
-                    .into_any_element(),
+                Button::new(SharedString::from(crate::tr!(
+                    "delk-{slot:02x}",
+                    slot = slot
+                )))
+                .icon(Icon::default().path("icons/trash-2.svg"))
+                .label(crate::tr!("Delete key"))
+                .ghost()
+                .disabled(d)
+                .on_click(cx.listener(move |this, _, window, cx| {
+                    this.open_delete_key(slot, window, cx);
+                }))
+                .into_any_element(),
             );
         }
 
@@ -133,7 +160,11 @@ impl PivViewModel {
                             } else {
                                 theme.muted_foreground
                             })
-                            .child(format!("{status_text}{cert}")),
+                            .child(crate::tr!(
+                                "{status_text}{cert}",
+                                status_text = status_text,
+                                cert = cert
+                            )),
                     ),
             )
             .child(h_flex().gap_2().flex_wrap().children(btns))
@@ -171,12 +202,12 @@ impl PivViewModel {
 
 impl Render for PivViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "PIV";
-        const SUBTITLE: &str = "Smart-card certificates and keys (PIV).";
+        let title: &str = crate::tr!("PIV");
+        let subtitle: &str = crate::tr!("Smart-card certificates and keys (PIV).");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -202,28 +233,28 @@ impl Render for PivViewModel {
             )
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
-        let change_pin_btn = PFButton::new("Change PIN")
+        let change_pin_btn = PFButton::new(crate::tr!("Change PIN"))
             .id("piv-change-pin")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_change_pin(false, window, cx)));
-        let change_puk_btn = PFButton::new("Change PUK")
+        let change_puk_btn = PFButton::new(crate::tr!("Change PUK"))
             .id("piv-change-puk")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_change_pin(true, window, cx)));
-        let unblock_btn = PFButton::new("Unblock PIN")
+        let unblock_btn = PFButton::new(crate::tr!("Unblock PIN"))
             .id("piv-unblock")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_unblock_pin(window, cx)));
-        let retries_btn = PFButton::new("Set retries")
+        let retries_btn = PFButton::new(crate::tr!("Set retries"))
             .id("piv-retries")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_set_retries(window, cx)));
-        let mgm_btn = PFButton::new("Change key")
+        let mgm_btn = PFButton::new(crate::tr!("Change key"))
             .id("piv-mgm")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .on_click(cx.listener(|this, _, window, cx| this.open_change_mgm(window, cx)));
         let reset_btn = Button::new("piv-reset")
-            .label("Reset PIV applet")
+            .label(crate::tr!("Reset PIV applet"))
             .danger()
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, window, cx| this.open_reset_dialog(window, cx)));
@@ -235,116 +266,130 @@ impl Render for PivViewModel {
                     let pin = i
                         .pin
                         .map(|p| {
-                            format!(
+                            crate::tr!(
                                 "{}/{}{}",
                                 p.left,
                                 p.total,
-                                if p.is_default { " (default)" } else { "" }
+                                if p.is_default {
+                                    crate::tr!(" (default)")
+                                } else {
+                                    ""
+                                }
                             )
                         })
                         .unwrap_or_else(|| "—".into());
                     let puk = i
                         .puk
                         .map(|p| {
-                            format!(
+                            crate::tr!(
                                 "{}/{}{}",
                                 p.left,
                                 p.total,
-                                if p.is_default { " (default)" } else { "" }
+                                if p.is_default {
+                                    crate::tr!(" (default)")
+                                } else {
+                                    ""
+                                }
                             )
                         })
                         .unwrap_or_else(|| "—".into());
-                    let mgm = format!(
+                    let mgm = crate::tr!(
                         "{}{}",
                         piv::algo_label(i.mgm_algo),
-                        if i.mgm_default { " (default)" } else { "" }
+                        if i.mgm_default {
+                            crate::tr!(" (default)")
+                        } else {
+                            ""
+                        }
                     );
                     div()
                         .grid()
                         .grid_cols(2)
                         .gap_4()
                         .child(kv(
-                            "Firmware",
-                            format!("{}.{}.{}", i.version[0], i.version[1], i.version[2]),
+                            crate::tr!("Firmware"),
+                            crate::tr!("{}.{}.{}", i.version[0], i.version[1], i.version[2]),
                             theme,
                         ))
-                        .child(kv("Serial", i.serial.to_string(), theme))
-                        .child(kv("PIN tries", pin, theme))
-                        .child(kv("PUK tries", puk, theme))
-                        .child(kv("Management key", mgm, theme))
+                        .child(kv(crate::tr!("Serial"), i.serial.to_string(), theme))
+                        .child(kv(crate::tr!("PIN tries"), pin, theme))
+                        .child(kv(crate::tr!("PUK tries"), puk, theme))
+                        .child(kv(crate::tr!("Management key"), mgm, theme))
                         .into_any_element()
                 }
                 None => div()
                     .text_sm()
                     .text_color(theme.muted_foreground)
-                    .child("Reading card…")
+                    .child(crate::tr!("Reading card…"))
                     .into_any_element(),
             };
             Card::new()
-                .title("Card information")
-                .description("PIV card status")
+                .title(crate::tr!("Card information"))
+                .description(crate::tr!("PIV card status"))
                 .icon(Icon::default().path("icons/cpu.svg"))
                 .header_right(refresh_btn)
                 .child(body)
         };
 
         let slots_card = Card::new()
-            .title("Key slots")
-            .description("Certificate slots 9A / 9C / 9D / 9E")
+            .title(crate::tr!("Key slots"))
+            .description(crate::tr!("Certificate slots 9A / 9C / 9D / 9E"))
             .icon(Icon::default().path("icons/key.svg"))
             .child(v_flex().gap_2().children(slot_rows));
 
         let pin_card = Card::new()
-            .title("PIN & PUK")
-            .description("Manage the PIV PIN and PUK")
+            .title(crate::tr!("PIN & PUK"))
+            .description(crate::tr!("Manage the PIV PIN and PUK"))
             .icon(Icon::default().path("icons/lock.svg"))
             .child(
                 v_flex()
                     .gap_2()
                     .child(self.action_row(
-                        "PIN",
-                        "Change the 6–8 digit PIV PIN",
+                        crate::tr!("PIN"),
+                        crate::tr!("Change the 6–8 digit PIV PIN"),
                         change_pin_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "PUK",
-                        "Change the PIN Unblock Key",
+                        crate::tr!("PUK"),
+                        crate::tr!("Change the PIN Unblock Key"),
                         change_puk_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Unblock",
-                        "Reset a blocked PIN using the PUK",
+                        crate::tr!("Unblock"),
+                        crate::tr!("Reset a blocked PIN using the PUK"),
                         unblock_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Retry limits",
-                        "Set PIN/PUK retries (resets both to defaults)",
+                        crate::tr!("Retry limits"),
+                        crate::tr!("Set PIN/PUK retries (resets both to defaults)"),
                         retries_btn,
                         theme,
                     )),
             );
 
         let mgm_card = Card::new()
-            .title("Management key")
-            .description("The key that authorises key and certificate changes")
+            .title(crate::tr!("Management key"))
+            .description(crate::tr!(
+                "The key that authorises key and certificate changes"
+            ))
             .icon(Icon::default().path("icons/key-round.svg"))
             .child(self.action_row(
-                "Management key",
-                "Change the PIV management key",
+                crate::tr!("Management key"),
+                crate::tr!("Change the PIV management key"),
                 mgm_btn,
                 theme,
             ));
 
         let reset_card = Card::new()
-            .title("Reset")
-            .description("Erase all PIV keys and certificates")
+            .title(crate::tr!("Reset"))
+            .description(crate::tr!("Erase all PIV keys and certificates"))
             .icon(Icon::default().path("icons/trash.svg"))
             .child(self.action_row(
-                "Factory reset PIV",
-                "Blocks PIN+PUK then wipes everything. Cannot be undone.",
+                crate::tr!("Factory reset PIV"),
+                crate::tr!("Blocks PIN+PUK then wipes everything. Cannot be undone."),
                 reset_btn,
                 theme,
             ));
@@ -357,6 +402,6 @@ impl Render for PivViewModel {
             .child(mgm_card)
             .child(reset_card);
 
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

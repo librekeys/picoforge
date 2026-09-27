@@ -1,0 +1,18 @@
+{
+  "name": "action.yml",
+  "path": "action.yml",
+  "sha": "d175660f377393d503f47616a89e91380fb4ac0a",
+  "size": 1139,
+  "url": "https://api.github.com/repos/redhat-actions/podman-login/contents/action.yml?ref=v2",
+  "html_url": "https://github.com/redhat-actions/podman-login/blob/v2/action.yml",
+  "git_url": "https://api.github.com/repos/redhat-actions/podman-login/git/blobs/d175660f377393d503f47616a89e91380fb4ac0a",
+  "download_url": "https://raw.githubusercontent.com/redhat-actions/podman-login/v2/action.yml",
+  "type": "file",
+  "content": "bmFtZTogJ1BvZG1hbiBMb2dpbicKZGVzY3JpcHRpb246ICdMb2cgaW50byBh\nIGNvbnRhaW5lciBpbWFnZSByZWdpc3RyeScKYXV0aG9yOiAnUmVkIEhhdCcK\nYnJhbmRpbmc6CiAgaWNvbjogY2lyY2xlCiAgY29sb3I6IHJlZAppbnB1dHM6\nCiAgcmVnaXN0cnk6CiAgICBkZXNjcmlwdGlvbjogJ0hvc3RuYW1lL2RvbWFp\nbiBvZiB0aGUgY29udGFpbmVyIGltYWdlIHJlZ2lzdHJ5IHN1Y2ggYXMgcXVh\neS5pbywgZG9ja2VyLmlvJwogICAgcmVxdWlyZWQ6IHRydWUKICB1c2VybmFt\nZToKICAgIGRlc2NyaXB0aW9uOiAnVXNlcm5hbWUgdG8gbG9nIGluIGFnYWlu\nc3QgdGhlIGNvbnRhaW5lciBpbWFnZSByZWdpc3RyeScKICAgIHJlcXVpcmVk\nOiB0cnVlCiAgcGFzc3dvcmQ6CiAgICBkZXNjcmlwdGlvbjogJ1Bhc3N3b3Jk\nLCBlbmNyeXB0ZWQgcGFzc3dvcmQsIG9yIGFjY2VzcyB0b2tlbiBmb3IgdXNl\ncm5hbWUnCiAgICByZXF1aXJlZDogdHJ1ZQogIHRsc192ZXJpZnk6CiAgICBk\nZXNjcmlwdGlvbjogJ1JlcXVpcmUgSFRUUFMgYW5kIHZlcmlmeSBUTFMgY2Vy\ndGlmaWNhdGVzIHdoZW4gY29udGFjdGluZyB0aGUgcmVnaXN0cnkuIFNldCB0\nbyBmYWxzZSBmb3IgcmVnaXN0cmllcyB3aXRoIHNlbGYtc2lnbmVkIGNlcnRp\nZmljYXRlcy4nCiAgICByZXF1aXJlZDogZmFsc2UKICAgIGRlZmF1bHQ6ICd0\ncnVlJwogIGF1dGhfZmlsZV9wYXRoOgogICAgZGVzY3JpcHRpb246ICdQYXRo\nIG9mIHRoZSBhdXRoZW50aWNhdGlvbiBmaWxlLCB0aGlzIHdpbGwgb3ZlcnJp\nZGUgdGhlIGRlZmF1bHQgYXV0aCBmaWxlIHBhdGggaW4gcG9kbWFuJwogICAg\ncmVxdWlyZWQ6IGZhbHNlCiAgbG9nb3V0OgogICAgZGVzY3JpcHRpb246IHwK\nICAgICAgJ0J5IGRlZmF1bHQsIHRoZSBhY3Rpb24gbG9ncyBvdXQgb2YgdGhl\nIGNvbnRhaW5lciBpbWFnZSByZWdpc3RyeSBhdCB0aGUgZW5kCiAgICAgIG9m\nIHRoZSBqb2IgKGZvciBzZWxmLWhvc3RlZCBydW5uZXJzKS4gU2V0IHRoaXMg\ndG8gZmFsc2UgdG8gZGlzYWJsZSB0aGlzIGJlaGF2aW91cicKICAgIHJlcXVp\ncmVkOiBmYWxzZQogICAgZGVmYXVsdDogJ3RydWUnCgpydW5zOgogIHVzaW5n\nOiAnbm9kZTI0JwogIG1haW46ICdkaXN0L2luZGV4LmpzJwogIHBvc3Q6ICdk\naXN0L2luZGV4LmpzJwo=\n",
+  "encoding": "base64",
+  "_links": {
+    "self": "https://api.github.com/repos/redhat-actions/podman-login/contents/action.yml?ref=v2",
+    "git": "https://api.github.com/repos/redhat-actions/podman-login/git/blobs/d175660f377393d503f47616a89e91380fb4ac0a",
+    "html": "https://github.com/redhat-actions/podman-login/blob/v2/action.yml"
+  }
+}
