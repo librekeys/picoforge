@@ -4,8 +4,9 @@ $env:LIB = $null
 $env:LIBPATH = $null
 Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern void mouse_event(uint f, uint x, uint y, uint d, int e); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);' -Name Win -Namespace Native
 
-$exe = "C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\target\debug\picoforge.exe"
-$out = "C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\temp\i18n\screen_menu.png"
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$exe = Join-Path $root 'target\debug\picoforge.exe'
+$out = Join-Path $PSScriptRoot 'screen_menu.png'
 
 $p = Start-Process -FilePath $exe -PassThru
 Start-Sleep -Seconds 9

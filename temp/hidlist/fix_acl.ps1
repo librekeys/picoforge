@@ -1,5 +1,5 @@
 $ErrorActionPreference='Continue'
-$log='C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\temp\hidlist\fix_acl.out'
+$log = Join-Path $PSScriptRoot 'fix_acl.out'
 "start" | Out-File $log
 $k='HKLM:\SYSTEM\CurrentControlSet\Enum\HID\VID_1050&PID_0407&MI_01\7&3a1fed9c&0&0000'
 try {

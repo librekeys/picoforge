@@ -10,8 +10,9 @@ public class M {
 }
 "@
 
-$exe = "C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\target\debug\picoforge.exe"
-$out = "C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\temp\i18n\screen_backup_zh.png"
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$exe = Join-Path $root 'target\debug\picoforge.exe'
+$out = Join-Path $PSScriptRoot 'screen_backup_zh.png'
 
 $p = Start-Process -FilePath $exe -PassThru
 Start-Sleep -Seconds 9

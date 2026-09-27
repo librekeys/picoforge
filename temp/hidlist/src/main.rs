@@ -11,7 +11,7 @@ fn main() {
         }
     }
     out.push_str(&format!("hidapi FIDO entries={fido}\n"));
-    let path = r"C:\Users\guoxin\Desktop\桌面文件夹\项目\picoforge\temp\hidlist\elev_test.txt";
+    let path = "elev_test.txt";
     std::fs::File::create(path).unwrap().write_all(out.as_bytes()).unwrap();
     print!("{out}");
 }
