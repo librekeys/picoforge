@@ -1420,10 +1420,7 @@ pub(crate) fn upload_enterprise_attestation_cert(
         .map_err(|e| format!("Cannot read certificate file \"{}\": {}", cert_path, e))?;
 
     let cert_der = parse_cert_bytes(raw)?;
-    log::info!(
-        "Certificate parsed ({} bytes). Uploading to device...",
-        cert_der.len()
-    );
+    log::info!("Certificate parsed. Uploading to device...");
 
     let transport =
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
