@@ -96,9 +96,9 @@ impl Render for PinPromptContent {
                 .child(msg.clone())
                 .child(
                     h_flex().justify_end().child(
-                        Button::new("done")
+                        Button::new(crate::tr!("done"))
                             .primary()
-                            .label("Done")
+                            .label(crate::tr!("Done"))
                             .on_click(|_, window, cx| {
                                 window.close_dialog(cx);
                             }),
@@ -119,11 +119,15 @@ impl Render for PinPromptContent {
                         h_flex()
                             .justify_end()
                             .gap_2()
-                            .child(Button::new("cancel").label("Cancel").disabled(true))
                             .child(
-                                Button::new("confirm")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
+                                    .disabled(true),
+                            )
+                            .child(
+                                Button::new(crate::tr!("confirm"))
                                     .primary()
-                                    .label("Loading...")
+                                    .label(crate::tr!("Loading..."))
                                     .loading(true),
                             ),
                     )
@@ -184,13 +188,15 @@ impl Render for PinPromptContent {
                         h_flex()
                             .justify_end()
                             .gap_2()
-                            .child(Button::new("cancel").label("Cancel").on_click(
-                                |_, window, cx| {
-                                    window.close_dialog(cx);
-                                },
-                            ))
                             .child(
-                                Button::new("confirm")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
+                                    .on_click(|_, window, cx| {
+                                        window.close_dialog(cx);
+                                    }),
+                            )
+                            .child(
+                                Button::new(crate::tr!("confirm"))
                                     .primary()
                                     .label(confirm_label)
                                     .on_click(move |_, _, cx| {
@@ -251,13 +257,15 @@ impl Render for PinPromptContent {
                         h_flex()
                             .justify_end()
                             .gap_2()
-                            .child(Button::new("cancel").label("Cancel").on_click(
-                                |_, window, cx| {
-                                    window.close_dialog(cx);
-                                },
-                            ))
                             .child(
-                                Button::new("confirm")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
+                                    .on_click(|_, window, cx| {
+                                        window.close_dialog(cx);
+                                    }),
+                            )
+                            .child(
+                                Button::new(crate::tr!("confirm"))
                                     .primary()
                                     .label(confirm_label)
                                     .on_click(move |_, _, cx| {
@@ -382,9 +390,9 @@ impl Render for ConfirmContent {
                 .child(msg.clone())
                 .child(
                     h_flex().justify_end().child(
-                        Button::new("done")
+                        Button::new(crate::tr!("done"))
                             .primary()
-                            .label("Done")
+                            .label(crate::tr!("Done"))
                             .on_click(|_, window, cx| {
                                 window.close_dialog(cx);
                             }),
@@ -399,11 +407,15 @@ impl Render for ConfirmContent {
                     h_flex()
                         .justify_end()
                         .gap_2()
-                        .child(Button::new("cancel").label("Cancel").disabled(true))
                         .child(
-                            Button::new("ok")
+                            Button::new(crate::tr!("cancel"))
+                                .label(crate::tr!("Cancel"))
+                                .disabled(true),
+                        )
+                        .child(
+                            Button::new(crate::tr!("ok"))
                                 .with_variant(self.ok_variant)
-                                .label("Loading...")
+                                .label(crate::tr!("Loading..."))
                                 .loading(true),
                         ),
                 )
@@ -432,13 +444,15 @@ impl Render for ConfirmContent {
                         h_flex()
                             .justify_end()
                             .gap_2()
-                            .child(Button::new("cancel").label("Cancel").on_click(
-                                |_, window, cx| {
-                                    window.close_dialog(cx);
-                                },
-                            ))
                             .child(
-                                Button::new("ok")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
+                                    .on_click(|_, window, cx| {
+                                        window.close_dialog(cx);
+                                    }),
+                            )
+                            .child(
+                                Button::new(crate::tr!("ok"))
                                     .with_variant(ok_variant)
                                     .label(ok_label)
                                     .on_click(move |_, window, cx| {
@@ -465,13 +479,15 @@ impl Render for ConfirmContent {
                         h_flex()
                             .justify_end()
                             .gap_2()
-                            .child(Button::new("cancel").label("Cancel").on_click(
-                                |_, window, cx| {
-                                    window.close_dialog(cx);
-                                },
-                            ))
                             .child(
-                                Button::new("ok")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
+                                    .on_click(|_, window, cx| {
+                                        window.close_dialog(cx);
+                                    }),
+                            )
+                            .child(
+                                Button::new(crate::tr!("ok"))
                                     .with_variant(ok_variant)
                                     .label(ok_label)
                                     .on_click(move |_, window, cx| {
@@ -561,12 +577,15 @@ impl ChangePinContent {
         }
 
         if new_pin_text != confirm_pin_text {
-            self.set_error("PINs do not match".to_string(), cx);
+            self.set_error(crate::tr!("PINs do not match").to_string(), cx);
             return;
         }
 
         if new_pin_text.len() < 4 {
-            self.set_error("PIN must be at least 4 characters".to_string(), cx);
+            self.set_error(
+                crate::tr!("PIN must be at least 4 characters").to_string(),
+                cx,
+            );
             return;
         }
 
@@ -592,14 +611,14 @@ impl Render for ChangePinContent {
                                 .text_color(cx.theme().green)
                                 .with_size(gpui_component::Size::Large),
                         )
-                        .child("Change PIN"),
+                        .child(crate::tr!("Change PIN")),
                 )
                 .child(msg.clone())
                 .child(
                     h_flex().justify_end().child(
-                        Button::new("done")
+                        Button::new(crate::tr!("done"))
                             .primary()
-                            .label("Done")
+                            .label(crate::tr!("Done"))
                             .on_click(|_, window, cx| {
                                 window.close_dialog(cx);
                             }),
@@ -609,26 +628,30 @@ impl Render for ChangePinContent {
 
             DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => v_flex()
                 .gap_4()
-                .child("Enter your current PIN and choose a new one.")
+                .child(crate::tr!("Enter your current PIN and choose a new one."))
                 .child(
                     v_flex()
                         .gap_4()
-                        .child("Current PIN")
+                        .child(crate::tr!("Current PIN"))
                         .child(Input::new(&self.current_pin).disabled(true))
-                        .child("New PIN")
+                        .child(crate::tr!("New PIN"))
                         .child(Input::new(&self.new_pin).disabled(true))
-                        .child("Confirm New PIN")
+                        .child(crate::tr!("Confirm New PIN"))
                         .child(Input::new(&self.confirm_pin).disabled(true)),
                 )
                 .child(
                     h_flex()
                         .justify_end()
                         .gap_2()
-                        .child(Button::new("cancel").label("Cancel").disabled(true))
                         .child(
-                            Button::new("confirm")
+                            Button::new(crate::tr!("cancel"))
+                                .label(crate::tr!("Cancel"))
+                                .disabled(true),
+                        )
+                        .child(
+                            Button::new(crate::tr!("confirm"))
                                 .primary()
-                                .label("Changing PIN...")
+                                .label(crate::tr!("Changing PIN..."))
                                 .loading(true),
                         ),
                 )
@@ -643,7 +666,7 @@ impl Render for ChangePinContent {
 
                 v_flex()
                     .gap_4()
-                    .child("Enter your current PIN and choose a new one.")
+                    .child(crate::tr!("Enter your current PIN and choose a new one."))
                     .child(
                         div()
                             .px_3()
@@ -657,11 +680,11 @@ impl Render for ChangePinContent {
                     .child(
                         v_flex()
                             .gap_4()
-                            .child("Current PIN")
+                            .child(crate::tr!("Current PIN"))
                             .child(Input::new(&current_pin_entity))
-                            .child("New PIN")
+                            .child(crate::tr!("New PIN"))
                             .child(Input::new(&new_pin_entity))
-                            .child("Confirm New PIN")
+                            .child(crate::tr!("Confirm New PIN"))
                             .child(Input::new(&confirm_pin_entity)),
                     )
                     .child(
@@ -669,49 +692,64 @@ impl Render for ChangePinContent {
                             .justify_end()
                             .gap_2()
                             .child(
-                                Button::new("cancel")
-                                    .label("Cancel")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child(Button::new("confirm").primary().label("Confirm").on_click(
-                                move |_, _, cx| {
-                                    let current_pin_text =
-                                        current_pin_entity.read(cx).text().to_string();
-                                    let new_pin_text = new_pin_entity.read(cx).text().to_string();
-                                    let confirm_pin_text =
-                                        confirm_pin_entity.read(cx).text().to_string();
+                            .child(
+                                Button::new(crate::tr!("confirm"))
+                                    .primary()
+                                    .label(crate::tr!("Confirm"))
+                                    .on_click(move |_, _, cx| {
+                                        let current_pin_text =
+                                            current_pin_entity.read(cx).text().to_string();
+                                        let new_pin_text =
+                                            new_pin_entity.read(cx).text().to_string();
+                                        let confirm_pin_text =
+                                            confirm_pin_entity.read(cx).text().to_string();
 
-                                    if current_pin_text.is_empty() {
-                                        return;
-                                    }
-
-                                    if new_pin_text != confirm_pin_text {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error("PINs do not match".to_string(), cx);
-                                            });
+                                        if current_pin_text.is_empty() {
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if new_pin_text.len() < 4 {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error(
-                                                    "PIN must be at least 4 characters".to_string(),
-                                                    cx,
-                                                );
-                                            });
+                                        if new_pin_text != confirm_pin_text {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!("PINs do not match").to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if let Some(h) = handle.upgrade() {
-                                        h.update(cx, |this, cx| this.set_loading(cx));
-                                    }
-                                    on_confirm(current_pin_text, new_pin_text, handle.clone(), cx);
-                                },
-                            )),
+                                        if new_pin_text.len() < 4 {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!(
+                                                            "PIN must be at least 4 characters"
+                                                        )
+                                                        .to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
+                                        }
+
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| this.set_loading(cx));
+                                        }
+                                        on_confirm(
+                                            current_pin_text,
+                                            new_pin_text,
+                                            handle.clone(),
+                                            cx,
+                                        );
+                                    }),
+                            ),
                     )
                     .into_any_element()
             }
@@ -725,15 +763,15 @@ impl Render for ChangePinContent {
 
                 v_flex()
                     .gap_4()
-                    .child("Enter your current PIN and choose a new one.")
+                    .child(crate::tr!("Enter your current PIN and choose a new one."))
                     .child(
                         v_flex()
                             .gap_4()
-                            .child("Current PIN")
+                            .child(crate::tr!("Current PIN"))
                             .child(Input::new(&current_pin_entity))
-                            .child("New PIN")
+                            .child(crate::tr!("New PIN"))
                             .child(Input::new(&new_pin_entity))
-                            .child("Confirm New PIN")
+                            .child(crate::tr!("Confirm New PIN"))
                             .child(Input::new(&confirm_pin_entity)),
                     )
                     .child(
@@ -741,49 +779,64 @@ impl Render for ChangePinContent {
                             .justify_end()
                             .gap_2()
                             .child(
-                                Button::new("cancel")
-                                    .label("Cancel")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child(Button::new("confirm").primary().label("Confirm").on_click(
-                                move |_, _, cx| {
-                                    let current_pin_text =
-                                        current_pin_entity.read(cx).text().to_string();
-                                    let new_pin_text = new_pin_entity.read(cx).text().to_string();
-                                    let confirm_pin_text =
-                                        confirm_pin_entity.read(cx).text().to_string();
+                            .child(
+                                Button::new(crate::tr!("confirm"))
+                                    .primary()
+                                    .label(crate::tr!("Confirm"))
+                                    .on_click(move |_, _, cx| {
+                                        let current_pin_text =
+                                            current_pin_entity.read(cx).text().to_string();
+                                        let new_pin_text =
+                                            new_pin_entity.read(cx).text().to_string();
+                                        let confirm_pin_text =
+                                            confirm_pin_entity.read(cx).text().to_string();
 
-                                    if current_pin_text.is_empty() {
-                                        return;
-                                    }
-
-                                    if new_pin_text != confirm_pin_text {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error("PINs do not match".to_string(), cx);
-                                            });
+                                        if current_pin_text.is_empty() {
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if new_pin_text.len() < 4 {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error(
-                                                    "PIN must be at least 4 characters".to_string(),
-                                                    cx,
-                                                );
-                                            });
+                                        if new_pin_text != confirm_pin_text {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!("PINs do not match").to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if let Some(h) = handle.upgrade() {
-                                        h.update(cx, |this, cx| this.set_loading(cx));
-                                    }
-                                    on_confirm(current_pin_text, new_pin_text, handle.clone(), cx);
-                                },
-                            )),
+                                        if new_pin_text.len() < 4 {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!(
+                                                            "PIN must be at least 4 characters"
+                                                        )
+                                                        .to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
+                                        }
+
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| this.set_loading(cx));
+                                        }
+                                        on_confirm(
+                                            current_pin_text,
+                                            new_pin_text,
+                                            handle.clone(),
+                                            cx,
+                                        );
+                                    }),
+                            ),
                     )
                     .into_any_element()
             }
@@ -799,17 +852,17 @@ pub fn open_change_pin(
 ) {
     let current_pin = cx.new(|cx| {
         InputState::new(window, cx)
-            .placeholder("Enter current PIN")
+            .placeholder(crate::tr!("Enter current PIN"))
             .masked(true)
     });
     let new_pin = cx.new(|cx| {
         InputState::new(window, cx)
-            .placeholder("Enter new PIN")
+            .placeholder(crate::tr!("Enter new PIN"))
             .masked(true)
     });
     let confirm_pin = cx.new(|cx| {
         InputState::new(window, cx)
-            .placeholder("Confirm new PIN")
+            .placeholder(crate::tr!("Confirm new PIN"))
             .masked(true)
     });
 
@@ -837,7 +890,7 @@ pub fn open_change_pin(
 
     window.open_dialog(cx, move |dialog, _, _| {
         dialog
-            .title("Change PIN")
+            .title(crate::tr!("Change PIN"))
             .child(content.clone())
             .overlay_closable(false)
             .close_button(false)
@@ -880,12 +933,15 @@ impl SetPinContent {
         let confirm_pin_text = self.confirm_pin.read(cx).text().to_string();
 
         if new_pin_text != confirm_pin_text {
-            self.set_error("PINs do not match".to_string(), cx);
+            self.set_error(crate::tr!("PINs do not match").to_string(), cx);
             return;
         }
 
         if new_pin_text.len() < 4 {
-            self.set_error("PIN must be at least 4 characters".to_string(), cx);
+            self.set_error(
+                crate::tr!("PIN must be at least 4 characters").to_string(),
+                cx,
+            );
             return;
         }
 
@@ -911,14 +967,14 @@ impl Render for SetPinContent {
                                 .text_color(cx.theme().green)
                                 .with_size(gpui_component::Size::Large),
                         )
-                        .child("Set Up PIN"),
+                        .child(crate::tr!("Set Up PIN")),
                 )
                 .child(msg.clone())
                 .child(
                     h_flex().justify_end().child(
-                        Button::new("done")
+                        Button::new(crate::tr!("done"))
                             .primary()
-                            .label("Done")
+                            .label(crate::tr!("Done"))
                             .on_click(|_, window, cx| {
                                 window.close_dialog(cx);
                             }),
@@ -928,24 +984,28 @@ impl Render for SetPinContent {
 
             DialogPhase::Loading | DialogPhase::LoadingWithMessage(_) => v_flex()
                 .gap_4()
-                .child("Choose a PIN for your pico-key.")
+                .child(crate::tr!("Choose a PIN for your pico-key."))
                 .child(
                     v_flex()
                         .gap_4()
-                        .child("New PIN")
+                        .child(crate::tr!("New PIN"))
                         .child(Input::new(&self.new_pin).disabled(true))
-                        .child("Confirm New PIN")
+                        .child(crate::tr!("Confirm New PIN"))
                         .child(Input::new(&self.confirm_pin).disabled(true)),
                 )
                 .child(
                     h_flex()
                         .justify_end()
                         .gap_2()
-                        .child(Button::new("cancel").label("Cancel").disabled(true))
                         .child(
-                            Button::new("confirm")
+                            Button::new(crate::tr!("cancel"))
+                                .label(crate::tr!("Cancel"))
+                                .disabled(true),
+                        )
+                        .child(
+                            Button::new(crate::tr!("confirm"))
                                 .primary()
-                                .label("Setting PIN...")
+                                .label(crate::tr!("Setting PIN..."))
                                 .loading(true),
                         ),
                 )
@@ -959,7 +1019,7 @@ impl Render for SetPinContent {
 
                 v_flex()
                     .gap_4()
-                    .child("Choose a PIN for your pico-key.")
+                    .child(crate::tr!("Choose a PIN for your pico-key."))
                     .child(
                         div()
                             .px_3()
@@ -973,9 +1033,9 @@ impl Render for SetPinContent {
                     .child(
                         v_flex()
                             .gap_4()
-                            .child("New PIN")
+                            .child(crate::tr!("New PIN"))
                             .child(Input::new(&new_pin_entity))
-                            .child("Confirm New PIN")
+                            .child(crate::tr!("Confirm New PIN"))
                             .child(Input::new(&confirm_pin_entity)),
                     )
                     .child(
@@ -983,43 +1043,53 @@ impl Render for SetPinContent {
                             .justify_end()
                             .gap_2()
                             .child(
-                                Button::new("cancel")
-                                    .label("Cancel")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child(Button::new("confirm").primary().label("Confirm").on_click(
-                                move |_, _, cx| {
-                                    let new_pin_text = new_pin_entity.read(cx).text().to_string();
-                                    let confirm_pin_text =
-                                        confirm_pin_entity.read(cx).text().to_string();
+                            .child(
+                                Button::new(crate::tr!("confirm"))
+                                    .primary()
+                                    .label(crate::tr!("Confirm"))
+                                    .on_click(move |_, _, cx| {
+                                        let new_pin_text =
+                                            new_pin_entity.read(cx).text().to_string();
+                                        let confirm_pin_text =
+                                            confirm_pin_entity.read(cx).text().to_string();
 
-                                    if new_pin_text != confirm_pin_text {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error("PINs do not match".to_string(), cx);
-                                            });
+                                        if new_pin_text != confirm_pin_text {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!("PINs do not match").to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if new_pin_text.len() < 4 {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error(
-                                                    "PIN must be at least 4 characters".to_string(),
-                                                    cx,
-                                                );
-                                            });
+                                        if new_pin_text.len() < 4 {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!(
+                                                            "PIN must be at least 4 characters"
+                                                        )
+                                                        .to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if let Some(h) = handle.upgrade() {
-                                        h.update(cx, |this, cx| this.set_loading(cx));
-                                    }
-                                    on_confirm(new_pin_text, handle.clone(), cx);
-                                },
-                            )),
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| this.set_loading(cx));
+                                        }
+                                        on_confirm(new_pin_text, handle.clone(), cx);
+                                    }),
+                            ),
                     )
                     .into_any_element()
             }
@@ -1032,13 +1102,13 @@ impl Render for SetPinContent {
 
                 v_flex()
                     .gap_4()
-                    .child("Choose a PIN for your pico-key.")
+                    .child(crate::tr!("Choose a PIN for your pico-key."))
                     .child(
                         v_flex()
                             .gap_4()
-                            .child("New PIN")
+                            .child(crate::tr!("New PIN"))
                             .child(Input::new(&new_pin_entity))
-                            .child("Confirm New PIN")
+                            .child(crate::tr!("Confirm New PIN"))
                             .child(Input::new(&confirm_pin_entity)),
                     )
                     .child(
@@ -1046,43 +1116,53 @@ impl Render for SetPinContent {
                             .justify_end()
                             .gap_2()
                             .child(
-                                Button::new("cancel")
-                                    .label("Cancel")
+                                Button::new(crate::tr!("cancel"))
+                                    .label(crate::tr!("Cancel"))
                                     .on_click(|_, window, cx| window.close_dialog(cx)),
                             )
-                            .child(Button::new("confirm").primary().label("Confirm").on_click(
-                                move |_, _, cx| {
-                                    let new_pin_text = new_pin_entity.read(cx).text().to_string();
-                                    let confirm_pin_text =
-                                        confirm_pin_entity.read(cx).text().to_string();
+                            .child(
+                                Button::new(crate::tr!("confirm"))
+                                    .primary()
+                                    .label(crate::tr!("Confirm"))
+                                    .on_click(move |_, _, cx| {
+                                        let new_pin_text =
+                                            new_pin_entity.read(cx).text().to_string();
+                                        let confirm_pin_text =
+                                            confirm_pin_entity.read(cx).text().to_string();
 
-                                    if new_pin_text != confirm_pin_text {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error("PINs do not match".to_string(), cx);
-                                            });
+                                        if new_pin_text != confirm_pin_text {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!("PINs do not match").to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if new_pin_text.len() < 4 {
-                                        if let Some(h) = handle.upgrade() {
-                                            h.update(cx, |this, cx| {
-                                                this.set_error(
-                                                    "PIN must be at least 4 characters".to_string(),
-                                                    cx,
-                                                );
-                                            });
+                                        if new_pin_text.len() < 4 {
+                                            if let Some(h) = handle.upgrade() {
+                                                h.update(cx, |this, cx| {
+                                                    this.set_error(
+                                                        crate::tr!(
+                                                            "PIN must be at least 4 characters"
+                                                        )
+                                                        .to_string(),
+                                                        cx,
+                                                    );
+                                                });
+                                            }
+                                            return;
                                         }
-                                        return;
-                                    }
 
-                                    if let Some(h) = handle.upgrade() {
-                                        h.update(cx, |this, cx| this.set_loading(cx));
-                                    }
-                                    on_confirm(new_pin_text, handle.clone(), cx);
-                                },
-                            )),
+                                        if let Some(h) = handle.upgrade() {
+                                            h.update(cx, |this, cx| this.set_loading(cx));
+                                        }
+                                        on_confirm(new_pin_text, handle.clone(), cx);
+                                    }),
+                            ),
                     )
                     .into_any_element()
             }
@@ -1098,12 +1178,12 @@ pub fn open_setup_pin(
 ) {
     let new_pin = cx.new(|cx| {
         InputState::new(window, cx)
-            .placeholder("Enter new PIN")
+            .placeholder(crate::tr!("Enter new PIN"))
             .masked(true)
     });
     let confirm_pin = cx.new(|cx| {
         InputState::new(window, cx)
-            .placeholder("Confirm new PIN")
+            .placeholder(crate::tr!("Confirm new PIN"))
             .masked(true)
     });
 
@@ -1130,7 +1210,7 @@ pub fn open_setup_pin(
 
     window.open_dialog(cx, move |dialog, _, _| {
         dialog
-            .title("Set Up PIN")
+            .title(crate::tr!("Set Up PIN"))
             .child(content.clone())
             .overlay_closable(false)
             .close_button(false)
@@ -1182,9 +1262,9 @@ impl Render for StatusContent {
                 .child(msg.clone())
                 .child(
                     h_flex().justify_end().child(
-                        Button::new("done")
+                        Button::new(crate::tr!("done"))
                             .primary()
-                            .label("Done")
+                            .label(crate::tr!("Done"))
                             .on_click(|_, window, cx| {
                                 window.close_dialog(cx);
                             }),
@@ -1192,50 +1272,48 @@ impl Render for StatusContent {
                 )
                 .into_any_element(),
 
-            DialogPhase::Error(err_msg) => {
-                v_flex()
-                    .gap_4()
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .child(
-                                gpui_component::Icon::new(gpui_component::IconName::CircleX)
-                                    .text_color(cx.theme().danger)
-                                    .with_size(gpui_component::Size::Large),
-                            )
-                            .child(self.title.clone()),
-                    )
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .rounded_md()
-                            .bg(rgb(0x18181b))
-                            .text_color(rgb(0xef4444))
-                            .text_sm()
-                            .child(render_error_message(err_msg.clone())),
-                    )
-                    .child(
-                        h_flex()
-                            .justify_end()
-                            .child(Button::new("close").label("Close").on_click(
-                                |_, window, cx| {
-                                    window.close_dialog(cx);
-                                },
-                            )),
-                    )
-                    .into_any_element()
-            }
+            DialogPhase::Error(err_msg) => v_flex()
+                .gap_4()
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            gpui_component::Icon::new(gpui_component::IconName::CircleX)
+                                .text_color(cx.theme().danger)
+                                .with_size(gpui_component::Size::Large),
+                        )
+                        .child(self.title.clone()),
+                )
+                .child(
+                    div()
+                        .px_3()
+                        .py_2()
+                        .rounded_md()
+                        .bg(rgb(0x18181b))
+                        .text_color(rgb(0xef4444))
+                        .text_sm()
+                        .child(render_error_message(err_msg.clone())),
+                )
+                .child(
+                    h_flex().justify_end().child(
+                        Button::new(crate::tr!("close"))
+                            .label(crate::tr!("Close"))
+                            .on_click(|_, window, cx| {
+                                window.close_dialog(cx);
+                            }),
+                    ),
+                )
+                .into_any_element(),
 
             DialogPhase::LoadingWithMessage(msg) => v_flex()
                 .gap_4()
                 .items_center()
                 .child(msg.clone())
                 .child(
-                    Button::new("loading")
+                    Button::new(crate::tr!("loading"))
                         .primary()
-                        .label("Applying...")
+                        .label(crate::tr!("Applying..."))
                         .loading(true),
                 )
                 .into_any_element(),
@@ -1243,11 +1321,11 @@ impl Render for StatusContent {
             _ => v_flex()
                 .gap_4()
                 .items_center()
-                .child("Applying configuration...")
+                .child(crate::tr!("Applying configuration..."))
                 .child(
-                    Button::new("loading")
+                    Button::new(crate::tr!("loading"))
                         .primary()
-                        .label("Applying...")
+                        .label(crate::tr!("Applying..."))
                         .loading(true),
                 )
                 .into_any_element(),
@@ -1283,16 +1361,16 @@ pub fn open_status_dialog(
 }
 
 fn render_error_message(msg: String) -> impl IntoElement {
-    let troubleshooting_phrase = "troubleshooting guide";
+    let troubleshooting_phrase = crate::tr!("troubleshooting guide");
     let url = "https://github.com/librekeys/picoforge/wiki/Troubleshooting#1-my-key-is-not-detected-by-picoforge-or-picoforge-displays-a-device-status-of-online---fido-and-there-are-some-settings-that-i-cannot-configure";
 
     if msg.contains(troubleshooting_phrase) {
         v_flex()
-            .child("The device firmware does not support being configured in fido only communication mode.")
+            .child(crate::tr!("The device firmware does not support being configured in fido only communication mode."))
             .child(
                 h_flex()
                     .gap_1()
-                    .child("Have a look at the")
+                    .child(crate::tr!("Have a look at the"))
                     .child(
                         div()
                             .text_color(rgb(0x3b82f6))
@@ -1302,7 +1380,7 @@ fn render_error_message(msg: String) -> impl IntoElement {
                             })
                             .child(troubleshooting_phrase.to_string()),
                     )
-                    .child("to fix this"),
+                    .child(crate::tr!("to fix this")),
             )
     } else {
         div().child(msg)

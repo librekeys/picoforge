@@ -38,23 +38,27 @@ impl SlotsViewModel {
         let status_text = if configured {
             let mut s = info.kind.label().to_string();
             if info.touch {
-                s.push_str(" · touch");
+                s.push_str(crate::tr!(" · touch"));
             }
             s
         } else {
-            "Empty".to_string()
+            crate::tr!("Empty").to_string()
         };
 
-        let program_btn = PFButton::new(if configured { "Reprogram" } else { "Program" })
-            .id(format!("prog-{slot}"))
-            .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
-            .disabled(self.loading)
-            .on_click(cx.listener(move |this, _, window, cx| {
-                this.open_program_dialog(slot, window, cx);
-            }));
+        let program_btn = PFButton::new(if configured {
+            crate::tr!("Reprogram")
+        } else {
+            crate::tr!("Program")
+        })
+        .id(crate::tr!("prog-{slot}", slot = slot))
+        .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
+        .disabled(self.loading)
+        .on_click(cx.listener(move |this, _, window, cx| {
+            this.open_program_dialog(slot, window, cx);
+        }));
         let test_btn = (info.kind == otp::SlotType::ChallengeResponse).then(|| {
-            Button::new(SharedString::from(format!("test-{slot}")))
-                .label("Test")
+            Button::new(SharedString::from(crate::tr!("test-{slot}", slot = slot)))
+                .label(crate::tr!("Test"))
                 .ghost()
                 .disabled(self.loading)
                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -62,7 +66,7 @@ impl SlotsViewModel {
                 }))
         });
         let delete_btn = configured.then(|| {
-            Button::new(SharedString::from(format!("del-{slot}")))
+            Button::new(SharedString::from(crate::tr!("del-{slot}", slot = slot)))
                 .icon(Icon::default().path("icons/trash-2.svg"))
                 .ghost()
                 .disabled(self.loading)
@@ -81,7 +85,11 @@ impl SlotsViewModel {
             .child(
                 v_flex()
                     .gap_0p5()
-                    .child(div().font_medium().child(format!("Slot {slot}")))
+                    .child(
+                        div()
+                            .font_medium()
+                            .child(crate::tr!("Slot {slot}", slot = slot)),
+                    )
                     .child(
                         div()
                             .text_sm()
@@ -106,12 +114,12 @@ impl SlotsViewModel {
 
 impl Render for SlotsViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "Slots";
-        const SUBTITLE: &str = "Configurable OTP slots (Yubico OTP protocol).";
+        let title: &str = crate::tr!("Slots");
+        let subtitle: &str = crate::tr!("Configurable OTP slots (Yubico OTP protocol).");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -122,7 +130,7 @@ impl Render for SlotsViewModel {
         }
 
         let theme = cx.theme();
-        let swap_btn = PFButton::new("Swap 1 ↔ 2")
+        let swap_btn = PFButton::new(crate::tr!("Swap 1 ↔ 2"))
             .id("swap-slots")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .disabled(self.loading)
@@ -141,13 +149,13 @@ impl Render for SlotsViewModel {
         let toolbar = h_flex().gap_2().child(swap_btn).child(refresh_btn);
 
         let slots_card = Card::new()
-            .title("Slots")
-            .description(format!("{count} configurable slots"))
+            .title(crate::tr!("Slots"))
+            .description(crate::tr!("{count} configurable slots", count = count))
             .icon(Icon::default().path("icons/touch-app.svg"))
             .header_right(toolbar)
             .child(v_flex().gap_2().children(cards));
 
         let content = v_flex().gap_6().child(slots_card);
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

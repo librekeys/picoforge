@@ -176,6 +176,29 @@ Then you can build from source and run the application with:
 cargo run
 ```
 
+## Localisation
+
+PicoForge ships with translations for the six official languages of the United
+Nations: **English, Simplified Chinese, French, Spanish, Russian and Arabic**.
+Use the language control at the bottom of the sidebar to switch language; the
+choice is remembered across restarts.
+
+UI strings are keyed by their English source text and looked up through the
+`crate::tr!` macro. Translations live in `locales/<code>.json`; a missing entry
+falls back to English, so a language can be extended incrementally.
+
+```rust
+// Plain lookup.
+crate::tr!("Device Information");
+// Placeholders use Rust's `format!` syntax.
+crate::tr!("Error: {e}", e = err);
+crate::tr!("{} credentials stored", count);
+```
+
+To add or correct a translation, edit the relevant `locales/<code>.json` file
+(keys are the exact English strings used in the source). The helper scripts under
+`temp/i18n/` can regenerate the catalogs and validate keys.
+
 ## Contributing
 
 Contributions are welcome (REALLY NEEDED, PLEASE HELP US)! 

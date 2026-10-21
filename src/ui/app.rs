@@ -139,6 +139,11 @@ impl ApplicationRoot {
                     SidebarEvent::RefreshDevice => {
                         this.models.device.update(cx, |repo, cx| repo.refresh(cx));
                     }
+                    SidebarEvent::SetLocale(locale) => {
+                        crate::ui::i18n::set_locale(*locale);
+                        this.sidebar.update(cx, |_, cx| cx.notify());
+                        cx.notify();
+                    }
                 }
             },
         )
@@ -182,7 +187,7 @@ impl Render for ApplicationRoot {
 
         let content_area = v_flex()
             .track_focus(&self.focus_handle)
-            .key_context("ApplicationRoot")
+            .key_context(crate::tr!("ApplicationRoot"))
             .on_action(cx.listener(|this, _: &ToggleSidebar, _, cx| {
                 this.sidebar.update(cx, |s, cx| {
                     s.collapsed = !s.collapsed;
@@ -369,7 +374,11 @@ impl Render for ApplicationRoot {
         } else {
             "icons/chevron-left.svg"
         };
-        let toggle_tooltip = if collapsed { "Expand" } else { "Collapse" };
+        let toggle_tooltip = if collapsed {
+            crate::tr!("Expand")
+        } else {
+            crate::tr!("Collapse")
+        };
 
         let toggle_btn = div()
             .id("sidebar-toggle-zone")

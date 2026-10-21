@@ -1,4 +1,7 @@
 #![deny(missing_docs)]
+// `tr!` expands to a `Vec::new()` that is always pushed to before use, so
+// clippy's `vec_init_then_push` fires at every call site.
+#![allow(clippy::vec_init_then_push)]
 
 //! # PicoForge
 //!
@@ -899,6 +902,7 @@ mod ui;
 
 fn main() {
     logging::logger_init();
+    ui::i18n::init();
     let app = Application::new().with_assets(ui::assets::Assets);
 
     app.run(move |cx| {

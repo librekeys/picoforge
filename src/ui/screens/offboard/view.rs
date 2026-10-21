@@ -60,15 +60,18 @@ impl OffboardViewModel {
         }
 
         let (verdict, vcolor) = if !r.all_ok() {
-            ("Finished with failures", theme.danger)
+            (crate::tr!("Finished with failures"), theme.danger)
         } else if r.signed {
-            ("All wiped · receipt signed", theme.green)
+            (crate::tr!("All wiped · receipt signed"), theme.green)
         } else {
-            ("All wiped · receipt unsigned", theme.muted_foreground)
+            (
+                crate::tr!("All wiped · receipt unsigned"),
+                theme.muted_foreground,
+            )
         };
 
         let save_btn = Button::new("off-save")
-            .label("Save receipt (JSON)")
+            .label(crate::tr!("Save receipt (JSON)"))
             .outline()
             .on_click(cx.listener(|this, _, window, cx| this.save_receipt(window, cx)));
 
@@ -83,22 +86,27 @@ impl OffboardViewModel {
             )
             .child(v_flex().gap_0p5().children(rows));
         if let Some(fp) = &r.fingerprint {
-            col = col.child(
-                v_flex()
-                    .gap_0p5()
-                    .child(
-                        div()
-                            .text_xs()
-                            .text_color(theme.muted_foreground)
-                            .child("Attestation fingerprint (match against inventory)"),
-                    )
-                    .child(div().font_family("monospace").text_xs().child(fp.clone())),
-            );
+            col =
+                col.child(
+                    v_flex()
+                        .gap_0p5()
+                        .child(div().text_xs().text_color(theme.muted_foreground).child(
+                            crate::tr!("Attestation fingerprint (match against inventory)"),
+                        ))
+                        .child(
+                            div()
+                                .font_family(crate::tr!("monospace"))
+                                .text_xs()
+                                .child(fp.clone()),
+                        ),
+                );
         }
 
         Card::new()
-            .title("Offboard receipt")
-            .description("Per-applet wipe results and the signed checkpoint")
+            .title(crate::tr!("Offboard receipt"))
+            .description(crate::tr!(
+                "Per-applet wipe results and the signed checkpoint"
+            ))
             .icon(Icon::default().path("icons/scroll-text.svg"))
             .header_right(save_btn)
             .child(col)
@@ -108,12 +116,12 @@ impl OffboardViewModel {
 
 impl Render for OffboardViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "Offboard";
-        const SUBTITLE: &str = "Guided full-device wipe with a signed receipt.";
+        let title: &str = crate::tr!("Offboard");
+        let subtitle: &str = crate::tr!("Guided full-device wipe with a signed receipt.");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -121,7 +129,7 @@ impl Render for OffboardViewModel {
         let report_card = self.report.as_ref().map(|_| self.report_card(cx));
 
         let offboard_btn = Button::new("off-run")
-            .label("Offboard device")
+            .label(crate::tr!("Offboard device"))
             .danger()
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, window, cx| this.open_confirm(window, cx)));
@@ -129,8 +137,8 @@ impl Render for OffboardViewModel {
         let theme = cx.theme();
 
         let warn_card = Card::new()
-            .title("Decommission")
-            .description("Wipe every applet and finish with a cryptographic receipt")
+            .title(crate::tr!("Decommission"))
+            .description(crate::tr!("Wipe every applet and finish with a cryptographic receipt"))
             .icon(Icon::default().path("icons/trash-2.svg"))
             .child(
                 v_flex()
@@ -142,7 +150,7 @@ impl Render for OffboardViewModel {
                             .bg(rgb(0x18181b))
                             .text_color(rgb(0xf59e0b))
                             .text_sm()
-                            .child("Erases OTP, OATH, PIV, OpenPGP, the FIDO seed, passkeys, PINs, and org attestation. Irreversible. Needs the CCID interface and several touches."),
+                            .child(crate::tr!("Erases OTP, OATH, PIV, OpenPGP, the FIDO seed, passkeys, PINs, and org attestation. Irreversible. Needs the CCID interface and several touches.")),
                     )
                     .child(
                         h_flex()
@@ -155,14 +163,14 @@ impl Render for OffboardViewModel {
                             .child(
                                 v_flex()
                                     .gap_0p5()
-                                    .child(div().font_medium().child(format!("Offboard {serial}")))
-                                    .child(div().text_sm().text_color(theme.muted_foreground).child("Wipe all applets, then sign a receipt")),
+                                    .child(div().font_medium().child(crate::tr!("Offboard {serial}", serial = serial)))
+                                    .child(div().text_sm().text_color(theme.muted_foreground).child(crate::tr!("Wipe all applets, then sign a receipt"))),
                             )
                             .child(offboard_btn),
                     ),
             );
 
         let content = v_flex().gap_6().child(warn_card).children(report_card);
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

@@ -87,12 +87,12 @@ impl LockViewModel {
         cx.new(|cx| {
             InputState::new(window, cx)
                 .masked(true)
-                .placeholder("FIDO PIN (required)")
+                .placeholder(crate::tr!("FIDO PIN (required)"))
         })
     }
 
     fn phrase_input(window: &mut Window, cx: &mut Context<Self>) -> Entity<InputState> {
-        cx.new(|cx| InputState::new(window, cx).placeholder("24-word lock key"))
+        cx.new(|cx| InputState::new(window, cx).placeholder(crate::tr!("24-word lock key")))
     }
 
     // ── Enable ──────────────────────────────────────────────────────────────
@@ -108,16 +108,18 @@ impl LockViewModel {
                     return;
                 }
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Engaging Lock", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Engaging Lock"), window, cx);
                 let _ = view.update(cx, |this, cx| this.run_enable(p, status, cx));
             })
         };
         Self::dialog(
-            "Engage At-Rest Lock",
-            "Wraps the FIDO seed under a fresh lock key and erases the plaintext. After this, EVERY power-cycle needs an unlock before any FIDO login works. Losing the lock key means the only recovery is a factory reset, which destroys this identity. A FIDO PIN is required; touch to confirm.",
+            crate::tr!("Engage At-Rest Lock"),
+            crate::tr!(
+                "Wraps the FIDO seed under a fresh lock key and erases the plaintext. After this, EVERY power-cycle needs an unlock before any FIDO login works. Losing the lock key means the only recovery is a factory reset, which destroys this identity. A FIDO PIN is required; touch to confirm."
+            ),
             None,
             pin,
-            ("Engage lock", ButtonVariant::Danger),
+            (crate::tr!("Engage lock"), ButtonVariant::Danger),
             submit,
             window,
             cx,
@@ -135,7 +137,7 @@ impl LockViewModel {
         }
         self.loading = true;
         let _ = status.update(cx, |d, cx| {
-            d.set_loading("Engaging… touch the device (BOOTSEL).", cx)
+            d.set_loading(crate::tr!("Engaging… touch the device (BOOTSEL)."), cx)
         });
         cx.notify();
         let weak = cx.entity().downgrade();
@@ -152,7 +154,7 @@ impl LockViewModel {
                         this.load(cx);
                         let _ = status.update(cx, |d, cx| {
                             d.set_success(
-                                "Locked — write down the lock key shown below; you need it every power-cycle.".into(),
+                                crate::tr!("Locked — write down the lock key shown below; you need it every power-cycle.").into(),
                                 cx,
                             )
                         });
@@ -179,11 +181,11 @@ impl LockViewModel {
                     return;
                 }
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Unlocking", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Unlocking"), window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run_unit(
                         move || DeviceRepo::lock_unlock_blocking(m),
-                        "Unlocked — FIDO works until power-off.",
+                        crate::tr!("Unlocked — FIDO works until power-off."),
                         status,
                         cx,
                     );
@@ -191,10 +193,10 @@ impl LockViewModel {
             })
         };
         Self::dialog_phrase_only(
-            "Unlock Seed",
-            "Loads the seed into RAM for this power cycle using the lock key.",
+            crate::tr!("Unlock Seed"),
+            crate::tr!("Loads the seed into RAM for this power cycle using the lock key."),
             phrase,
-            ("Unlock", ButtonVariant::Primary),
+            (crate::tr!("Unlock"), ButtonVariant::Primary),
             submit,
             window,
             cx,
@@ -217,11 +219,11 @@ impl LockViewModel {
                     return;
                 }
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Disabling Lock", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Disabling Lock"), window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run_unit(
                         move || DeviceRepo::lock_disable_blocking(p, m),
-                        "Lock disabled — plaintext seed restored.",
+                        crate::tr!("Lock disabled — plaintext seed restored."),
                         status,
                         cx,
                     );
@@ -229,11 +231,13 @@ impl LockViewModel {
             })
         };
         Self::dialog(
-            "Disable At-Rest Lock",
-            "Restores the plaintext seed so FIDO works without an unlock. Needs the lock key and the FIDO PIN; touch to confirm.",
-            Some(("Lock key (24 words)", phrase)),
+            crate::tr!("Disable At-Rest Lock"),
+            crate::tr!(
+                "Restores the plaintext seed so FIDO works without an unlock. Needs the lock key and the FIDO PIN; touch to confirm."
+            ),
+            Some((crate::tr!("Lock key (24 words)"), phrase)),
             pin,
-            ("Disable lock", ButtonVariant::Primary),
+            (crate::tr!("Disable lock"), ButtonVariant::Primary),
             submit,
             window,
             cx,
@@ -252,7 +256,10 @@ impl LockViewModel {
         }
         self.loading = true;
         let _ = status.update(cx, |d, cx| {
-            d.set_loading("Working… touch the device (BOOTSEL) if it blinks.", cx)
+            d.set_loading(
+                crate::tr!("Working… touch the device (BOOTSEL) if it blinks."),
+                cx,
+            )
         });
         cx.notify();
         let weak = cx.entity().downgrade();
@@ -299,7 +306,7 @@ impl LockViewModel {
                     .child(gpui_component::input::Input::new(input));
             }
             fields = fields
-                .child("FIDO PIN")
+                .child(crate::tr!("FIDO PIN"))
                 .child(gpui_component::input::Input::new(&pin));
             dialog
                 .title(title)
@@ -312,10 +319,10 @@ impl LockViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("go")
+                        gpui_component::button::Button::new(crate::tr!("go"))
                             .with_variant(action_variant)
                             .label(action_label)
                             .on_click(move |_, window, cx| s(window, cx)),
@@ -346,7 +353,7 @@ impl LockViewModel {
                     gpui_component::v_flex()
                         .gap_2()
                         .pb_2()
-                        .child("Lock key (24 words)")
+                        .child(crate::tr!("Lock key (24 words)"))
                         .child(gpui_component::input::Input::new(&phrase)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -356,10 +363,10 @@ impl LockViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("go")
+                        gpui_component::button::Button::new(crate::tr!("go"))
                             .with_variant(action_variant)
                             .label(action_label)
                             .on_click(move |_, window, cx| s(window, cx)),

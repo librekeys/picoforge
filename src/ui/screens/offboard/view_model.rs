@@ -63,8 +63,9 @@ impl OffboardViewModel {
 
     pub(super) fn open_confirm(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let serial = self.serial(cx);
-        let confirm =
-            cx.new(|cx| InputState::new(window, cx).placeholder("Type OFFBOARD to confirm"));
+        let confirm = cx.new(|cx| {
+            InputState::new(window, cx).placeholder(crate::tr!("Type OFFBOARD to confirm"))
+        });
         let view = cx.entity().downgrade();
         let submit = {
             let confirm = confirm.clone();
@@ -73,13 +74,13 @@ impl OffboardViewModel {
                 if confirm.read(cx).text().to_string().trim() != "OFFBOARD" {
                     let _ = view.update(cx, |_, cx| {
                         cx.emit(OffboardEvent::Notification(
-                            "Type OFFBOARD exactly to confirm".into(),
+                            crate::tr!("Type OFFBOARD exactly to confirm").into(),
                         ))
                     });
                     return;
                 }
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Offboarding", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Offboarding"), window, cx);
                 let serial = serial.clone();
                 let _ = view.update(cx, |this, cx| this.run_offboard(serial, status, cx));
             })
@@ -90,15 +91,15 @@ impl OffboardViewModel {
             let btn = submit.clone();
             let serial = serial.clone();
             dialog
-                .title("Offboard Device")
-                .child(format!(
+                .title(crate::tr!("Offboard Device"))
+                .child(crate::tr!(
                     "This ERASES everything on device {serial}: OTP slots, OATH, PIV, OpenPGP, the FIDO seed, passkeys, PINs, and org attestation — then writes a signed wipe receipt. It cannot be undone and needs several touches."
-                ))
+                , serial = serial))
                 .child(
                     gpui_component::v_flex()
                         .gap_2()
                         .pb_2()
-                        .child("Confirmation")
+                        .child(crate::tr!("Confirmation"))
                         .child(gpui_component::input::Input::new(&confirm)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -108,12 +109,12 @@ impl OffboardViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("go")
+                        gpui_component::button::Button::new(crate::tr!("go"))
                             .danger()
-                            .label("Offboard")
+                            .label(crate::tr!("Offboard"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -132,7 +133,7 @@ impl OffboardViewModel {
         self.loading = true;
         let _ = status.update(cx, |d, cx| {
             d.set_loading(
-                "Wiping… touch the device (BOOTSEL) when it blinks (several times).",
+                crate::tr!("Wiping… touch the device (BOOTSEL) when it blinks (several times)."),
                 cx,
             )
         });
@@ -149,13 +150,16 @@ impl OffboardViewModel {
                     Ok(report) => {
                         let msg = if report.all_ok() {
                             if report.signed {
-                                "Offboarded — all applets wiped, receipt signed.".to_string()
+                                crate::tr!("Offboarded — all applets wiped, receipt signed.").to_string()
                             } else {
-                                "Offboarded — all applets wiped (receipt UNSIGNED: no OTP DEVK)."
+                                crate::tr!("Offboarded — all applets wiped (receipt UNSIGNED: no OTP DEVK).")
                                     .to_string()
                             }
                         } else {
-                            format!("Offboard finished WITH FAILURES: {:?}", report.failures())
+                            crate::tr!(
+                                "Offboard finished WITH FAILURES: {}",
+                                format!("{:?}", report.failures())
+                            )
                         };
                         this.report = Some(report);
                         let _ = status.update(cx, |d, cx| d.set_success(msg, cx));
@@ -175,7 +179,7 @@ impl OffboardViewModel {
         let Some(report) = self.report.clone() else {
             return;
         };
-        let default_dir = std::env::var("HOME")
+        let default_dir = std::env::var(crate::tr!("HOME"))
             .map(std::path::PathBuf::from)
             .unwrap_or_default();
         let now = std::time::SystemTime::now()
@@ -185,7 +189,7 @@ impl OffboardViewModel {
         let json = report.to_json(&iso_utc(now));
         let receiver = cx.prompt_for_new_path(
             &default_dir,
-            Some(&format!("offboard-{}.json", report.serial)),
+            Some(&crate::tr!("offboard-{}.json", report.serial)),
         );
         let view = cx.entity().downgrade();
         self._task = Some(cx.spawn(async move |_, cx| {
@@ -193,11 +197,14 @@ impl OffboardViewModel {
                 return;
             };
             let _ = view.update(cx, |_, cx| match std::fs::write(&path, json) {
-                Ok(_) => cx.emit(OffboardEvent::Notification(format!(
+                Ok(_) => cx.emit(OffboardEvent::Notification(crate::tr!(
                     "Receipt saved to {}",
                     path.display()
                 ))),
-                Err(e) => cx.emit(OffboardEvent::Notification(format!("Save failed: {e}"))),
+                Err(e) => cx.emit(OffboardEvent::Notification(crate::tr!(
+                    "Save failed: {e}",
+                    e = e
+                ))),
             });
         }));
     }
@@ -218,5 +225,13 @@ fn iso_utc(secs: u64) -> String {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     let y = if m <= 2 { y + 1 } else { y };
-    format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z")
+    crate::tr!(
+        "{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{s:02}Z",
+        y = y,
+        m = m,
+        d = d,
+        h = h,
+        mi = mi,
+        s = s
+    )
 }

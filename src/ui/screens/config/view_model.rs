@@ -51,40 +51,92 @@ pub enum UsbIdentityPreset {
 impl UsbIdentityPreset {
     pub fn details(&self) -> (SharedString, Option<&'static str>, Option<&'static str>) {
         match self {
-            Self::Custom => ("Custom (Manual Entry)".into(), None, None),
-            Self::Generic => ("Generic (FEFF:FCFD)".into(), Some("FEFF"), Some("FCFD")),
+            Self::Custom => (crate::tr!("Custom (Manual Entry)").into(), None, None),
+            Self::Generic => (
+                crate::tr!("Generic (FEFF:FCFD)").into(),
+                Some("FEFF"),
+                Some("FCFD"),
+            ),
             Self::LibreKeys => (
-                "LibreKeys One (1D50:619B)".into(),
+                crate::tr!("LibreKeys One (1D50:619B)").into(),
                 Some("1D50"),
                 Some("619B"),
             ),
             Self::PicoHsm => (
-                "Pico Keys HSM (2E8A:10FD)".into(),
+                crate::tr!("Pico Keys HSM (2E8A:10FD)").into(),
                 Some("2E8A"),
                 Some("10FD"),
             ),
             Self::PicoFido => (
-                "Pico Keys Fido (2E8A:10FE)".into(),
+                crate::tr!("Pico Keys Fido (2E8A:10FE)").into(),
                 Some("2E8A"),
                 Some("10FE"),
             ),
             Self::PicoOpenPgp => (
-                "Pico Keys OpenPGP (2E8A:10FF)".into(),
+                crate::tr!("Pico Keys OpenPGP (2E8A:10FF)").into(),
                 Some("2E8A"),
                 Some("10FF"),
             ),
-            Self::Pico => ("Pico (2E8A:0003)".into(), Some("2E8A"), Some("0003")),
-            Self::SoloKeys => ("SoloKeys (0483:A2CA)".into(), Some("0483"), Some("A2CA")),
-            Self::NitroHsm => ("NitroHSM (20A0:4230)".into(), Some("20A0"), Some("4230")),
-            Self::NitroFido2 => ("NitroFIDO2 (20A0:42D4)".into(), Some("20A0"), Some("42D4")),
-            Self::NitroStart => ("NitroStart (20A0:4211)".into(), Some("20A0"), Some("4211")),
-            Self::NitroPro => ("NitroPro (20A0:4108)".into(), Some("20A0"), Some("4108")),
-            Self::NitroKey3 => ("Nitrokey 3 (20A0:42B2)".into(), Some("20A0"), Some("42B2")),
-            Self::YubiKey5 => ("YubiKey 5 (1050:0407)".into(), Some("1050"), Some("0407")),
-            Self::YubiKeyNeo => ("YubiKey Neo (1050:0116)".into(), Some("1050"), Some("0116")),
-            Self::YubiHsm2 => ("YubiHSM 2 (1050:0030)".into(), Some("1050"), Some("0030")),
-            Self::Gnuk => ("Gnuk Token (234B:0000)".into(), Some("234B"), Some("0000")),
-            Self::GnuPg => ("GnuPG (234B:0000)".into(), Some("234B"), Some("0000")),
+            Self::Pico => (
+                crate::tr!("Pico (2E8A:0003)").into(),
+                Some("2E8A"),
+                Some("0003"),
+            ),
+            Self::SoloKeys => (
+                crate::tr!("SoloKeys (0483:A2CA)").into(),
+                Some("0483"),
+                Some("A2CA"),
+            ),
+            Self::NitroHsm => (
+                crate::tr!("NitroHSM (20A0:4230)").into(),
+                Some("20A0"),
+                Some("4230"),
+            ),
+            Self::NitroFido2 => (
+                crate::tr!("NitroFIDO2 (20A0:42D4)").into(),
+                Some("20A0"),
+                Some("42D4"),
+            ),
+            Self::NitroStart => (
+                crate::tr!("NitroStart (20A0:4211)").into(),
+                Some("20A0"),
+                Some("4211"),
+            ),
+            Self::NitroPro => (
+                crate::tr!("NitroPro (20A0:4108)").into(),
+                Some("20A0"),
+                Some("4108"),
+            ),
+            Self::NitroKey3 => (
+                crate::tr!("Nitrokey 3 (20A0:42B2)").into(),
+                Some("20A0"),
+                Some("42B2"),
+            ),
+            Self::YubiKey5 => (
+                crate::tr!("YubiKey 5 (1050:0407)").into(),
+                Some("1050"),
+                Some("0407"),
+            ),
+            Self::YubiKeyNeo => (
+                crate::tr!("YubiKey Neo (1050:0116)").into(),
+                Some("1050"),
+                Some("0116"),
+            ),
+            Self::YubiHsm2 => (
+                crate::tr!("YubiHSM 2 (1050:0030)").into(),
+                Some("1050"),
+                Some("0030"),
+            ),
+            Self::Gnuk => (
+                crate::tr!("Gnuk Token (234B:0000)").into(),
+                Some("234B"),
+                Some("0000"),
+            ),
+            Self::GnuPg => (
+                crate::tr!("GnuPG (234B:0000)").into(),
+                Some("234B"),
+                Some("0000"),
+            ),
         }
     }
 
@@ -149,10 +201,10 @@ pub enum LedDriverType {
 impl LedDriverType {
     pub fn label(&self) -> SharedString {
         match self {
-            Self::PicoGpio => "Pico (Standard GPIO)".into(),
-            Self::PimoroniRgb => "Pimoroni (RGB)".into(),
-            Self::Ws2812Neopixel => "WS2812 (Neopixel)".into(),
-            Self::Esp32Neopixel => "ESP32 Neopixel".into(),
+            Self::PicoGpio => crate::tr!("Pico (Standard GPIO)").into(),
+            Self::PimoroniRgb => crate::tr!("Pimoroni (RGB)").into(),
+            Self::Ws2812Neopixel => crate::tr!("WS2812 (Neopixel)").into(),
+            Self::Esp32Neopixel => crate::tr!("ESP32 Neopixel").into(),
         }
     }
 
@@ -181,8 +233,8 @@ pub enum LedColorOrder {
 impl LedColorOrder {
     pub fn label(&self) -> SharedString {
         match self {
-            Self::Rgb => "RGB".into(),
-            Self::Grb => "GRB (swap red/green)".into(),
+            Self::Rgb => crate::tr!("RGB").into(),
+            Self::Grb => crate::tr!("GRB (swap red/green)").into(),
         }
     }
 
@@ -325,7 +377,7 @@ impl ConfigViewModel {
             .unwrap_or_else(|| "4242".into());
         let current_product_name: SharedString = config
             .map(|c| c.product_name.clone().into())
-            .unwrap_or_else(|| "My Key".into());
+            .unwrap_or_else(|| crate::tr!("My Key").into());
         // Blank when there is no phy override — the field then reads as "use the
         // VID-derived default" and isn't written back on save.
         let current_manufacturer: SharedString = config
@@ -363,21 +415,21 @@ impl ConfigViewModel {
         // strings so `config`'s borrow of `cx` ends before the `cx.new` widgets.
         let led_gpio_placeholder = config
             .and_then(|c| c.effective_led_gpio)
-            .map(|g| format!("Firmware default (GPIO {g})"))
-            .unwrap_or_else(|| "Firmware default".to_string());
+            .map(|g| crate::tr!("Firmware default (GPIO {g})", g = g))
+            .unwrap_or_else(|| crate::tr!("Firmware default").to_string());
         let touch_placeholder = config
             .and_then(|c| c.effective_touch_timeout)
-            .map(|t| format!("Firmware default ({t}s)"))
-            .unwrap_or_else(|| "Firmware default (30s)".to_string());
+            .map(|t| crate::tr!("Firmware default ({t}s)", t = t))
+            .unwrap_or_else(|| crate::tr!("Firmware default (30s)").to_string());
         let default_driver_label = config
             .and_then(|c| c.effective_led_driver)
             .and_then(|d| {
                 LedDriverType::all()
                     .iter()
                     .find(|x| x.value() == d)
-                    .map(|x| format!("Firmware default — {}", x.label()))
+                    .map(|x| crate::tr!("Firmware default — {}", x.label()))
             })
-            .unwrap_or_else(|| "Firmware default".to_string());
+            .unwrap_or_else(|| crate::tr!("Firmware default").to_string());
 
         let mut led_status_steady = false;
         let mut led_status_colors = [0; 4];
@@ -460,7 +512,7 @@ impl ConfigViewModel {
             cx.new(|cx| InputState::new(window, cx).default_value(current_product_name.clone()));
         let manufacturer_input = cx.new(|cx| {
             InputState::new(window, cx)
-                .placeholder("VID-derived default")
+                .placeholder(crate::tr!("VID-derived default"))
                 .default_value(current_manufacturer.clone())
         });
 
@@ -612,7 +664,7 @@ impl ConfigViewModel {
                     this.device.update(cx, |repo, repo_cx| {
                         repo.refresh(repo_cx);
                     });
-                    let err_msg = "Device changed before write could complete. Refresh and try again.".to_string();
+                    let err_msg = crate::tr!("Device changed before write could complete. Refresh and try again.").to_string();
                     match &dialog_handle {
                         StatusDialogHandle::Pin(dh) => {
                             let _ = dh.update(cx, |d, cx| d.set_error(err_msg, cx));
@@ -632,9 +684,9 @@ impl ConfigViewModel {
             // user presence for config writes on both FIDO and Rescue paths.
             cx.update(|cx| {
                 let msg = if method_clone == DeviceMethod::Fido {
-                    "Applying configuration... Touch your device if it flashes."
+                    crate::tr!("Applying configuration... Touch your device if it flashes.")
                 } else {
-                    "Applying configuration... Press the device button to confirm."
+                    crate::tr!("Applying configuration... Press the device button to confirm.")
                 };
                 match &dialog {
                     StatusDialogHandle::Pin(dh) => {
@@ -686,7 +738,7 @@ impl ConfigViewModel {
 
                 match result {
                     Ok(msg) => {
-                        log::info!("Success: {}", msg);
+                        log::info!("{}", crate::tr!("Success: {}", msg));
 
                         if let Some(fs) = &fresh_state {
                             let serial_matches = expected_serial.as_deref()
@@ -694,9 +746,9 @@ impl ConfigViewModel {
 
                             if serial_matches {
                                 log::info!(
-                                    "Refreshed device status. LED Steady: {}",
+                                    "{}", crate::tr!("Refreshed device status. LED Steady: {}",
                                     fs.status.config.led_steady
-                                );
+                                ));
 
                                 let config = &fs.status.config;
                                 this.led_dimmable = config.led_dimmable;
@@ -708,7 +760,7 @@ impl ConfigViewModel {
                                     repo.apply_fresh_state(fs.clone(), repo_cx);
                                 });
                             } else {
-                                log::warn!("Device changed during config write, discarding stale status");
+                                log::warn!("{}", crate::tr!("Device changed during config write, discarding stale status"));
                             }
                         }
 
@@ -716,7 +768,7 @@ impl ConfigViewModel {
                             StatusDialogHandle::Pin(dh) => {
                                 let _ = dh.update(cx, |d, cx| {
                                     d.set_success(
-                                        "Configuration applied successfully.".to_string(),
+                                        crate::tr!("Configuration applied successfully.").to_string(),
                                         cx,
                                     );
                                 });
@@ -724,7 +776,7 @@ impl ConfigViewModel {
                             StatusDialogHandle::Status(dh) => {
                                 let _ = dh.update(cx, |d, cx| {
                                     d.set_success(
-                                        "Configuration applied successfully.".to_string(),
+                                        crate::tr!("Configuration applied successfully.").to_string(),
                                         cx,
                                     );
                                 });
@@ -732,14 +784,14 @@ impl ConfigViewModel {
                         }
                     }
                     Err(e) => {
-                        log::error!("Error saving config: {}", e);
+                        log::error!("{}", crate::tr!("Error saving config: {}", e));
 
-                        let mut err_msg = format!("Failed to apply configuration: {}", e);
+                        let mut err_msg = crate::tr!("Failed to apply configuration: {}", e);
 
-                        if method == DeviceMethod::Fido && err_msg.contains("0x3E") {
-                            err_msg = "The device firmware does not support being configured in fido only communication mode. \nHave a look at the troubleshooting guide to fix this".to_string();
-                        } else if method == DeviceMethod::Fido && err_msg.contains("0x27") {
-                            err_msg = "Configuration denied (Status: 0x27). This usually means the operation timed out waiting for you to touch the device's button, or the PIN token was rejected.".to_string();
+                        if method == DeviceMethod::Fido && err_msg.contains(crate::tr!("0x3E")) {
+                            err_msg = crate::tr!("The device firmware does not support being configured in fido only communication mode. \nHave a look at the troubleshooting guide to fix this").to_string();
+                        } else if method == DeviceMethod::Fido && err_msg.contains(crate::tr!("0x27")) {
+                            err_msg = crate::tr!("Configuration denied (Status: 0x27). This usually means the operation timed out waiting for you to touch the device's button, or the PIN token was rejected.").to_string();
                         }
 
                         match &dialog_handle {
@@ -773,11 +825,11 @@ impl ConfigViewModel {
         let view_handle = cx.entity().downgrade();
 
         dialog::open_pin_prompt(
-            "Authentication Required",
-            "Enter your device PIN to apply changes.",
-            "Enter FIDO PIN",
+            crate::tr!("Authentication Required"),
+            crate::tr!("Enter your device PIN to apply changes."),
+            crate::tr!("Enter FIDO PIN"),
             None,
-            "Confirm",
+            crate::tr!("Confirm"),
             window,
             cx,
             move |pin, dialog_handle, cx| {
@@ -991,7 +1043,7 @@ impl ConfigViewModel {
         let apps_changed = current_apps_enabled.is_some_and(|e| e != self.usb_apps_enabled);
 
         if !has_changes && !led_changed && !apps_changed {
-            log::info!("No changes detected");
+            log::info!("{}", crate::tr!("No changes detected"));
             return;
         }
 
@@ -1011,8 +1063,11 @@ impl ConfigViewModel {
             if Self::status_supports_legacy_fido_config(status) || is_rskey {
                 self.open_pin_dialog(phy, led, apps, window, cx);
             } else {
-                let handle =
-                    dialog::open_status_dialog("Configuration Requires Rescue Mode", window, cx);
+                let handle = dialog::open_status_dialog(
+                    crate::tr!("Configuration Requires Rescue Mode"),
+                    window,
+                    cx,
+                );
                 self.write_config_to_device(
                     phy,
                     led,
@@ -1024,7 +1079,8 @@ impl ConfigViewModel {
                 );
             }
         } else {
-            let handle = dialog::open_status_dialog("Applying Configuration", window, cx);
+            let handle =
+                dialog::open_status_dialog(crate::tr!("Applying Configuration"), window, cx);
             self.write_config_to_device(
                 phy,
                 led,
@@ -1108,7 +1164,7 @@ impl ConfigViewModel {
             .unwrap_or_else(|| "4242".into());
         let new_product = config
             .map(|c| c.product_name.clone())
-            .unwrap_or_else(|| "My Key".into());
+            .unwrap_or_else(|| crate::tr!("My Key").into());
         let new_gpio = config
             .and_then(|c| c.led_gpio)
             .map(|g| g.to_string())

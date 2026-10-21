@@ -39,7 +39,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v1
+        uses: redhat-actions/podman-login@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -51,7 +51,7 @@ jobs:
           podman build -t "$IMAGE_TAG" -f .github/containers/${{ matrix.containerfile }} .
 
       - name: Push Container Image to GHCR
-        uses: redhat-actions/push-to-registry@v2
+        uses: redhat-actions/push-to-registry@v3
         with:
           image: picoforge-appimage-builder
           tags: ${{ matrix.variant }}
