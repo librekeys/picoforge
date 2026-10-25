@@ -26,16 +26,16 @@ assert withGLES -> stdenv.hostPlatform.isLinux;
 rustPlatform.buildRustPackage (finalAttrs: {
 
   pname = "picoforge";
-  version = "0.6.0";
+  version = "0.9.0";
 
   src = fetchFromGitHub {
     owner = "librekeys";
     repo = "picoforge";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-v1MFAX0YdrECRgkD/v8O20pVi1WhB1ckbhUMuRfvJVc=";
+    hash = "sha256-rqEcsy18vtSfpIOORPL6R/XXtMn9KqjiYSbBeJMsznQ=";
   };
 
-  cargoHash = "sha256-pOPUcnsPAgxn9gPBPH17j1XZbkOsKaf5Xh+J3h9SRp8=";
+  cargoHash = "sha256-elU1Vx9YlY3kKAQ8k9xmnwldPSxSccRsB4qgT3jurfc=";
 
   nativeBuildInputs = [
     pkg-config
