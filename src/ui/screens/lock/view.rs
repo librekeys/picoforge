@@ -61,19 +61,19 @@ impl LockViewModel {
         let theme = cx.theme();
         let copy = {
             let p = phrase.to_string();
-            PFButton::new("Copy")
+            PFButton::new(crate::tr!("Copy"))
                 .id("lk-copy")
                 .on_click(cx.listener(move |_, _, _, cx| {
                     cx.write_to_clipboard(ClipboardItem::new_string(p.clone()));
                 }))
         };
-        let clear = PFButton::new("Clear from screen")
+        let clear = PFButton::new(crate::tr!("Clear from screen"))
             .id("lk-clear")
             .on_click(cx.listener(|this, _, _, cx| this.clear_lock_key(cx)));
 
         Card::new()
-            .title("Lock key")
-            .description("Shown once — you need it to unlock after every power-cycle")
+            .title(crate::tr!("Lock key"))
+            .description(crate::tr!("Shown once — you need it to unlock after every power-cycle"))
             .icon(Icon::default().path("icons/key-round.svg"))
             .header_right(h_flex().gap_2().child(copy).child(clear))
             .child(
@@ -86,7 +86,7 @@ impl LockViewModel {
                             .bg(rgb(0x18181b))
                             .text_color(rgb(0xf59e0b))
                             .text_sm()
-                            .child("Lose this and the only recovery is a FIDO factory reset, which destroys this identity. Store it offline."),
+                            .child(crate::tr!("Lose this and the only recovery is a FIDO factory reset, which destroys this identity. Store it offline.")),
                     )
                     .child(
                         div()
@@ -94,7 +94,7 @@ impl LockViewModel {
                             .rounded_lg()
                             .border_1()
                             .border_color(theme.border)
-                            .font_family("monospace")
+                            .font_family(crate::tr!("monospace"))
                             .text_sm()
                             .child(phrase.to_string()),
                     ),
@@ -105,12 +105,12 @@ impl LockViewModel {
 
 impl Render for LockViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "Lock";
-        const SUBTITLE: &str = "At-rest soft-lock of the FIDO seed.";
+        let title: &str = crate::tr!("Lock");
+        let subtitle: &str = crate::tr!("At-rest soft-lock of the FIDO seed.");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
@@ -132,91 +132,101 @@ impl Render for LockViewModel {
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
         let enable_btn = Button::new("lk-enable")
-            .label("Engage lock")
+            .label(crate::tr!("Engage lock"))
             .danger()
             .disabled(self.loading || locked)
             .on_click(cx.listener(|this, _, window, cx| this.open_enable(window, cx)));
-        let unlock_btn = PFButton::new("Unlock")
+        let unlock_btn = PFButton::new(crate::tr!("Unlock"))
             .id("lk-unlock")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .disabled(self.loading || !locked)
             .on_click(cx.listener(|this, _, window, cx| this.open_unlock(window, cx)));
-        let disable_btn = PFButton::new("Disable lock")
+        let disable_btn = PFButton::new(crate::tr!("Disable lock"))
             .id("lk-disable")
             .with_colors(rgb(0x222225), rgb(0x2a2a2d), rgb(0x333336))
             .disabled(self.loading || !locked)
             .on_click(cx.listener(|this, _, window, cx| this.open_disable(window, cx)));
 
         let status_card = {
-            let body =
-                match status {
-                    Some(s) => {
-                        let state = if s.locked {
-                            if s.unlocked {
-                                "locked, unlocked for this power-cycle"
-                            } else {
-                                "locked — unlock before any FIDO login"
-                            }
+            let body = match status {
+                Some(s) => {
+                    let state = if s.locked {
+                        if s.unlocked {
+                            crate::tr!("locked, unlocked for this power-cycle")
                         } else {
-                            "not locked (plaintext seed)"
-                        };
-                        let (dot, color) = if s.locked && !s.unlocked {
-                            ("●", theme.danger)
-                        } else if s.locked {
-                            ("●", theme.green)
-                        } else {
-                            ("●", theme.muted_foreground)
-                        };
-                        v_flex()
-                            .gap_2()
-                            .child(
-                                h_flex()
-                                    .gap_2()
-                                    .items_center()
-                                    .child(div().text_color(color).child(dot))
-                                    .child(div().text_sm().child(format!("State: {state}"))),
-                            )
-                            .child(div().text_sm().text_color(theme.muted_foreground).child(
-                                format!("Seed present: {}", if s.has_seed { "yes" } else { "no" }),
-                            ))
-                            .into_any_element()
-                    }
-                    None => div()
-                        .text_sm()
-                        .text_color(theme.muted_foreground)
-                        .child("Reading lock state…")
-                        .into_any_element(),
-                };
+                            crate::tr!("locked — unlock before any FIDO login")
+                        }
+                    } else {
+                        crate::tr!("not locked (plaintext seed)")
+                    };
+                    let (dot, color) = if s.locked && !s.unlocked {
+                        ("●", theme.danger)
+                    } else if s.locked {
+                        ("●", theme.green)
+                    } else {
+                        ("●", theme.muted_foreground)
+                    };
+                    v_flex()
+                        .gap_2()
+                        .child(
+                            h_flex()
+                                .gap_2()
+                                .items_center()
+                                .child(div().text_color(color).child(dot))
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .child(crate::tr!("State: {state}", state = state)),
+                                ),
+                        )
+                        .child(div().text_sm().text_color(theme.muted_foreground).child(
+                            crate::tr!(
+                                "Seed present: {}",
+                                if s.has_seed {
+                                    crate::tr!("yes")
+                                } else {
+                                    crate::tr!("no")
+                                }
+                            ),
+                        ))
+                        .into_any_element()
+                }
+                None => div()
+                    .text_sm()
+                    .text_color(theme.muted_foreground)
+                    .child(crate::tr!("Reading lock state…"))
+                    .into_any_element(),
+            };
             Card::new()
-                .title("Lock status")
-                .description("Whether the seed is wrapped at rest")
+                .title(crate::tr!("Lock status"))
+                .description(crate::tr!("Whether the seed is wrapped at rest"))
                 .icon(Icon::default().path("icons/lock.svg"))
                 .header_right(refresh_btn)
                 .child(body)
         };
 
         let actions_card = Card::new()
-            .title("Actions")
-            .description("Engage, unlock, or disable the at-rest lock")
+            .title(crate::tr!("Actions"))
+            .description(crate::tr!("Engage, unlock, or disable the at-rest lock"))
             .icon(Icon::default().path("icons/lock-open.svg"))
             .child(
                 v_flex()
                     .gap_2()
                     .child(self.action_row(
-                        "Engage lock",
-                        "Wrap the seed and reveal a new lock key (PIN + touch)",
+                        crate::tr!("Engage lock"),
+                        crate::tr!("Wrap the seed and reveal a new lock key (PIN + touch)"),
                         enable_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Unlock",
-                        "Load the seed for this power-cycle (lock key)",
+                        crate::tr!("Unlock"),
+                        crate::tr!("Load the seed for this power-cycle (lock key)"),
                         unlock_btn,
                         theme,
                     ))
                     .child(self.action_row(
-                        "Disable lock",
-                        "Restore the plaintext seed (lock key + PIN)",
+                        crate::tr!("Disable lock"),
+                        crate::tr!("Restore the plaintext seed (lock key + PIN)"),
                         disable_btn,
                         theme,
                     )),
@@ -228,6 +238,6 @@ impl Render for LockViewModel {
             .children(lock_key_card)
             .child(actions_card);
 
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

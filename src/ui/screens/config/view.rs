@@ -23,7 +23,7 @@ impl ConfigViewModel {
         let content = v_flex()
             .gap_4()
             .child(
-                v_flex().gap_2().child("Vendor Preset").child(
+                v_flex().gap_2().child(crate::tr!("Vendor Preset")).child(
                     Select::new(&self.vendor_select)
                         .bg(rgb(0x222225))
                         .w_full()
@@ -36,7 +36,7 @@ impl ConfigViewModel {
                     .grid_cols(2)
                     .gap_4()
                     .child(
-                        v_flex().gap_2().child("Vendor ID (HEX)").child(
+                        v_flex().gap_2().child(crate::tr!("Vendor ID (HEX)")).child(
                             Input::new(&self.vid_input)
                                 .font_family("Mono")
                                 .bg(rgb(0x222225))
@@ -44,12 +44,15 @@ impl ConfigViewModel {
                         ),
                     )
                     .child(
-                        v_flex().gap_2().child("Product ID (HEX)").child(
-                            Input::new(&self.pid_input)
-                                .font_family("Mono")
-                                .bg(rgb(0x222225))
-                                .disabled(hardware_config_disabled || !self.is_custom_vendor),
-                        ),
+                        v_flex()
+                            .gap_2()
+                            .child(crate::tr!("Product ID (HEX)"))
+                            .child(
+                                Input::new(&self.pid_input)
+                                    .font_family("Mono")
+                                    .bg(rgb(0x222225))
+                                    .disabled(hardware_config_disabled || !self.is_custom_vendor),
+                            ),
                     ),
             )
             .child(div().h_px().bg(theme.border))
@@ -59,14 +62,14 @@ impl ConfigViewModel {
                     .grid_cols(2)
                     .gap_4()
                     .child(
-                        v_flex().gap_2().child("Product Name").child(
+                        v_flex().gap_2().child(crate::tr!("Product Name")).child(
                             Input::new(&self.product_name_input)
                                 .bg(rgb(0x222225))
                                 .disabled(is_fido),
                         ),
                     )
                     .child(
-                        v_flex().gap_2().child("Manufacturer").child(
+                        v_flex().gap_2().child(crate::tr!("Manufacturer")).child(
                             Input::new(&self.manufacturer_input)
                                 .bg(rgb(0x222225))
                                 .disabled(is_fido),
@@ -75,8 +78,8 @@ impl ConfigViewModel {
             );
 
         Card::new()
-            .title("Identity")
-            .description("USB Identification settings")
+            .title(crate::tr!("Identity"))
+            .description(crate::tr!("USB Identification settings"))
             .icon(Icon::default().path("icons/tag.svg"))
             .child(content)
     }
@@ -95,14 +98,14 @@ impl ConfigViewModel {
                 .grid_cols(2)
                 .gap_4()
                 .child(
-                    v_flex().gap_2().child("LED GPIO Pin").child(
+                    v_flex().gap_2().child(crate::tr!("LED GPIO Pin")).child(
                         Input::new(&self.led_gpio_input)
                             .bg(rgb(0x222225))
                             .disabled(hardware_config_disabled),
                     ),
                 )
                 .child(
-                    v_flex().gap_2().child("LED Driver").child(
+                    v_flex().gap_2().child(crate::tr!("LED Driver")).child(
                         Select::new(&self.led_driver_select)
                             .w_full()
                             .bg(rgb(0x222225))
@@ -115,12 +118,15 @@ impl ConfigViewModel {
         // it, so only surface it for RS-Key. Fixes red/green swap on GRB panels.
         if is_rskey {
             content = content.child(
-                v_flex().gap_2().child("LED Colour Order").child(
-                    Select::new(&self.led_order_select)
-                        .w_full()
-                        .bg(rgb(0x222225))
-                        .disabled(hardware_config_disabled),
-                ),
+                v_flex()
+                    .gap_2()
+                    .child(crate::tr!("LED Colour Order"))
+                    .child(
+                        Select::new(&self.led_order_select)
+                            .w_full()
+                            .bg(rgb(0x222225))
+                            .disabled(hardware_config_disabled),
+                    ),
             );
         }
 
@@ -142,33 +148,36 @@ impl ConfigViewModel {
             content = content
                 .child(div().h_px().bg(theme.border))
                 .child(
-                    v_flex().gap_2().child("Brightness (0-15)").child(
-                        h_flex()
-                            .items_center()
-                            .gap_4()
-                            .child(
-                                Slider::new(&self.led_brightness_slider)
-                                    .flex_1()
-                                    .disabled(hardware_config_disabled),
-                            )
-                            .child(
-                                div()
-                                    .text_xs()
-                                    .text_color(theme.muted_foreground)
-                                    .child(format!("Level {}", brightness)),
-                            ),
-                    ),
+                    v_flex()
+                        .gap_2()
+                        .child(crate::tr!("Brightness (0-15)"))
+                        .child(
+                            h_flex()
+                                .items_center()
+                                .gap_4()
+                                .child(
+                                    Slider::new(&self.led_brightness_slider)
+                                        .flex_1()
+                                        .disabled(hardware_config_disabled),
+                                )
+                                .child(
+                                    div()
+                                        .text_xs()
+                                        .text_color(theme.muted_foreground)
+                                        .child(crate::tr!("Level {}", brightness)),
+                                ),
+                        ),
                 )
                 .child(
                     h_flex()
                         .items_center()
                         .justify_between()
                         .child(
-                            v_flex().gap_0p5().child("LED Dimmable").child(
+                            v_flex().gap_0p5().child(crate::tr!("LED Dimmable")).child(
                                 div()
                                     .text_sm()
                                     .text_color(theme.muted_foreground)
-                                    .child("Allow brightness adjustment"),
+                                    .child(crate::tr!("Allow brightness adjustment")),
                             ),
                         )
                         .child(
@@ -183,12 +192,15 @@ impl ConfigViewModel {
                         .items_center()
                         .justify_between()
                         .child(
-                            v_flex().gap_0p5().child("LED Steady Mode").child(
-                                div()
-                                    .text_sm()
-                                    .text_color(theme.muted_foreground)
-                                    .child("Keep LED on constantly"),
-                            ),
+                            v_flex()
+                                .gap_0p5()
+                                .child(crate::tr!("LED Steady Mode"))
+                                .child(
+                                    div()
+                                        .text_sm()
+                                        .text_color(theme.muted_foreground)
+                                        .child(crate::tr!("Keep LED on constantly")),
+                                ),
                         )
                         .child(
                             Switch::new("led-steady")
@@ -200,24 +212,27 @@ impl ConfigViewModel {
         }
 
         Card::new()
-            .title("LED Settings")
-            .description("Adjust visual feedback behavior")
+            .title(crate::tr!("LED Settings"))
+            .description(crate::tr!("Adjust visual feedback behavior"))
             .icon(Icon::default().path("icons/microchip.svg"))
             .child(content)
     }
 
     fn render_touch_card(&self, _theme: &Theme, is_fido: bool) -> impl IntoElement {
         let content = v_flex().gap_4().child(
-            v_flex().gap_2().child("Touch Timeout (seconds)").child(
-                Input::new(&self.touch_timeout_input)
-                    .bg(rgb(0x222225))
-                    .disabled(is_fido),
-            ),
+            v_flex()
+                .gap_2()
+                .child(crate::tr!("Touch Timeout (seconds)"))
+                .child(
+                    Input::new(&self.touch_timeout_input)
+                        .bg(rgb(0x222225))
+                        .disabled(is_fido),
+                ),
         );
 
         Card::new()
-            .title("Touch & Timing")
-            .description("Configure interaction timeouts")
+            .title(crate::tr!("Touch & Timing"))
+            .description(crate::tr!("Configure interaction timeouts"))
             .icon(Icon::default().path("icons/settings.svg"))
             .child(content)
     }
@@ -239,12 +254,15 @@ impl ConfigViewModel {
                 .items_center()
                 .justify_between()
                 .child(
-                    v_flex().gap_0p5().child("Power Cycle on Reset").child(
-                        div()
-                            .text_sm()
-                            .text_color(theme.muted_foreground)
-                            .child("Restart device on reset"),
-                    ),
+                    v_flex()
+                        .gap_0p5()
+                        .child(crate::tr!("Power Cycle on Reset"))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(theme.muted_foreground)
+                                .child(crate::tr!("Restart device on reset")),
+                        ),
                 )
                 .child(
                     Switch::new("power-cycle")
@@ -255,8 +273,8 @@ impl ConfigViewModel {
         );
 
         Card::new()
-            .title("Device Options")
-            .description("Toggle advanced features")
+            .title(crate::tr!("Device Options"))
+            .description(crate::tr!("Toggle advanced features"))
             .icon(Icon::default().path("icons/settings.svg"))
             .child(content)
     }
@@ -275,12 +293,15 @@ impl ConfigViewModel {
                 .items_center()
                 .justify_between()
                 .child(
-                    v_flex().gap_0p5().child("Global Steady Mode").child(
-                        div()
-                            .text_sm()
-                            .text_color(theme.muted_foreground)
-                            .child("Keep status LEDs on constantly"),
-                    ),
+                    v_flex()
+                        .gap_0p5()
+                        .child(crate::tr!("Global Steady Mode"))
+                        .child(
+                            div()
+                                .text_sm()
+                                .text_color(theme.muted_foreground)
+                                .child(crate::tr!("Keep status LEDs on constantly")),
+                        ),
                 )
                 .child(
                     Switch::new("rskey-led-steady")
@@ -317,7 +338,7 @@ impl ConfigViewModel {
 
             let color_name = LedColor::from_u8(color_val)
                 .map(|c| c.label())
-                .unwrap_or("Unknown");
+                .unwrap_or(crate::tr!("Unknown"));
 
             rows = rows.child(
                 h_flex()
@@ -329,21 +350,24 @@ impl ConfigViewModel {
                             .gap_2()
                             .items_center()
                             .child(
-                                Button::new(gpui::SharedString::from(format!("color-btn-{}", i)))
-                                    .child(color_name)
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
-                                            .color(rgb(0x27272a).into())
-                                            .hover(rgb(0x3f3f46).into())
-                                            .active(rgb(0x52525b).into())
-                                            .border(theme.border),
-                                    )
-                                    .disabled(is_fido)
-                                    .on_click(cycle_color_listener),
+                                Button::new(gpui::SharedString::from(crate::tr!(
+                                    "color-btn-{}",
+                                    i
+                                )))
+                                .child(color_name)
+                                .custom(
+                                    ButtonCustomVariant::new(cx)
+                                        .color(rgb(0x27272a).into())
+                                        .hover(rgb(0x3f3f46).into())
+                                        .active(rgb(0x52525b).into())
+                                        .border(theme.border),
+                                )
+                                .disabled(is_fido)
+                                .on_click(cycle_color_listener),
                             )
                             .child(div().w_4())
                             .child(
-                                Button::new(gpui::SharedString::from(format!("bdec-btn-{}", i)))
+                                Button::new(gpui::SharedString::from(crate::tr!("bdec-btn-{}", i)))
                                     .child("-")
                                     .custom(
                                         ButtonCustomVariant::new(cx)
@@ -363,7 +387,7 @@ impl ConfigViewModel {
                                     .child(brightness_val.to_string()),
                             )
                             .child(
-                                Button::new(gpui::SharedString::from(format!("binc-btn-{}", i)))
+                                Button::new(gpui::SharedString::from(crate::tr!("binc-btn-{}", i)))
                                     .child("+")
                                     .custom(
                                         ButtonCustomVariant::new(cx)
@@ -380,8 +404,10 @@ impl ConfigViewModel {
         }
 
         Card::new()
-            .title("Status LED Colors")
-            .description("Configure LED colors and brightness per device state")
+            .title(crate::tr!("Status LED Colors"))
+            .description(crate::tr!(
+                "Configure LED colors and brightness per device state"
+            ))
             .icon(Icon::default().path("icons/palette.svg"))
             .child(rows)
     }
@@ -395,12 +421,12 @@ impl ConfigViewModel {
         let mut rows = v_flex().gap_4();
 
         let apps = [
-            ("FIDO2", USB_CAP_FIDO2),
-            ("OATH", USB_CAP_OATH),
-            ("PIV", USB_CAP_PIV),
-            ("OpenPGP", USB_CAP_OPENPGP),
-            ("U2F", USB_CAP_U2F),
-            ("OTP", USB_CAP_OTP),
+            (crate::tr!("FIDO2"), USB_CAP_FIDO2),
+            (crate::tr!("OATH"), USB_CAP_OATH),
+            (crate::tr!("PIV"), USB_CAP_PIV),
+            (crate::tr!("OpenPGP"), USB_CAP_OPENPGP),
+            (crate::tr!("U2F"), USB_CAP_U2F),
+            (crate::tr!("OTP"), USB_CAP_OTP),
         ];
 
         for (name, cap) in apps {
@@ -424,14 +450,14 @@ impl ConfigViewModel {
                         .child(v_flex().gap_0p5().child(name).child(
                             div().text_sm().text_color(theme.muted_foreground).child(
                                 if is_supported {
-                                    "Supported"
+                                    crate::tr!("Supported")
                                 } else {
-                                    "Not Supported by Firmware"
+                                    crate::tr!("Not Supported by Firmware")
                                 },
                             ),
                         ))
                         .child(
-                            Switch::new(gpui::SharedString::from(format!("app-toggle-{}", cap)))
+                            Switch::new(gpui::SharedString::from(crate::tr!("app-toggle-{}", cap)))
                                 .checked(is_enabled)
                                 .disabled(is_fido || !is_supported)
                                 .on_click(toggle_listener),
@@ -440,8 +466,8 @@ impl ConfigViewModel {
         }
 
         Card::new()
-            .title("USB Applications")
-            .description("Enable or disable specific USB features")
+            .title(crate::tr!("USB Applications"))
+            .description(crate::tr!("Enable or disable specific USB features"))
             .icon(Icon::default().path("icons/microchip.svg"))
             .child(rows)
     }
@@ -461,24 +487,24 @@ impl ConfigViewModel {
                 .text_color(rgb(0xf59e0b))
                 .w_full()
                 .max_w(px(800.0))
-                .child("Advanced. HID off disables all FIDO2/U2F; CCID off disables every smart-card app (and the rescue applet). The firmware always keeps one of them, so you can't lock yourself out here."),
+                .child(crate::tr!("Advanced. HID off disables all FIDO2/U2F; CCID off disables every smart-card app (and the rescue applet). The firmware always keeps one of them, so you can't lock yourself out here.")),
         );
 
         let interfaces = [
             (
-                "CCID (Smart Card)",
+                crate::tr!("CCID (Smart Card)"),
                 0x01u8,
-                "Required for the rescue applet and all smart-card apps",
+                crate::tr!("Required for the rescue applet and all smart-card apps"),
             ),
             (
-                "HID (FIDO)",
+                crate::tr!("HID (FIDO)"),
                 0x04u8,
-                "FIDO/CTAP transport — off disables all FIDO2 and U2F",
+                crate::tr!("FIDO/CTAP transport — off disables all FIDO2 and U2F"),
             ),
             (
-                "KB (Keyboard)",
+                crate::tr!("KB (Keyboard)"),
                 0x08u8,
-                "OTP keyboard — Yubico OTP and static-password typing",
+                crate::tr!("OTP keyboard — Yubico OTP and static-password typing"),
             ),
         ];
 
@@ -519,17 +545,20 @@ impl ConfigViewModel {
                         ),
                     )
                     .child(
-                        Switch::new(gpui::SharedString::from(format!("usb-itf-toggle-{}", bit)))
-                            .checked(is_enabled || is_ccid)
-                            .disabled(is_fido || is_ccid)
-                            .on_click(toggle_listener),
+                        Switch::new(gpui::SharedString::from(crate::tr!(
+                            "usb-itf-toggle-{}",
+                            bit
+                        )))
+                        .checked(is_enabled || is_ccid)
+                        .disabled(is_fido || is_ccid)
+                        .on_click(toggle_listener),
                     ),
             );
         }
 
         Card::new()
-            .title("Hardware Endpoints")
-            .description("Toggle low-level USB interfaces")
+            .title(crate::tr!("Hardware Endpoints"))
+            .description(crate::tr!("Toggle low-level USB interfaces"))
             .icon(Icon::default().path("icons/cpu.svg"))
             .child(rows)
     }
@@ -542,8 +571,8 @@ impl Render for ConfigViewModel {
         if !has_device {
             let theme = cx.theme();
             return PageView::build(
-                "Configuration",
-                "Customize device settings and behavior.",
+                crate::tr!("Configuration"),
+                crate::tr!("Customize device settings and behavior."),
                 div()
                     .flex()
                     .items_center()
@@ -555,7 +584,7 @@ impl Render for ConfigViewModel {
                     .child(
                         div()
                             .text_color(theme.muted_foreground)
-                            .child("No Device Connected"),
+                            .child(crate::tr!("No Device Connected")),
                     ),
                 theme,
             );
@@ -616,7 +645,7 @@ impl Render for ConfigViewModel {
             h_flex().justify_end().pt_4().child(
                 Button::new("apply-changes")
                     .icon(Icon::default().path("icons/save.svg"))
-                    .child("Apply Changes")
+                    .child(crate::tr!("Apply Changes"))
                     .disabled(self.loading || hardware_config_disabled)
                     .custom(
                         ButtonCustomVariant::new(cx)
@@ -633,8 +662,8 @@ impl Render for ConfigViewModel {
 
         let theme = cx.theme();
         PageView::build(
-            "Configuration",
-            "Customize device settings and behavior.",
+            crate::tr!("Configuration"),
+            crate::tr!("Customize device settings and behavior."),
             inner,
             theme,
         )

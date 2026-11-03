@@ -48,14 +48,16 @@ impl Render for SecurityViewModel {
                                 div()
                                     .font_bold()
                                     .text_color(destructive_red)
-                                    .child("Feature Unstable"),
+                                    .child(crate::tr!("Feature Unstable")),
                             ),
                     )
                     .child(
                         div()
                             .text_sm()
                             .text_color(destructive_red)
-                            .child("This feature is currently under work and disabled for safety."),
+                            .child(crate::tr!(
+                                "This feature is currently under work and disabled for safety."
+                            )),
                     ),
             )
             .child(
@@ -72,7 +74,7 @@ impl Render for SecurityViewModel {
                                 .text_lg()
                                 .font_bold()
                                 .text_color(fg)
-                                .child("Lock Settings"),
+                                .child(crate::tr!("Lock Settings")),
                         ),
                     )
                     .child(
@@ -91,13 +93,13 @@ impl Render for SecurityViewModel {
                                                 div()
                                                     .text_sm()
                                                     .font_medium()
-                                                    .child("Enable Secure Boot"),
+                                                    .child(crate::tr!("Enable Secure Boot")),
                                             )
-                                            .child(
-                                                div().text_xs().text_color(muted_fg).child(
-                                                    "Verifies firmware signature on startup",
+                                            .child(div().text_xs().text_color(muted_fg).child(
+                                                crate::tr!(
+                                                    "Verifies firmware signature on startup"
                                                 ),
-                                            ),
+                                            )),
                                     )
                                     .child(
                                         Switch::new("secure-boot-switch")
@@ -113,10 +115,15 @@ impl Render for SecurityViewModel {
                                         v_flex()
                                             .gap_1()
                                             .child(
-                                                div().text_sm().font_medium().child("Secure Lock"),
+                                                div()
+                                                    .text_sm()
+                                                    .font_medium()
+                                                    .child(crate::tr!("Secure Lock")),
                                             )
                                             .child(div().text_xs().text_color(muted_fg).child(
-                                                "Prevents reading key material via debug ports",
+                                                crate::tr!(
+                                                    "Prevents reading key material via debug ports"
+                                                ),
                                             )),
                                     )
                                     .child(
@@ -138,12 +145,9 @@ impl Render for SecurityViewModel {
                                     .child(
                                         Switch::new("confirm-switch").checked(false).disabled(true),
                                     )
-                                    .child(
-                                        div()
-                                            .font_medium()
-                                            .text_color(destructive_red)
-                                            .child("I understand the risks of bricking my device."),
-                                    ),
+                                    .child(div().font_medium().text_color(destructive_red).child(
+                                        crate::tr!("I understand the risks of bricking my device."),
+                                    )),
                             ),
                     )
                     .child(
@@ -169,15 +173,15 @@ impl Render for SecurityViewModel {
                                             .gap_2()
                                             .items_center()
                                             .child(Icon::default().path("icons/lock.svg").size_4())
-                                            .child("Permanently Lock Device"),
+                                            .child(crate::tr!("Permanently Lock Device")),
                                     ),
                             ),
                     ),
             );
 
         PageView::build(
-            "Secure Boot",
-            "Permanently lock this device to the current firmware vendor.",
+            crate::tr!("Secure Boot"),
+            crate::tr!("Permanently lock this device to the current firmware vendor."),
             content,
             theme,
         )

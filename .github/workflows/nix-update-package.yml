@@ -26,7 +26,7 @@ jobs:
     - name: Show nixpkgs version
       run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
     - name: Update flake packages
-      uses: gepbird/nix-update-action@v3.1.0
+      uses: gepbird/nix-update-action@v3.1.1
       with:
         token: ${{ secrets.NIX_UPDATE_TOKEN }}
         blacklist: "default"

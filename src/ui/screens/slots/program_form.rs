@@ -72,13 +72,13 @@ pub(super) fn open(slot: u8, window: &mut Window, cx: &mut Context<SlotsViewMode
         let ph = ph.to_string();
         cx.new(|cx| InputState::new(window, cx).placeholder(ph))
     };
-    let secret = input("Secret key (hex)", window, cx);
-    let password = input("Password to type (ASCII)", window, cx);
-    let yk_public = input("Public ID (modhex)", window, cx);
-    let yk_private = input("Private ID (hex)", window, cx);
-    let yk_key = input("Secret key (hex)", window, cx);
-    let new_acc = input("Set an access code (hex, optional)", window, cx);
-    let cur_acc = input("Current access code, if protected", window, cx);
+    let secret = input(crate::tr!("Secret key (hex)"), window, cx);
+    let password = input(crate::tr!("Password to type (ASCII)"), window, cx);
+    let yk_public = input(crate::tr!("Public ID (modhex)"), window, cx);
+    let yk_private = input(crate::tr!("Private ID (hex)"), window, cx);
+    let yk_key = input(crate::tr!("Secret key (hex)"), window, cx);
+    let new_acc = input(crate::tr!("Set an access code (hex, optional)"), window, cx);
+    let cur_acc = input(crate::tr!("Current access code, if protected"), window, cx);
     let view = cx.entity().downgrade();
 
     let form = cx.new(|cx| {
@@ -108,20 +108,21 @@ pub(super) fn open(slot: u8, window: &mut Window, cx: &mut Context<SlotsViewMode
         let body = form.clone();
         let footer_form = form.clone();
         dialog
-            .title(format!("Program Slot {slot}"))
+            .title(crate::tr!("Program Slot {slot}", slot = slot))
             .child(body)
             .footer(move |_, _w, _c, _| {
                 let f = footer_form.clone();
                 vec![
-                    Button::new("cancel")
-                        .label("Cancel")
+                    Button::new(crate::tr!("cancel"))
+                        .label(crate::tr!("Cancel"))
                         .on_click(|_, window, cx| window.close_dialog(cx)),
-                    Button::new("program").primary().label("Program").on_click(
-                        move |_, window, cx| {
+                    Button::new(crate::tr!("program"))
+                        .primary()
+                        .label(crate::tr!("Program"))
+                        .on_click(move |_, window, cx| {
                             let f = f.clone();
                             f.update(cx, |f, cx| f.submit(window, cx));
-                        },
-                    ),
+                        }),
                 ]
             })
     });
@@ -143,7 +144,7 @@ impl ProgramSlotForm {
         msg: String,
     ) {
         window.close_dialog(cx);
-        let status = dialog::open_status_dialog("Programming Slot", window, cx);
+        let status = dialog::open_status_dialog(crate::tr!("Programming Slot"), window, cx);
         let _ = self
             .view
             .update(cx, |vm, cx| vm.execute_program(op, msg, status, cx));
@@ -160,7 +161,7 @@ impl ProgramSlotForm {
             parse_acc(&self.cur_acc.read(cx).text().to_string()),
         ) {
             (Some(n), Some(c)) => (n, c),
-            _ => return self.notify(cx, "Access codes must be hex, ≤ 6 bytes"),
+            _ => return self.notify(cx, crate::tr!("Access codes must be hex, ≤ 6 bytes")),
         };
         let slot = self.slot;
         let hex_secret = |s: &Entity<InputState>, cx: &mut Context<Self>| match hex::decode(
@@ -173,7 +174,7 @@ impl ProgramSlotForm {
         match ty {
             0 => {
                 let Some(bytes) = hex_secret(&self.secret, cx) else {
-                    return self.notify(cx, "Secret must be 1–20 bytes of hex");
+                    return self.notify(cx, crate::tr!("Secret must be 1–20 bytes of hex"));
                 };
                 self.dispatch(
                     window,
@@ -181,12 +182,12 @@ impl ProgramSlotForm {
                     move || {
                         DeviceRepo::otp_program_chalresp_blocking(slot, bytes, touch, new_a, cur_a)
                     },
-                    "Challenge-response programmed.".into(),
+                    crate::tr!("Challenge-response programmed.").into(),
                 );
             }
             1 => {
                 let Some(bytes) = hex_secret(&self.secret, cx) else {
-                    return self.notify(cx, "Secret must be 1–20 bytes of hex");
+                    return self.notify(cx, crate::tr!("Secret must be 1–20 bytes of hex"));
                 };
                 self.dispatch(
                     window,
@@ -196,7 +197,7 @@ impl ProgramSlotForm {
                             slot, bytes, digits8, append_cr, new_a, cur_a,
                         )
                     },
-                    "OATH-HOTP programmed.".into(),
+                    crate::tr!("OATH-HOTP programmed.").into(),
                 );
             }
             2 => {
@@ -204,7 +205,10 @@ impl ProgramSlotForm {
                     match otp::ascii_to_scancodes(self.password.read(cx).text().to_string().trim())
                     {
                         Some(s) if !s.is_empty() => s,
-                        _ => return self.notify(cx, "Password must be ASCII, 1–38 characters"),
+                        _ => {
+                            return self
+                                .notify(cx, crate::tr!("Password must be ASCII, 1–38 characters"));
+                        }
                     };
                 self.dispatch(
                     window,
@@ -214,7 +218,7 @@ impl ProgramSlotForm {
                             slot, scancodes, append_cr, new_a, cur_a,
                         )
                     },
-                    "Static password programmed.".into(),
+                    crate::tr!("Static password programmed.").into(),
                 );
             }
             _ => {
@@ -224,7 +228,7 @@ impl ProgramSlotForm {
                         _ => {
                             return self.notify(
                                 cx,
-                                "Public ID must be modhex (≤ 16 bytes) — use Generate",
+                                crate::tr!("Public ID must be modhex (≤ 16 bytes) — use Generate"),
                             );
                         }
                     };
@@ -232,19 +236,23 @@ impl ProgramSlotForm {
                     match hex::decode(self.yk_private.read(cx).text().to_string().trim()) {
                         Ok(b) if b.len() == 6 => b.try_into().unwrap(),
                         _ => {
-                            return self
-                                .notify(cx, "Private ID must be 6 bytes of hex — use Generate");
+                            return self.notify(
+                                cx,
+                                crate::tr!("Private ID must be 6 bytes of hex — use Generate"),
+                            );
                         }
                     };
                 let key: [u8; 16] =
                     match hex::decode(self.yk_key.read(cx).text().to_string().trim()) {
                         Ok(b) if b.len() == 16 => b.try_into().unwrap(),
                         _ => {
-                            return self
-                                .notify(cx, "Secret key must be 16 bytes of hex — use Generate");
+                            return self.notify(
+                                cx,
+                                crate::tr!("Secret key must be 16 bytes of hex — use Generate"),
+                            );
                         }
                     };
-                let msg = format!(
+                let msg = crate::tr!(
                     "Yubico OTP programmed. Register with a validation server:\nPublic ID: {}\nPrivate ID: {}\nKey: {}",
                     otp::modhex_encode(&public),
                     hex::encode(private),
@@ -283,7 +291,7 @@ impl ProgramSlotForm {
                     .child(v_flex().flex_1().child(Input::new(input)))
                     .child(
                         Button::new(gen_id)
-                            .label("Generate")
+                            .label(crate::tr!("Generate"))
                             .outline()
                             .on_click(cx.listener(move |_, _, window, cx| on_gen(window, cx))),
                     ),
@@ -319,7 +327,7 @@ impl Render for ProgramSlotForm {
             0 => v_flex()
                 .gap_3()
                 .child(self.input_with_generate(
-                    "Secret key (hex, ≤ 20 bytes)",
+                    crate::tr!("Secret key (hex, ≤ 20 bytes)"),
                     &self.secret,
                     "gen-secret",
                     {
@@ -333,12 +341,12 @@ impl Render for ProgramSlotForm {
                     },
                     cx,
                 ))
-                .child(labeled_select("Touch", &self.touch_sel))
+                .child(labeled_select(crate::tr!("Touch"), &self.touch_sel))
                 .into_any_element(),
             1 => v_flex()
                 .gap_3()
                 .child(self.input_with_generate(
-                    "Secret key (hex, ≤ 20 bytes)",
+                    crate::tr!("Secret key (hex, ≤ 20 bytes)"),
                     &self.secret,
                     "gen-secret",
                     {
@@ -355,14 +363,14 @@ impl Render for ProgramSlotForm {
                 .child(
                     h_flex()
                         .gap_3()
-                        .child(labeled_select("Digits", &self.digits_sel))
-                        .child(labeled_select("Append Enter", &self.append_sel)),
+                        .child(labeled_select(crate::tr!("Digits"), &self.digits_sel))
+                        .child(labeled_select(crate::tr!("Append Enter"), &self.append_sel)),
                 )
                 .into_any_element(),
             2 => v_flex()
                 .gap_3()
                 .child(self.input_with_generate(
-                    "Password (ASCII, 1–38 characters)",
+                    crate::tr!("Password (ASCII, 1–38 characters)"),
                     &self.password,
                     "gen-password",
                     {
@@ -377,22 +385,31 @@ impl Render for ProgramSlotForm {
                     },
                     cx,
                 ))
-                .child(labeled_select("Append Enter", &self.append_sel))
+                .child(labeled_select(crate::tr!("Append Enter"), &self.append_sel))
                 .into_any_element(),
             _ => v_flex()
                 .gap_3()
-                .child(labeled_input("Public ID (modhex)", &self.yk_public))
-                .child(labeled_input("Private ID (hex, 6 bytes)", &self.yk_private))
-                .child(labeled_input("Secret key (hex, 16 bytes)", &self.yk_key))
+                .child(labeled_input(
+                    crate::tr!("Public ID (modhex)"),
+                    &self.yk_public,
+                ))
+                .child(labeled_input(
+                    crate::tr!("Private ID (hex, 6 bytes)"),
+                    &self.yk_private,
+                ))
+                .child(labeled_input(
+                    crate::tr!("Secret key (hex, 16 bytes)"),
+                    &self.yk_key,
+                ))
                 .child(
                     h_flex()
                         .justify_between()
                         .items_center()
-                        .child(labeled_select("Append Enter", &self.append_sel)),
+                        .child(labeled_select(crate::tr!("Append Enter"), &self.append_sel)),
                 )
                 .child(
                     Button::new("gen-yubico")
-                        .label("Generate keys")
+                        .label(crate::tr!("Generate keys"))
                         .outline()
                         .on_click(cx.listener({
                             let (pubf, privf, keyf) = (
@@ -421,7 +438,10 @@ impl Render for ProgramSlotForm {
         v_flex()
             .gap_3()
             .pb_2()
-            .child(labeled_select("Credential type", &self.type_sel))
+            .child(labeled_select(
+                crate::tr!("Credential type"),
+                &self.type_sel,
+            ))
             .child(type_fields)
             .child(
                 v_flex()
@@ -431,13 +451,13 @@ impl Render for ProgramSlotForm {
                         div()
                             .text_xs()
                             .text_color(rgb(0x8b8b8f))
-                            .child("Slot access code (optional)"),
+                            .child(crate::tr!("Slot access code (optional)")),
                     )
                     .child(
                         h_flex()
                             .gap_3()
-                            .child(labeled_input("Set new code", &self.new_acc))
-                            .child(labeled_input("Current code", &self.cur_acc)),
+                            .child(labeled_input(crate::tr!("Set new code"), &self.new_acc))
+                            .child(labeled_input(crate::tr!("Current code"), &self.cur_acc)),
                     ),
             )
     }

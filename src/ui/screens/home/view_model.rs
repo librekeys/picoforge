@@ -32,15 +32,15 @@ impl HomeViewModel {
         // Keep sorted for readability; matches are exact.
         let (tag, _bcd) = match bcd {
             // v0.4.4 — challenge-response fixes, OTP frame protocol, touch gate
-            0x0859..=0x085B => ("v0.4.4", bcd),
+            0x0859..=0x085B => (crate::tr!("v0.4.4"), bcd),
             // v0.4.3 — CTAP 2.1 text pass, 28th security audit
-            0x0857 | 0x0858 => ("v0.4.3", bcd),
+            0x0857 | 0x0858 => (crate::tr!("v0.4.3"), bcd),
             // v0.4.2 — fingerprint-free credential IDs, makeCredUvNotRqd
-            0x0851..=0x0855 => ("v0.4.2", bcd),
+            0x0851..=0x0855 => (crate::tr!("v0.4.2"), bcd),
             // v0.4.1 — ykman interop fixes, OATH CALCULATE ALL, CCID ATR
-            0x084A..=0x0850 => ("v0.4.1", bcd),
+            0x084A..=0x0850 => (crate::tr!("v0.4.1"), bcd),
             // v0.4.0 — USB identity, audit journal, security fixes
-            0x083D | 0x0847 | 0x0848 | 0x0849 => ("v0.4.0", bcd),
+            0x083D | 0x0847 | 0x0848 | 0x0849 => (crate::tr!("v0.4.0"), bcd),
             _ => return None,
         };
         Some(tag)

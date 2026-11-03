@@ -84,7 +84,7 @@ impl AttestationViewModel {
         cx.new(|cx| {
             InputState::new(window, cx)
                 .masked(true)
-                .placeholder("FIDO PIN — leave blank to touch instead")
+                .placeholder(crate::tr!("FIDO PIN — leave blank to touch instead"))
         })
     }
 
@@ -96,7 +96,7 @@ impl AttestationViewModel {
             files: true,
             directories: false,
             multiple: false,
-            prompt: Some("Select attestation P-256 private key (PEM/DER)".into()),
+            prompt: Some(crate::tr!("Select attestation P-256 private key (PEM/DER)").into()),
         });
         let view = cx.entity().downgrade();
         self._task = Some(cx.spawn(async move |_, cx| {
@@ -108,7 +108,7 @@ impl AttestationViewModel {
             };
             let Ok(key_bytes) = std::fs::read(&key_path) else {
                 let _ = view.update(cx, |_, cx| {
-                    cx.emit(AttestationEvent::Notification("Could not read the key file".into()))
+                    cx.emit(AttestationEvent::Notification(crate::tr!("Could not read the key file").into()))
                 });
                 return;
             };
@@ -118,7 +118,7 @@ impl AttestationViewModel {
                     files: true,
                     directories: false,
                     multiple: false,
-                    prompt: Some("Select certificate chain, leaf first (PEM/DER)".into()),
+                    prompt: Some(crate::tr!("Select certificate chain, leaf first (PEM/DER)").into()),
                 })
             });
             let Ok(chain_recv) = chain_recv else { return };
@@ -130,21 +130,21 @@ impl AttestationViewModel {
             };
             let Ok(chain_bytes) = std::fs::read(&chain_path) else {
                 let _ = view.update(cx, |_, cx| {
-                    cx.emit(AttestationEvent::Notification("Could not read the chain file".into()))
+                    cx.emit(AttestationEvent::Notification(crate::tr!("Could not read the chain file").into()))
                 });
                 return;
             };
             let _ = cx.update_window(handle, |_, window, cx| {
                 let _ = view.update(cx, |this, cx| {
                     this.open_pin_dialog(
-                        "Import Org Attestation",
-                        "Installs the org attestation key and chain (P-256). Requires the FIDO PIN, or a touch if none is set.",
+                        crate::tr!("Import Org Attestation"),
+                        crate::tr!("Installs the org attestation key and chain (P-256). Requires the FIDO PIN, or a touch if none is set."),
                         move |pin, this, window, cx| {
-                            let status = dialog::open_status_dialog("Importing Attestation", window, cx);
+                            let status = dialog::open_status_dialog(crate::tr!("Importing Attestation"), window, cx);
                             let (kb, cb) = (key_bytes.clone(), chain_bytes.clone());
                             this.run_unit(
                                 move || DeviceRepo::att_import_blocking(pin, kb, cb),
-                                "Org attestation installed.",
+                                crate::tr!("Org attestation installed."),
                                 status,
                                 cx,
                             );
@@ -161,13 +161,13 @@ impl AttestationViewModel {
 
     pub(super) fn open_clear(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.open_pin_dialog(
-            "Remove Org Attestation",
-            "Removes the org attestation and reverts to the self-signed device certificate. Requires the FIDO PIN, or a touch if none is set.",
+            crate::tr!("Remove Org Attestation"),
+            crate::tr!("Removes the org attestation and reverts to the self-signed device certificate. Requires the FIDO PIN, or a touch if none is set."),
             |pin, this, window, cx| {
-                let status = dialog::open_status_dialog("Removing Attestation", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Removing Attestation"), window, cx);
                 this.run_unit(
                     move || DeviceRepo::att_clear_blocking(pin),
-                    "Org attestation removed.",
+                    crate::tr!("Org attestation removed."),
                     status,
                     cx,
                 );
@@ -210,7 +210,7 @@ impl AttestationViewModel {
                     gpui_component::v_flex()
                         .gap_2()
                         .pb_2()
-                        .child("FIDO PIN")
+                        .child(crate::tr!("FIDO PIN"))
                         .child(gpui_component::input::Input::new(&pin)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -220,12 +220,12 @@ impl AttestationViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("go")
+                        gpui_component::button::Button::new(crate::tr!("go"))
                             .primary()
-                            .label("Run")
+                            .label(crate::tr!("Run"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -244,7 +244,7 @@ impl AttestationViewModel {
         }
         self.loading = true;
         let _ = status.update(cx, |d, cx| {
-            d.set_loading("Working… touch the device (BOOTSEL).", cx)
+            d.set_loading(crate::tr!("Working… touch the device (BOOTSEL)."), cx)
         });
         cx.notify();
         let weak = cx.entity().downgrade();

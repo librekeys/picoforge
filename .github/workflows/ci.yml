@@ -41,6 +41,9 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      - name: Validate i18n catalogs
+        run: python3 .github/scripts/check_locales.py
+
       - name: Run cargo check
         run: cargo check --all-targets
 

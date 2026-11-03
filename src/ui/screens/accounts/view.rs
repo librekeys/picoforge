@@ -13,7 +13,7 @@ use gpui_component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v
 fn format_code(code: &str) -> String {
     if code.len() >= 6 {
         let mid = code.len() / 2;
-        format!("{} {}", &code[..mid], &code[mid..])
+        crate::tr!("{} {}", &code[..mid], &code[mid..])
     } else {
         code.to_string()
     }
@@ -76,7 +76,7 @@ impl AccountsViewModel {
 
         let acc_for_rename = acc.clone();
         let rename_btn = can_rename.then(|| {
-            Button::new(SharedString::from(format!("ren-{id}")))
+            Button::new(SharedString::from(crate::tr!("ren-{id}", id = id)))
                 .icon(Icon::default().path("icons/tag.svg"))
                 .ghost()
                 .on_click(cx.listener(move |this, _, window, cx| {
@@ -84,7 +84,7 @@ impl AccountsViewModel {
                 }))
         });
         let acc_for_delete = acc.clone();
-        let delete_btn = Button::new(SharedString::from(format!("del-{id}")))
+        let delete_btn = Button::new(SharedString::from(crate::tr!("del-{id}", id = id)))
             .icon(Icon::default().path("icons/trash-2.svg"))
             .ghost()
             .on_click(cx.listener(move |this, _, window, cx| {
@@ -111,10 +111,10 @@ impl AccountsViewModel {
                             .w_8()
                             .text_xs()
                             .text_color(theme.muted_foreground)
-                            .child(format!("{rem}s")),
+                            .child(crate::tr!("{rem}s", rem = rem)),
                     )
                     .child(
-                        Button::new(SharedString::from(format!("copy-{id}")))
+                        Button::new(SharedString::from(crate::tr!("copy-{id}", id = id)))
                             .icon(Icon::default().path("icons/copy.svg"))
                             .ghost()
                             .on_click(cx.listener(move |this, _, _, cx| {
@@ -128,8 +128,8 @@ impl AccountsViewModel {
                 .gap_3()
                 .items_center()
                 .child(
-                    Button::new(SharedString::from(format!("calc-{id}")))
-                        .label("Generate")
+                    Button::new(SharedString::from(crate::tr!("calc-{id}", id = id)))
+                        .label(crate::tr!("Generate"))
                         .outline()
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.calculate(id.clone(), period, cx);
@@ -141,8 +141,8 @@ impl AccountsViewModel {
                 .gap_3()
                 .items_center()
                 .child(
-                    Button::new(SharedString::from(format!("touch-{id}")))
-                        .label("Touch to reveal")
+                    Button::new(SharedString::from(crate::tr!("touch-{id}", id = id)))
+                        .label(crate::tr!("Touch to reveal"))
                         .outline()
                         .on_click(cx.listener(move |this, _, _, cx| {
                             this.calculate(id.clone(), period, cx);
@@ -167,25 +167,25 @@ impl AccountsViewModel {
 
 impl Render for AccountsViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        const TITLE: &str = "Accounts";
-        const SUBTITLE: &str = "One-time password accounts (OATH).";
+        let title: &str = crate::tr!("Accounts");
+        let subtitle: &str = crate::tr!("One-time password accounts (OATH).");
 
         if let Some((heading, body)) = self.gate(cx).message() {
             let theme = cx.theme();
-            return PageView::build(TITLE, SUBTITLE, empty_state(heading, body, theme), theme)
+            return PageView::build(title, subtitle, empty_state(heading, body, theme), theme)
                 .into_any_element();
         }
 
         if self.needs_password && !self.loaded {
             let unlock = Button::new("unlock-oath")
                 .icon(Icon::default().path("icons/lock-open.svg"))
-                .label("Unlock")
+                .label(crate::tr!("Unlock"))
                 .primary()
                 .on_click(cx.listener(|this, _, window, cx| this.open_unlock_dialog(window, cx)));
             let theme = cx.theme();
             let card = Card::new()
-                .title("Accounts")
-                .description("Password-protected")
+                .title(crate::tr!("Accounts"))
+                .description(crate::tr!("Password-protected"))
                 .icon(Icon::default().path("icons/key.svg"))
                 .child(
                     v_flex()
@@ -196,17 +196,17 @@ impl Render for AccountsViewModel {
                         .child(
                             div()
                                 .font_semibold()
-                                .child("Accounts are password-protected"),
+                                .child(crate::tr!("Accounts are password-protected")),
                         )
                         .child(
                             div()
                                 .text_sm()
                                 .text_color(theme.muted_foreground)
-                                .child("Enter the OATH password to view your codes."),
+                                .child(crate::tr!("Enter the OATH password to view your codes.")),
                         )
                         .child(unlock),
                 );
-            return PageView::build(TITLE, SUBTITLE, card, theme).into_any_element();
+            return PageView::build(title, subtitle, card, theme).into_any_element();
         }
 
         // Build rows first (mutable cx), then the chrome.
@@ -224,9 +224,9 @@ impl Render for AccountsViewModel {
         }
 
         let password_label = if self.password_is_set() {
-            "Change password"
+            crate::tr!("Change password")
         } else {
-            "Set password"
+            crate::tr!("Set password")
         };
         let theme = cx.theme();
         let password_btn =
@@ -246,12 +246,12 @@ impl Render for AccountsViewModel {
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
         let add_btn = Button::new("add-account")
             .icon(Icon::default().path("icons/plus.svg"))
-            .label("Add account")
+            .label(crate::tr!("Add account"))
             .primary()
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, window, cx| this.open_add_dialog(window, cx)));
         let reset_btn = Button::new("reset-oath")
-            .label("Reset OATH applet")
+            .label(crate::tr!("Reset OATH applet"))
             .danger()
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, window, cx| this.open_reset_dialog(window, cx)));
@@ -263,8 +263,8 @@ impl Render for AccountsViewModel {
             .child(add_btn);
         let list = if rows.is_empty() {
             empty_state(
-                "No accounts yet",
-                "Add an account from an otpauth:// URI or a base32 secret.".into(),
+                crate::tr!("No accounts yet"),
+                crate::tr!("Add an account from an otpauth:// URI or a base32 secret.").into(),
                 theme,
             )
         } else {
@@ -272,14 +272,14 @@ impl Render for AccountsViewModel {
         };
 
         let accounts_card = Card::new()
-            .title("Accounts")
-            .description(format!("{} stored", accounts.len()))
+            .title(crate::tr!("Accounts"))
+            .description(crate::tr!("{} stored", accounts.len()))
             .icon(Icon::default().path("icons/users-round.svg"))
             .header_right(toolbar)
             .child(list);
         let reset_card = Card::new()
-            .title("Reset")
-            .description("Erase all accounts and the OATH password")
+            .title(crate::tr!("Reset"))
+            .description(crate::tr!("Erase all accounts and the OATH password"))
             .icon(Icon::default().path("icons/trash.svg"))
             .child(
                 h_flex()
@@ -288,15 +288,17 @@ impl Render for AccountsViewModel {
                     .child(
                         v_flex()
                             .gap_1()
-                            .child(div().font_medium().child("Reset OATH applet"))
+                            .child(div().font_medium().child(crate::tr!("Reset OATH applet")))
                             .child(div().text_sm().text_color(theme.muted_foreground).child(
-                                "Deletes every account and the password. Cannot be undone.",
+                                crate::tr!(
+                                    "Deletes every account and the password. Cannot be undone."
+                                ),
                             )),
                     )
                     .child(reset_btn),
             );
 
         let content = v_flex().gap_6().child(accounts_card).child(reset_card);
-        PageView::build(TITLE, SUBTITLE, content, theme).into_any_element()
+        PageView::build(title, subtitle, content, theme).into_any_element()
     }
 }

@@ -7,8 +7,8 @@ impl Render for AboutViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
         PageView::build(
-            "About",
-            "Information about the application and its development.",
+            crate::tr!("About"),
+            crate::tr!("Information about the application and its development."),
             div()
                 .w_full()
                 .flex()
@@ -36,13 +36,13 @@ impl Render for AboutViewModel {
                                             .text_color(theme.foreground)
                                             .child("PicoForge"),
                                     )
-                                    .child(Tag::new("v0.9.0"))
+                                    .child(Tag::new(crate::tr!("v0.9.0")))
                                     .child(
                                         div()
                                             .text_color(theme.muted_foreground)
                                             .max_w(px(450.0))
                                             .child(
-                                                "An open source commissioning tool for RS-Key and pico-fido security keys. Developed with Rust and GPUI.",
+                                                crate::tr!("An open source commissioning tool for RS-Key and pico-fido security keys. Developed with Rust and GPUI."),
                                             ),
                                     )
                                     .child(
@@ -60,13 +60,13 @@ impl Render for AboutViewModel {
                                                 h_flex()
                                                     .justify_between()
                                                     .items_start()
-                                                    .child("Code By:")
+                                                    .child(crate::tr!("Code By:"))
                                                     .child(
                                                         v_flex()
                                                             .font_medium()
                                                             .text_color(theme.foreground)
                                                             .items_end()
-                                                            .child("PicoForge Contributers"),
+                                                            .child(crate::tr!("PicoForge Contributers")),
                                                     ),
                                             )
                                             .child(
@@ -75,12 +75,12 @@ impl Render for AboutViewModel {
                                                     .items_center()
                                                     .pt_2()
                                                     .mt_2()
-                                                    .child(h_flex().items_center().gap_1().child("Copyright:"))
+                                                    .child(h_flex().items_center().gap_1().child(crate::tr!("Copyright:")))
                                                     .child(
                                                         div()
                                                             .font_medium()
                                                             .text_color(theme.foreground)
-                                                            .child("©2026 Suyog Tandel"),
+                                                            .child(crate::tr!("©2026 Suyog Tandel")),
                                                     ),
                                             ),
                                     )
@@ -100,7 +100,7 @@ impl Render for AboutViewModel {
                                                                     .path("icons/github.svg")
                                                                     .size_4(),
                                                             )
-                                                            .child("GitHub"),
+                                                            .child(crate::tr!("GitHub")),
                                                     )
                                                     .on_click(|_, _, cx| {
                                                         cx.open_url("https://github.com/librekeys/picoforge")
@@ -118,7 +118,7 @@ impl Render for AboutViewModel {
                                                                     .path("icons/book-open.svg")
                                                                     .size_4(),
                                                             )
-                                                            .child("Wiki"),
+                                                            .child(crate::tr!("Wiki")),
                                                     )
                                                     .on_click(|_, _, cx| {
                                                         cx.open_url(

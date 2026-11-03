@@ -66,7 +66,9 @@ impl OpenPgpViewModel {
         match repo.openpgp_features() {
             None => AppletGate::Unsupported,
             Some(_) if !repo.ccid_on() => AppletGate::CcidOff,
-            Some(_) if !repo.applet_enabled(USB_CAP_OPENPGP) => AppletGate::Disabled("OpenPGP"),
+            Some(_) if !repo.applet_enabled(USB_CAP_OPENPGP) => {
+                AppletGate::Disabled(crate::tr!("OpenPGP"))
+            }
             Some(_) => AppletGate::Ready,
         }
     }
@@ -100,8 +102,11 @@ impl OpenPgpViewModel {
                         this.loaded = true;
                     }
                     Err(e) => {
-                        log::warn!("OpenPGP read failed: {e}");
-                        cx.emit(OpenPgpEvent::Notification(format!("OpenPGP: {e}")));
+                        log::warn!("{}", crate::tr!("OpenPGP read failed: {e}", e = e));
+                        cx.emit(OpenPgpEvent::Notification(crate::tr!(
+                            "OpenPGP: {e}",
+                            e = e
+                        )));
                     }
                 }
                 cx.notify();
@@ -137,7 +142,8 @@ impl OpenPgpViewModel {
                         this.load(cx);
                     }
                     Err(e) => {
-                        let _ = status.update(cx, |d, cx| d.set_error(format!("{e}"), cx));
+                        let _ =
+                            status.update(cx, |d, cx| d.set_error(crate::tr!("{e}", e = e), cx));
                     }
                 }
                 cx.notify();
@@ -149,66 +155,66 @@ impl OpenPgpViewModel {
 
     pub(super) fn open_change_user_pin(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.two_secret_dialog(
-            "Change User PIN",
-            "Current PIN (PW1)",
-            "New PIN",
+            crate::tr!("Change User PIN"),
+            crate::tr!("Current PIN (PW1)"),
+            crate::tr!("New PIN"),
             None,
             window,
             cx,
             DeviceRepo::openpgp_change_user_pin_blocking,
-            "User PIN changed.",
+            crate::tr!("User PIN changed."),
         );
     }
 
     pub(super) fn open_change_admin_pin(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.two_secret_dialog(
-            "Change Admin PIN",
-            "Current admin PIN (PW3)",
-            "New admin PIN",
+            crate::tr!("Change Admin PIN"),
+            crate::tr!("Current admin PIN (PW3)"),
+            crate::tr!("New admin PIN"),
             None,
             window,
             cx,
             DeviceRepo::openpgp_change_admin_pin_blocking,
-            "Admin PIN changed.",
+            crate::tr!("Admin PIN changed."),
         );
     }
 
     pub(super) fn open_unblock_with_code(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.two_secret_dialog(
-            "Unblock with Reset Code",
-            "Reset code",
-            "New user PIN",
+            crate::tr!("Unblock with Reset Code"),
+            crate::tr!("Reset code"),
+            crate::tr!("New user PIN"),
             None,
             window,
             cx,
             DeviceRepo::openpgp_unblock_with_code_blocking,
-            "User PIN unblocked.",
+            crate::tr!("User PIN unblocked."),
         );
     }
 
     pub(super) fn open_unblock_with_admin(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.two_secret_dialog(
-            "Unblock with Admin PIN",
-            "Admin PIN (PW3)",
-            "New user PIN",
+            crate::tr!("Unblock with Admin PIN"),
+            crate::tr!("Admin PIN (PW3)"),
+            crate::tr!("New user PIN"),
             Some(openpgp::DEFAULT_PW3),
             window,
             cx,
             DeviceRepo::openpgp_unblock_with_admin_blocking,
-            "User PIN unblocked.",
+            crate::tr!("User PIN unblocked."),
         );
     }
 
     pub(super) fn open_set_reset_code(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.two_secret_dialog(
-            "Set Reset Code",
-            "Admin PIN (PW3)",
-            "New reset code",
+            crate::tr!("Set Reset Code"),
+            crate::tr!("Admin PIN (PW3)"),
+            crate::tr!("New reset code"),
             Some(openpgp::DEFAULT_PW3),
             window,
             cx,
             DeviceRepo::openpgp_set_reset_code_blocking,
-            "Reset code updated.",
+            crate::tr!("Reset code updated."),
         );
     }
 
@@ -276,12 +282,12 @@ impl OpenPgpViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_component::button::Button::new(crate::tr!("ok"))
                             .primary()
-                            .label("Save")
+                            .label(crate::tr!("Save"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -315,11 +321,13 @@ impl OpenPgpViewModel {
                 }
                 let choice = selected_key(&algo_sel, algos, cx);
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Generating Key", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Generating Key"), window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run(
                         move || DeviceRepo::openpgp_generate_blocking(admin_pin, slot, choice),
-                        "Key generated. Use GnuPG to set the fingerprint and publish the key.",
+                        crate::tr!(
+                            "Key generated. Use GnuPG to set the fingerprint and publish the key."
+                        ),
                         status,
                         cx,
                     );
@@ -332,19 +340,19 @@ impl OpenPgpViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             dialog
-                .title(format!("Generate — {}", slot.label()))
-                .child("Generates a new key pair in this slot (overwrites any existing key). This can take several seconds for RSA.")
+                .title(crate::tr!("Generate — {}", slot.label()))
+                .child(crate::tr!("Generates a new key pair in this slot (overwrites any existing key). This can take several seconds for RSA."))
                 .child(
                     gpui_component::v_flex()
                         .gap_3()
                         .pb_2()
-                        .child("Algorithm")
+                        .child(crate::tr!("Algorithm"))
                         .child(
                             gpui_component::select::Select::new(&algo_sel)
                                 .w_full()
                                 .bg(rgb(0x222225)),
                         )
-                        .child("Admin PIN (PW3)")
+                        .child(crate::tr!("Admin PIN (PW3)"))
                         .child(gpui_component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -354,12 +362,12 @@ impl OpenPgpViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("gen")
+                        gpui_component::button::Button::new(crate::tr!("gen"))
                             .primary()
-                            .label("Generate")
+                            .label(crate::tr!("Generate"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -394,11 +402,12 @@ impl OpenPgpViewModel {
                 }
                 let on = selected_key(&touch_sel, OPT_TOUCH, cx) == 1;
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Updating Touch Policy", window, cx);
+                let status =
+                    dialog::open_status_dialog(crate::tr!("Updating Touch Policy"), window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run(
                         move || DeviceRepo::openpgp_set_touch_blocking(admin_pin, slot, on),
-                        "Touch policy updated.",
+                        crate::tr!("Touch policy updated."),
                         status,
                         cx,
                     );
@@ -411,19 +420,21 @@ impl OpenPgpViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             dialog
-                .title(format!("Touch — {}", slot.label()))
-                .child("When on, this key requires a physical touch for every operation.")
+                .title(crate::tr!("Touch — {}", slot.label()))
+                .child(crate::tr!(
+                    "When on, this key requires a physical touch for every operation."
+                ))
                 .child(
                     gpui_component::v_flex()
                         .gap_3()
                         .pb_2()
-                        .child("Touch requirement")
+                        .child(crate::tr!("Touch requirement"))
                         .child(
                             gpui_component::select::Select::new(&touch_sel)
                                 .w_full()
                                 .bg(rgb(0x222225)),
                         )
-                        .child("Admin PIN (PW3)")
+                        .child(crate::tr!("Admin PIN (PW3)"))
                         .child(gpui_component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -433,12 +444,12 @@ impl OpenPgpViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_component::button::Button::new(crate::tr!("ok"))
                             .primary()
-                            .label("Save")
+                            .label(crate::tr!("Save"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -498,7 +509,8 @@ impl OpenPgpViewModel {
                 let lang_v = lang.read(cx).text().to_string();
                 let sex_v = selected_key(&sex, OPT_SEX, cx);
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Saving Cardholder", window, cx);
+                let status =
+                    dialog::open_status_dialog(crate::tr!("Saving Cardholder"), window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run(
                         move || {
@@ -506,7 +518,7 @@ impl OpenPgpViewModel {
                                 admin_pin, name_v, login_v, url_v, lang_v, sex_v,
                             )
                         },
-                        "Cardholder details saved.",
+                        crate::tr!("Cardholder details saved."),
                         status,
                         cx,
                     );
@@ -523,23 +535,25 @@ impl OpenPgpViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             dialog
-                .title("Edit Cardholder")
-                .child("Cardholder metadata stored on the card. Requires the admin PIN.")
+                .title(crate::tr!("Edit Cardholder"))
+                .child(crate::tr!(
+                    "Cardholder metadata stored on the card. Requires the admin PIN."
+                ))
                 .child(
                     gpui_component::v_flex()
                         .gap_3()
                         .pb_2()
-                        .child("Name")
+                        .child(crate::tr!("Name"))
                         .child(gpui_component::input::Input::new(&name))
-                        .child("Login")
+                        .child(crate::tr!("Login"))
                         .child(gpui_component::input::Input::new(&login))
-                        .child("URL")
+                        .child(crate::tr!("URL"))
                         .child(gpui_component::input::Input::new(&url))
-                        .child("Language (ISO-639, e.g. en)")
+                        .child(crate::tr!("Language (ISO-639, e.g. en)"))
                         .child(gpui_component::input::Input::new(&lang))
-                        .child("Sex")
+                        .child(crate::tr!("Sex"))
                         .child(gpui_component::select::Select::new(&sex))
-                        .child("Admin PIN (PW3)")
+                        .child(crate::tr!("Admin PIN (PW3)"))
                         .child(gpui_component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
@@ -549,12 +563,12 @@ impl OpenPgpViewModel {
                 .footer(move |_, _w, _c, _| {
                     let s = btn.clone();
                     vec![
-                        gpui_component::button::Button::new("cancel")
-                            .label("Cancel")
+                        gpui_component::button::Button::new(crate::tr!("cancel"))
+                            .label(crate::tr!("Cancel"))
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_component::button::Button::new(crate::tr!("ok"))
                             .primary()
-                            .label("Save")
+                            .label(crate::tr!("Save"))
                             .on_click(move |_, window, cx| s(window, cx)),
                     ]
                 })
@@ -566,17 +580,17 @@ impl OpenPgpViewModel {
     pub(super) fn open_reset_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let view = cx.entity().downgrade();
         dialog::open_confirm(
-            "Reset OpenPGP Applet",
-            "This blocks both PINs, then factory-resets the OpenPGP applet — deleting ALL keys and restoring the default PINs (123456 / 12345678). This cannot be undone.".to_string(),
-            "Reset",
+            crate::tr!("Reset OpenPGP Applet"),
+            crate::tr!("This blocks both PINs, then factory-resets the OpenPGP applet — deleting ALL keys and restoring the default PINs (123456 / 12345678). This cannot be undone.").to_string(),
+            crate::tr!("Reset"),
             gpui_component::button::ButtonVariant::Danger,
             window,
             cx,
             move |_dh, window, cx| {
                 window.close_dialog(cx);
-                let status = dialog::open_status_dialog("Resetting OpenPGP", window, cx);
+                let status = dialog::open_status_dialog(crate::tr!("Resetting OpenPGP"), window, cx);
                 let _ = view.update(cx, |this, cx| {
-                    this.run(DeviceRepo::openpgp_reset_blocking, "OpenPGP applet reset.", status, cx);
+                    this.run(DeviceRepo::openpgp_reset_blocking, crate::tr!("OpenPGP applet reset."), status, cx);
                 });
             },
         );

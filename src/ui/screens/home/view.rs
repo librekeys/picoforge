@@ -42,12 +42,12 @@ impl HomeViewModel {
             && let Some(bcd) = status.info.bcd_device
         {
             if let Some(ver) = Self::rs_key_version_from_bcd(bcd) {
-                format!("RS-Key {} (build 0x{:04X})", ver, bcd)
+                crate::tr!("RS-Key {} (build 0x{:04X})", ver, bcd)
             } else {
-                format!("RS-Key build 0x{:04X}", bcd)
+                crate::tr!("RS-Key build 0x{:04X}", bcd)
             }
         } else {
-            format!("v{}", status.info.firmware_version)
+            crate::tr!("v{}", status.info.firmware_version)
         }
     }
 
@@ -55,11 +55,11 @@ impl HomeViewModel {
     fn format_flash_size(bytes: u32) -> String {
         const MB: u32 = 1024 * 1024;
         if bytes >= MB && bytes.is_multiple_of(MB) {
-            format!("{} MB", bytes / MB)
+            crate::tr!("{} MB", bytes / MB)
         } else if bytes >= 1024 && bytes.is_multiple_of(1024) {
-            format!("{} KB", bytes / 1024)
+            crate::tr!("{} KB", bytes / 1024)
         } else {
-            format!("{} B", bytes)
+            crate::tr!("{} B", bytes)
         }
     }
 
@@ -70,13 +70,13 @@ impl HomeViewModel {
         // not the whole chip — label it honestly and surface objects + chip size.
         let is_rskey = status.firmware_type == FirmwareType::RSKey;
         let flash_label = if is_rskey {
-            "Storage (credentials & config)"
+            crate::tr!("Storage (credentials & config)")
         } else {
-            "Flash Memory"
+            crate::tr!("Flash Memory")
         };
 
         Card::new()
-            .title("Device Information")
+            .title(crate::tr!("Device Information"))
             .icon(Icon::default().path("icons/cpu.svg"))
             .child(
                 v_flex()
@@ -87,39 +87,39 @@ impl HomeViewModel {
                             .grid_cols(2)
                             .gap_4()
                             .child(Self::render_kv(
-                                "Serial Number",
+                                crate::tr!("Serial Number"),
                                 info.serial.clone(),
                                 theme,
                                 true,
                             ))
                             .child(Self::render_kv(
-                                "Firmware Version",
+                                crate::tr!("Firmware Version"),
                                 Self::firmware_version_label(status),
                                 theme,
                                 true,
                             ))
                             .child(Self::render_kv(
-                                "Firmware Type",
+                                crate::tr!("Firmware Type"),
                                 status.firmware_type.to_string(),
                                 theme,
                                 false,
                             ))
                             .child(Self::render_kv(
-                                "VID:PID",
-                                format!("{}:{}", config.vid, config.pid),
+                                crate::tr!("VID:PID"),
+                                crate::tr!("{}:{}", config.vid, config.pid),
                                 theme,
                                 true,
                             ))
                             .child(Self::render_kv(
-                                "Manufacturer",
+                                crate::tr!("Manufacturer"),
                                 info.manufacturer
                                     .clone()
-                                    .unwrap_or_else(|| "Unknown".to_string()),
+                                    .unwrap_or_else(|| crate::tr!("Unknown").to_string()),
                                 theme,
                                 false,
                             ))
                             .child(Self::render_kv(
-                                "Product Name",
+                                crate::tr!("Product Name"),
                                 config.product_name.clone(),
                                 theme,
                                 false,
@@ -140,9 +140,9 @@ impl HomeViewModel {
                                         if let (Some(used), Some(total)) =
                                             (info.flash_used, info.flash_total)
                                         {
-                                            format!("{:.0} / {:.0} KB", used, total)
+                                            crate::tr!("{:.0} / {:.0} KB", used, total)
                                         } else {
-                                            "Not Available".to_string()
+                                            crate::tr!("Not Available").to_string()
                                         },
                                     )),
                             )
@@ -163,7 +163,7 @@ impl HomeViewModel {
                                         .child(
                                             div()
                                                 .text_color(theme.muted_foreground)
-                                                .child("Stored objects"),
+                                                .child(crate::tr!("Stored objects")),
                                         )
                                         .child(
                                             div()
@@ -180,7 +180,7 @@ impl HomeViewModel {
                                         .child(
                                             div()
                                                 .text_color(theme.muted_foreground)
-                                                .child("Flash chip"),
+                                                .child(crate::tr!("Flash chip")),
                                         )
                                         .child(
                                             div()
@@ -195,7 +195,7 @@ impl HomeViewModel {
 
     fn render_fido_info(fido: Option<&FidoDeviceInfo>, theme: &Theme) -> impl IntoElement {
         Card::new()
-            .title("FIDO2 Information")
+            .title(crate::tr!("FIDO2 Information"))
             .icon(Icon::default().path("icons/shield.svg"))
             .child(if let Some(fido) = fido {
                 v_flex()
@@ -224,13 +224,13 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("FIDO Versions"),
+                                    .child(crate::tr!("FIDO Versions")),
                             )
                             .child(div().text_color(theme.foreground).child(
                                 if fido.versions.is_empty() {
-                                    "N/A".to_string()
+                                    crate::tr!("N/A").to_string()
                                 } else {
-                                    fido.versions.join(" · ")
+                                    fido.versions.join(crate::tr!(" · "))
                                 },
                             )),
                     )
@@ -239,11 +239,20 @@ impl HomeViewModel {
                         h_flex()
                             .justify_between()
                             .items_center()
-                            .child(div().text_color(theme.muted_foreground).child("PIN Set"))
+                            .child(
+                                div()
+                                    .text_color(theme.muted_foreground)
+                                    .child(crate::tr!("PIN Set")),
+                            )
                             .child({
                                 let pin_set =
                                     fido.options.get("clientPin").copied().unwrap_or(false);
-                                Tag::new(if pin_set { "Set" } else { "Not Set" }).active(pin_set)
+                                Tag::new(if pin_set {
+                                    crate::tr!("Set")
+                                } else {
+                                    crate::tr!("Not Set")
+                                })
+                                .active(pin_set)
                             }),
                     )
                     .child(
@@ -253,15 +262,15 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Resident Keys"),
+                                    .child(crate::tr!("Resident Keys")),
                             )
                             .child({
                                 let resident_keys_supported =
-                                    fido.options.get("rk").copied().unwrap_or(false);
+                                    fido.options.get(crate::tr!("rk")).copied().unwrap_or(false);
                                 Tag::new(if resident_keys_supported {
-                                    "Supported"
+                                    crate::tr!("Supported")
                                 } else {
-                                    "Not Supported"
+                                    crate::tr!("Not Supported")
                                 })
                                 .active(resident_keys_supported)
                             }),
@@ -273,7 +282,7 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Min PIN Length"),
+                                    .child(crate::tr!("Min PIN Length")),
                             )
                             .child(
                                 div()
@@ -289,15 +298,15 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Enterprise attestation"),
+                                    .child(crate::tr!("Enterprise attestation")),
                             )
                             .child(div().font_medium().text_color(theme.foreground).child({
                                 let enterprise_attestation_set =
-                                    fido.options.get("ep").copied().unwrap_or(false);
+                                    fido.options.get(crate::tr!("ep")).copied().unwrap_or(false);
                                 Tag::new(if enterprise_attestation_set {
-                                    "Set"
+                                    crate::tr!("Set")
                                 } else {
-                                    "Not Set"
+                                    crate::tr!("Not Set")
                                 })
                                 .active(enterprise_attestation_set)
                             })),
@@ -310,7 +319,7 @@ impl HomeViewModel {
                                 .child(
                                     div()
                                         .text_color(theme.muted_foreground)
-                                        .child("Remaining Credentials"),
+                                        .child(crate::tr!("Remaining Credentials")),
                                 )
                                 .child(
                                     div().font_medium().text_color(theme.foreground).child(
@@ -326,7 +335,7 @@ impl HomeViewModel {
                 div()
                     .text_sm()
                     .text_color(theme.muted_foreground)
-                    .child("FIDO information not available")
+                    .child(crate::tr!("FIDO information not available"))
                     .into_any_element()
             })
     }
@@ -336,7 +345,7 @@ impl HomeViewModel {
         let has_fido_config =
             status.firmware_type == FirmwareType::RSKey || status.method != DeviceMethod::Fido;
         Card::new()
-            .title("LED Configuration")
+            .title(crate::tr!("LED Configuration"))
             .icon(Icon::default().path("icons/microchip.svg"))
             .child(if !has_fido_config {
                 v_flex()
@@ -353,7 +362,9 @@ impl HomeViewModel {
                         div()
                             .text_sm()
                             .text_color(theme.muted_foreground)
-                            .child("Information is not available in Fido only communication mode."),
+                            .child(crate::tr!(
+                                "Information is not available in Fido only communication mode."
+                            )),
                     )
                     .into_any_element()
             } else {
@@ -366,18 +377,18 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("LED GPIO Pin"),
+                                    .child(crate::tr!("LED GPIO Pin")),
                             )
                             .child(
                                 config
                                     .led_gpio
-                                    .map(|g| format!("GPIO {}", g))
+                                    .map(|g| crate::tr!("GPIO {}", g))
                                     .or_else(|| {
                                         config
                                             .effective_led_gpio
-                                            .map(|g| format!("GPIO {g} (default)"))
+                                            .map(|g| crate::tr!("GPIO {g} (default)", g = g))
                                     })
-                                    .unwrap_or_else(|| "Firmware default".into()),
+                                    .unwrap_or_else(|| crate::tr!("Firmware default").into()),
                             ),
                     )
                     .child(
@@ -386,13 +397,13 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("LED Brightness"),
+                                    .child(crate::tr!("LED Brightness")),
                             )
                             .child(
                                 config
                                     .led_brightness
                                     .map(|b| b.to_string())
-                                    .unwrap_or_else(|| "Firmware default".into()),
+                                    .unwrap_or_else(|| crate::tr!("Firmware default").into()),
                             ),
                     )
                     .child(
@@ -401,18 +412,18 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Presence Touch Timeout"),
+                                    .child(crate::tr!("Presence Touch Timeout")),
                             )
                             .child(
                                 config
                                     .touch_timeout
-                                    .map(|t| format!("{}s", t))
+                                    .map(|t| crate::tr!("{}s", t))
                                     .or_else(|| {
                                         config
                                             .effective_touch_timeout
-                                            .map(|t| format!("{t}s (default)"))
+                                            .map(|t| crate::tr!("{t}s (default)", t = t))
                                     })
-                                    .unwrap_or_else(|| "Firmware default".into()),
+                                    .unwrap_or_else(|| crate::tr!("Firmware default").into()),
                             ),
                     )
                     .child(
@@ -421,11 +432,15 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("LED Dimmable"),
+                                    .child(crate::tr!("LED Dimmable")),
                             )
                             .child(
-                                Tag::new(if config.led_dimmable { "Yes" } else { "No" })
-                                    .active(config.led_dimmable),
+                                Tag::new(if config.led_dimmable {
+                                    crate::tr!("Yes")
+                                } else {
+                                    crate::tr!("No")
+                                })
+                                .active(config.led_dimmable),
                             ),
                     )
                     .child(
@@ -434,11 +449,15 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("LED Steady Mode"),
+                                    .child(crate::tr!("LED Steady Mode")),
                             )
                             .child(
-                                Tag::new(if config.led_steady { "On" } else { "Off" })
-                                    .active(config.led_steady),
+                                Tag::new(if config.led_steady {
+                                    crate::tr!("On")
+                                } else {
+                                    crate::tr!("Off")
+                                })
+                                .active(config.led_steady),
                             ),
                     )
                     .into_any_element()
@@ -447,7 +466,7 @@ impl HomeViewModel {
 
     fn render_security_status(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         Card::new()
-            .title("Security Status")
+            .title(crate::tr!("Security Status"))
             .icon(Icon::default().path("icons/shield-check.svg"))
             .child(
                 v_flex()
@@ -457,7 +476,11 @@ impl HomeViewModel {
                         h_flex()
                             .justify_between()
                             .items_center()
-                            .child(div().text_color(theme.muted_foreground).child("Boot Mode"))
+                            .child(
+                                div()
+                                    .text_color(theme.muted_foreground)
+                                    .child(crate::tr!("Boot Mode")),
+                            )
                             .child(
                                 h_flex()
                                     .gap_2()
@@ -475,9 +498,9 @@ impl HomeViewModel {
                                     })
                                     .child(
                                         Tag::new(if status.secure_boot {
-                                            "Secure Boot"
+                                            crate::tr!("Secure Boot")
                                         } else {
-                                            "Development"
+                                            crate::tr!("Development")
                                         })
                                         .active(status.secure_boot),
                                     ),
@@ -490,13 +513,13 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Debug Interface"),
+                                    .child(crate::tr!("Debug Interface")),
                             )
                             .child(div().font_medium().text_color(theme.foreground).child(
                                 if status.secure_lock {
-                                    "Read-out Locked"
+                                    crate::tr!("Read-out Locked")
                                 } else {
-                                    "Debug Enabled"
+                                    crate::tr!("Debug Enabled")
                                 },
                             )),
                     )
@@ -507,13 +530,13 @@ impl HomeViewModel {
                             .child(
                                 div()
                                     .text_color(theme.muted_foreground)
-                                    .child("Secure Lock"),
+                                    .child(crate::tr!("Secure Lock")),
                             )
                             .child(
                                 Tag::new(if status.secure_lock {
-                                    "Acknowledged"
+                                    crate::tr!("Acknowledged")
                                 } else {
-                                    "Pending"
+                                    crate::tr!("Pending")
                                 })
                                 .active(status.secure_lock),
                             ),
@@ -530,8 +553,8 @@ impl Render for HomeViewModel {
         let columns = if is_wide { 2 } else { 1 };
 
         PageView::build(
-            "Device Overview",
-            "Quick view of your device status and specifications.",
+            crate::tr!("Device Overview"),
+            crate::tr!("Quick view of your device status and specifications."),
             if !connected {
                 div()
                     .flex()
@@ -544,7 +567,7 @@ impl Render for HomeViewModel {
                     .child(
                         div()
                             .text_color(cx.theme().muted_foreground)
-                            .child("No Device Connected"),
+                            .child(crate::tr!("No Device Connected")),
                     )
                     .into_any_element()
             } else {
