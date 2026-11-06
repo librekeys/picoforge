@@ -78,8 +78,6 @@ pub struct DeviceRepo {
     pub device_changed: bool,
     /// Handle to the hot-plug watcher task; dropped (cancelled) with the repo.
     hotplug_watch: Option<Task<()>>,
-    /// Retains the background refresh until its snapshot is applied.
-    refresh_task: Option<Task<()>>,
 }
 
 impl DeviceRepo {
@@ -94,7 +92,6 @@ impl DeviceRepo {
             loading: false,
             device_changed: false,
             hotplug_watch: None,
-            refresh_task: None,
         }
     }
 
@@ -696,48 +693,42 @@ impl DeviceRepo {
         }
 
         self.begin_load();
-        cx.notify();
+
         let old_serial = self.status.as_ref().map(|s| s.info.serial.clone());
-        let weak = cx.entity().downgrade();
-        self.refresh_task = Some(cx.spawn(async move |_, cx| {
-            // A smart-card session may be queued behind another applet read.
-            // Keep the complete refresh off the UI thread while it waits.
-            let result = cx
-                .background_executor()
-                .spawn(async {
-                    let state = Self::read_device_state_blocking()?;
-                    let fido_info = match io::get_fido_info() {
-                        Ok(info) => Some(info),
-                        Err(e) => {
-                            log::error!("FIDO Info fetch failed: {e}");
-                            None
-                        }
-                    };
-                    Ok::<_, crate::error::PFError>((state, fido_info))
-                })
-                .await;
-            let _ = weak.update(cx, |repo, cx| {
-                match result {
-                    Ok((state, fido_info)) => {
-                        repo.device_changed = old_serial
-                            .as_ref()
-                            .map(|serial| *serial != state.status.info.serial)
-                            .unwrap_or(true);
-                        repo.status = Some(state.status);
-                        repo.led_status = state.led_status;
-                        repo.management_apps = state.management_apps;
-                        repo.fido_info = fido_info;
-                    }
+
+        match io::read_device_details() {
+            Ok(status) => {
+                self.device_changed = old_serial
+                    .as_ref()
+                    .map(|s| *s != status.info.serial)
+                    .unwrap_or(true);
+                self.status = Some(status.clone());
+
+                match io::get_fido_info() {
+                    Ok(fido) => self.fido_info = Some(fido),
                     Err(e) => {
-                        repo.set_error(e.to_string());
-                        repo.device_changed = false;
+                        log::error!("FIDO Info fetch failed: {}", e);
+                        self.fido_info = None;
                     }
                 }
-                repo.end_load();
-                cx.emit(DeviceEvent::Updated);
-                cx.notify();
-            });
-        }));
+
+                if status.firmware_type == types::FirmwareType::RSKey {
+                    self.led_status = io::read_led_config(status.method.clone()).ok();
+                    self.management_apps = io::read_management_config(status.method.clone()).ok();
+                } else {
+                    self.led_status = None;
+                    self.management_apps = None;
+                }
+            }
+            Err(e) => {
+                self.set_error(format!("{}", e));
+                self.device_changed = false;
+            }
+        }
+
+        self.end_load();
+        cx.emit(DeviceEvent::Updated);
+        cx.notify();
     }
 
     // ── State lifecycle helpers ────────────────────────────────────────────
