@@ -26,8 +26,8 @@ anyhow = "1"          # For easy error propagation
 hidapi = { version = "2.6", features = ["macos-shared-device"] } # fido2 + non-standard cmds
 serde_cbor_2 = "0.13"
 rand = "0.10"
-bitflags = "2.13.0"
-base64 = "0.22"       # For PEM encoding of DER certificates
+bitflags = "2.13"
+base64 = "0.23.1"       # For PEM encoding of DER certificates
 ring = "0.17"         # For signing fido2 messages with pin token
 aes = "0.9"
 cbc = "0.2"
@@ -35,7 +35,7 @@ bip39 = "3"           # For rendering the FIDO seed backup as a 24-word mnemonic
 
 # For Application UI:
 gpui-kit = "=0.9.0"
-rust-embed = "8.11.0"
+rust-embed = "8.13"
 
 [profile.dev]
 incremental = true  # Compile your binary in smaller steps.
