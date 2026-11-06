@@ -31,7 +31,7 @@ base64 = "0.22"       # For PEM encoding of DER certificates
 ring = "0.17"         # For signing fido2 messages with pin token
 aes = "0.9"
 cbc = "0.2"
-bip39 = "2"           # For rendering the FIDO seed backup as a 24-word mnemonic
+bip39 = "3"           # For rendering the FIDO seed backup as a 24-word mnemonic
 
 # For Application UI:
 gpui-kit = "=0.9.0"
