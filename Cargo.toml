@@ -1,6 +1,6 @@
 [package]
 name = "picoforge"
-version = "0.9.0"
+version = "0.10.0"
 description = "An open source commissioning tool for pico-fido and rs-key security keys. Developed with Rust and GPUI."
 authors = ["Suyog Tandel", "PicoForge Contributers"]
 license = "AGPL-3.0"
