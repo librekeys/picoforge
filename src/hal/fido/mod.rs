@@ -2527,4 +2527,57 @@ mod tests {
         assert!(tlv.windows(3).any(|w| w == [0x0E, 0x01, 0x03]));
         assert!(tlv.windows(3).any(|w| w == [0x0D, 0x01, 0x01]));
     }
+
+    #[test]
+    #[ignore = "RED until US-1752 (EPIC PF-FAPICO2)"]
+    fn test_parse_get_info_fapico2_style() {
+        // US-1750 (EPIC PF-FAPICO2): hand-built GetInfo fixture for a stock
+        // fapico2 board, modelled on test_parse_get_info_rskey_style. The
+        // aaguid bytes spell out the fapico2 AAGUID hex string; classification
+        // must land on Fapico2 — not fall to the pico-fido profile, and not
+        // Unknown. Today's detect_by_aaguid knows only RSKey/PicoFido/LkOne/
+        // Unknown, so this RED test fails with detected == Unknown.
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![
+                Value::Text("U2F_V2".into()),
+                Value::Text("FIDO_2_1".into()),
+                Value::Text("FIDO_2_2".into()),
+            ]),
+        );
+        // fapico2 AAGUID
+        map.insert(
+            Value::Integer(0x03),
+            Value::Bytes(vec![
+                0x66, 0x61, 0x70, 0x69, 0x63, 0x6F, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x02,
+            ]),
+        );
+        map.insert(Value::Integer(0x05), Value::Integer(1024));
+        map.insert(
+            Value::Integer(0x06),
+            Value::Array(vec![Value::Integer(1), Value::Integer(2)]),
+        );
+        map.insert(Value::Integer(0x0D), Value::Integer(4));
+
+        // fapico2 firmware version (7.6 encoded as (7<<8)|6 = 0x0706)
+        map.insert(Value::Integer(0x0E), Value::Integer(0x0706));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+
+        assert_eq!(info.aaguid, "66617069636F32000000000000000002");
+        assert_eq!(info.firmware_version, "7.6");
+        assert_eq!(info.versions, vec!["U2F_V2", "FIDO_2_1", "FIDO_2_2"]);
+
+        // Scenario 1 ("the firmware type is Fapico2") cannot name the variant
+        // before US-1752 adds it to FirmwareType, so it is asserted by
+        // elimination over the four variants that exist today: the
+        // classification of a stock fapico2 getInfo must be none of them.
+        let detected = AnyFirmware::detect_by_aaguid(&info.aaguid);
+        assert_ne!(detected, FirmwareType::RSKey);
+        assert_ne!(detected, FirmwareType::LkOne);
+        assert_ne!(detected, FirmwareType::PicoFido);
+        assert_ne!(detected, FirmwareType::Unknown);
+    }
 }

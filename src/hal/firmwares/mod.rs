@@ -178,3 +178,23 @@ impl AnyFirmware {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[ignore = "RED until US-1752 (EPIC PF-FAPICO2)"]
+    fn test_detect_by_aaguid_fapico2() {
+        // US-1750 (EPIC PF-FAPICO2): pin the AAGUID gate for a stock fapico2
+        // getInfo. The classification must land on Fapico2 — i.e.
+        // detect_by_aaguid must not fall to the pico-fido profile and must
+        // not report Unknown. The detector only knows RS-Key, pico-fido and
+        // LK-ONE AAGUIDs today, so this RED test fails: the stock fapico2
+        // AAGUID falls through to Unknown (and via AnyFirmware::new, to the
+        // pico-fido dispatch path).
+        let detected = AnyFirmware::detect_by_aaguid("66617069636F32000000000000000002");
+        assert_ne!(detected, FirmwareType::PicoFido);
+        assert_ne!(detected, FirmwareType::Unknown);
+    }
+}
