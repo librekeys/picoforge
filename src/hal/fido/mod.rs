@@ -65,9 +65,9 @@ use crate::{
     hal::{
         firmwares::AnyFirmware,
         types::{
-            AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FirmwareType,
-            FullDeviceStatus, LKONE_AAGUID, LedStatusConfig, PICOFIDO_AAGUID, RSKEY_AAGUID,
-            StoredCredential,
+            AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FAPICO2_AAGUID, FidoDeviceInfo,
+            FirmwareType, FullDeviceStatus, LKONE_AAGUID, LedStatusConfig, PICOFIDO_AAGUID,
+            RSKEY_AAGUID, StoredCredential,
         },
     },
 };
@@ -649,6 +649,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         FirmwareType::RSKey
     } else if fido_info.aaguid == PICOFIDO_AAGUID || fido_info.aaguid == LKONE_AAGUID {
         FirmwareType::PicoFido
+    } else if fido_info.aaguid == FAPICO2_AAGUID {
+        FirmwareType::Fapico2
     } else {
         FirmwareType::Unknown
     };
@@ -1208,6 +1210,8 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
         FirmwareType::RSKey
     } else if fido_info.aaguid == PICOFIDO_AAGUID || fido_info.aaguid == LKONE_AAGUID {
         FirmwareType::PicoFido
+    } else if fido_info.aaguid == FAPICO2_AAGUID {
+        FirmwareType::Fapico2
     } else {
         FirmwareType::Unknown
     };
@@ -2527,7 +2531,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "RED until US-1752 (EPIC PF-FAPICO2)"]
     fn test_parse_get_info_fapico2_style() {
         // US-1750 (EPIC PF-FAPICO2): hand-built GetInfo fixture for a stock
         // fapico2 board, modelled on test_parse_get_info_rskey_style. The

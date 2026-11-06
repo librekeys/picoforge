@@ -79,6 +79,8 @@ impl AnyFirmware {
             || aaguid == crate::hal::types::LKONE_AAGUID
         {
             FirmwareType::PicoFido
+        } else if aaguid == crate::hal::types::FAPICO2_AAGUID {
+            FirmwareType::Fapico2
         } else {
             FirmwareType::Unknown
         }
@@ -92,6 +94,9 @@ impl AnyFirmware {
         match firmware_variant {
             FirmwareType::PicoFido => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
             FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(firmware_version)),
+            // Provisional: US-1753 (EPIC PF-FAPICO2) replaces this arm with a
+            // real Fapico2Firmware dispatch once firmwares/fapico2.rs exists.
+            FirmwareType::Fapico2 => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
             FirmwareType::LkOne | FirmwareType::Unknown => {
                 Self::PicoFido(PicoFidoFirmware::new(firmware_version))
             }
@@ -113,6 +118,9 @@ impl AnyFirmware {
                 PicoFidoFirmware::new(firmware_version).with_legacy_vendor(has_legacy_vendor),
             ),
             FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(firmware_version)),
+            // Provisional: US-1753 (EPIC PF-FAPICO2) replaces this arm with a
+            // real Fapico2Firmware dispatch once firmwares/fapico2.rs exists.
+            FirmwareType::Fapico2 => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
             FirmwareType::LkOne | FirmwareType::Unknown => {
                 Self::PicoFido(PicoFidoFirmware::new(firmware_version))
             }
@@ -184,7 +192,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[ignore = "RED until US-1752 (EPIC PF-FAPICO2)"]
     fn test_detect_by_aaguid_fapico2() {
         // US-1750 (EPIC PF-FAPICO2): pin the AAGUID gate for a stock fapico2
         // getInfo. The classification must land on Fapico2 — i.e.
