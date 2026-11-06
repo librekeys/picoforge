@@ -887,9 +887,8 @@
 
 use std::rc::Rc;
 
-use gpui::*;
-use gpui_component::Root;
-use gpui_component::{Theme, ThemeMode, ThemeSet};
+use gpui_kit::component::{Theme, ThemeMode, ThemeSet};
+use gpui_kit::*;
 use ui::app::ApplicationRoot;
 
 pub mod error;
@@ -899,14 +898,14 @@ mod ui;
 
 fn main() {
     logging::logger_init();
-    let app = Application::new().with_assets(ui::assets::Assets);
+    let app = gpui_kit::application().with_assets(ui::assets::Assets);
 
     app.run(move |cx| {
-        gpui_component::init(cx);
+        gpui_kit::init(cx);
         Theme::change(ThemeMode::Dark, None, cx);
 
         // Register sidebar toggle keybinding
-        cx.bind_keys([gpui::KeyBinding::new(
+        cx.bind_keys([gpui_kit::KeyBinding::new(
             "ctrl-shift-d",
             ui::app::ToggleSidebar,
             None,
@@ -917,7 +916,7 @@ fn main() {
             for config in theme_set.themes {
                 if config.mode == ThemeMode::Dark {
                     let config = Rc::new(config);
-                    Theme::global_mut(cx).apply_config(&config);
+                    Theme::update(cx, |theme| theme.apply_config(&config));
                     break;
                 }
             }
@@ -938,41 +937,37 @@ fn main() {
 
         let window_bounds = Bounds::centered(None, window_size, cx);
 
-        cx.spawn(async move |cx| {
-            let window_options = WindowOptions {
-                app_id: Some("in.suyogtandel.picoforge".into()),
+        let window_options = WindowOptions {
+            app_id: Some("in.suyogtandel.picoforge".into()),
 
-                window_bounds: Some(WindowBounds::Windowed(window_bounds)),
+            window_bounds: Some(WindowBounds::Windowed(window_bounds)),
 
-                titlebar: Some(TitlebarOptions {
-                    title: Some("PicoForge".into()),
-                    appears_transparent: true,
-                    traffic_light_position: Some(gpui::point(px(9.0), px(9.0))),
-                }),
+            titlebar: Some(TitlebarOptions {
+                title: Some("PicoForge".into()),
+                appears_transparent: true,
+                traffic_light_position: Some(gpui_kit::point(px(9.0), px(9.0))),
+            }),
 
-                // Render our own window decorations(shadows and resize attack area) for linux/bsd.
-                #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-                window_background: gpui::WindowBackgroundAppearance::Transparent,
-                #[cfg(any(target_os = "linux", target_os = "freebsd"))]
-                window_decorations: Some(gpui::WindowDecorations::Client),
+            // Render our own window decorations(shadows and resize attack area) for linux/bsd.
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            window_background: gpui_kit::WindowBackgroundAppearance::Transparent,
+            #[cfg(any(target_os = "linux", target_os = "freebsd"))]
+            window_decorations: Some(gpui_kit::WindowDecorations::Client),
 
-                window_min_size: Some(gpui::Size {
-                    width: px(500.),
-                    height: px(400.),
-                }),
-                kind: WindowKind::Normal,
-                ..Default::default()
-            };
+            window_min_size: Some(gpui_kit::Size {
+                width: px(500.),
+                height: px(400.),
+            }),
+            kind: WindowKind::Normal,
+            ..Default::default()
+        };
 
-            cx.open_window(window_options, |window, cx| {
-                let view = cx.new(ApplicationRoot::new);
-                window.focus(&view.read(cx).focus_handle());
-                cx.new(|cx| Root::new(view, window, cx))
-            })?;
-
-            Ok::<_, anyhow::Error>(())
+        gpui_kit::open_window(window_options, cx, |window, cx| {
+            let view = cx.new(ApplicationRoot::new);
+            window.focus(&view.read(cx).focus_handle(), cx);
+            view
         })
-        .detach();
+        .expect("failed to open PicoForge window");
 
         // Quit the application when the window is closed (specifically needed for macOS)
         #[cfg(target_os = "macos")]

@@ -8,9 +8,9 @@ use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
 use crate::ui::components::form::{select_state, selected_key};
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, USB_CAP_OPENPGP, openpgp};
-use gpui::*;
-use gpui_component::WindowExt;
-use gpui_component::button::ButtonVariants;
+use gpui_kit::component::WindowExt;
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::*;
 use openpgp::PgpSlot;
 
 const OPT_TOUCH: &[(&str, u8)] = &[("Off", 0), ("On", 1)];
@@ -227,13 +227,13 @@ impl OpenPgpViewModel {
         ok_msg: &'static str,
     ) {
         let a = cx.new(|cx| {
-            let st = gpui_component::input::InputState::new(window, cx).masked(true);
+            let st = gpui_kit::component::input::InputState::new(window, cx).masked(true);
             match prefill_a {
                 Some(v) => st.default_value(v),
                 None => st,
             }
         });
-        let b = cx.new(|cx| gpui_component::input::InputState::new(window, cx).masked(true));
+        let b = cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx).masked(true));
         let view = cx.entity().downgrade();
         let submit = {
             let a = a.clone();
@@ -261,29 +261,29 @@ impl OpenPgpViewModel {
             dialog
                 .title(title)
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child(label_a)
-                        .child(gpui_component::input::Input::new(&a))
+                        .child(gpui_kit::component::input::Input::new(&a))
                         .child(label_b)
-                        .child(gpui_component::input::Input::new(&b)),
+                        .child(gpui_kit::component::input::Input::new(&b)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Save")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -335,33 +335,33 @@ impl OpenPgpViewModel {
                 .title(format!("Generate — {}", slot.label()))
                 .child("Generates a new key pair in this slot (overwrites any existing key). This can take several seconds for RSA.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Algorithm")
                         .child(
-                            gpui_component::select::Select::new(&algo_sel)
+                            gpui_kit::component::select::Select::new(&algo_sel)
                                 .w_full()
                                 .bg(rgb(0x222225)),
                         )
                         .child("Admin PIN (PW3)")
-                        .child(gpui_component::input::Input::new(&admin)),
+                        .child(gpui_kit::component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("gen")
+                        gpui_kit::component::button::Button::new("gen")
                             .primary()
                             .label("Generate")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -414,33 +414,33 @@ impl OpenPgpViewModel {
                 .title(format!("Touch — {}", slot.label()))
                 .child("When on, this key requires a physical touch for every operation.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Touch requirement")
                         .child(
-                            gpui_component::select::Select::new(&touch_sel)
+                            gpui_kit::component::select::Select::new(&touch_sel)
                                 .w_full()
                                 .bg(rgb(0x222225)),
                         )
                         .child("Admin PIN (PW3)")
-                        .child(gpui_component::input::Input::new(&admin)),
+                        .child(gpui_kit::component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Save")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -467,14 +467,18 @@ impl OpenPgpViewModel {
                 String::new(),
                 0x39,
             ));
-        let name =
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).default_value(cur_name));
-        let login = cx
-            .new(|cx| gpui_component::input::InputState::new(window, cx).default_value(cur_login));
-        let url =
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).default_value(cur_url));
-        let lang =
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).default_value(cur_lang));
+        let name = cx.new(|cx| {
+            gpui_kit::component::input::InputState::new(window, cx).default_value(cur_name)
+        });
+        let login = cx.new(|cx| {
+            gpui_kit::component::input::InputState::new(window, cx).default_value(cur_login)
+        });
+        let url = cx.new(|cx| {
+            gpui_kit::component::input::InputState::new(window, cx).default_value(cur_url)
+        });
+        let lang = cx.new(|cx| {
+            gpui_kit::component::input::InputState::new(window, cx).default_value(cur_lang)
+        });
         let sex_row = OPT_SEX.iter().position(|(_, k)| *k == cur_sex).unwrap_or(0);
         let sex = select_state(window, cx, OPT_SEX, sex_row);
         let admin = admin_input(window, cx);
@@ -526,37 +530,37 @@ impl OpenPgpViewModel {
                 .title("Edit Cardholder")
                 .child("Cardholder metadata stored on the card. Requires the admin PIN.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Name")
-                        .child(gpui_component::input::Input::new(&name))
+                        .child(gpui_kit::component::input::Input::new(&name))
                         .child("Login")
-                        .child(gpui_component::input::Input::new(&login))
+                        .child(gpui_kit::component::input::Input::new(&login))
                         .child("URL")
-                        .child(gpui_component::input::Input::new(&url))
+                        .child(gpui_kit::component::input::Input::new(&url))
                         .child("Language (ISO-639, e.g. en)")
-                        .child(gpui_component::input::Input::new(&lang))
+                        .child(gpui_kit::component::input::Input::new(&lang))
                         .child("Sex")
-                        .child(gpui_component::select::Select::new(&sex))
+                        .child(gpui_kit::component::select::Select::new(&sex))
                         .child("Admin PIN (PW3)")
-                        .child(gpui_component::input::Input::new(&admin)),
+                        .child(gpui_kit::component::input::Input::new(&admin)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Save")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -569,7 +573,7 @@ impl OpenPgpViewModel {
             "Reset OpenPGP Applet",
             "This blocks both PINs, then factory-resets the OpenPGP applet — deleting ALL keys and restoring the default PINs (123456 / 12345678). This cannot be undone.".to_string(),
             "Reset",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |_dh, window, cx| {
@@ -587,9 +591,9 @@ impl OpenPgpViewModel {
 fn admin_input(
     window: &mut Window,
     cx: &mut Context<OpenPgpViewModel>,
-) -> Entity<gpui_component::input::InputState> {
+) -> Entity<gpui_kit::component::input::InputState> {
     cx.new(|cx| {
-        gpui_component::input::InputState::new(window, cx)
+        gpui_kit::component::input::InputState::new(window, cx)
             .masked(true)
             .default_value(openpgp::DEFAULT_PW3)
     })

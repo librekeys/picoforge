@@ -3,14 +3,14 @@
 #![allow(unused)]
 
 use crate::ui::colors;
-use gpui::Styled;
-use gpui::prelude::*;
-use gpui::*;
-use gpui_component::{
+use gpui_kit::Styled;
+use gpui_kit::component::{
     ActiveTheme, Disableable, Icon, Sizable, Size,
     button::{Button, ButtonCustomVariant, ButtonVariants},
     h_flex,
 };
+use gpui_kit::prelude::*;
+use gpui_kit::*;
 
 type ClickHandler = Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>;
 
@@ -117,9 +117,9 @@ impl RenderOnce for PFButton {
                 ButtonCustomVariant::new(cx)
                     .color(self.bg_color_start.into())
                     .hover(self.bg_color_hover.into())
-                    .active(self.bg_color_active.into())
-                    .border(cx.theme().border),
+                    .active(self.bg_color_active.into()),
             )
+            .border_color(cx.theme().border)
             .border_t_1();
 
         if self.width_full {
@@ -242,9 +242,9 @@ impl RenderOnce for PFIconButton {
                 ButtonCustomVariant::new(cx)
                     .color(self.bg_color_start.into())
                     .hover(self.bg_color_hover.into())
-                    .active(self.bg_color_active.into())
-                    .border(cx.theme().border),
+                    .active(self.bg_color_active.into()),
             )
+            .border_color(cx.theme().border)
             .border_t_2();
 
         if self.width_full {

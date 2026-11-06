@@ -4,9 +4,9 @@ use crate::ui::components::button::PFButton;
 use crate::ui::components::card::Card;
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::attestation::view_model::AttestationViewModel;
-use gpui::*;
-use gpui_component::button::{Button, ButtonCustomVariant, ButtonVariants};
-use gpui_component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::*;
 
 fn empty_state(heading: &str, body: String, theme: &Theme) -> AnyElement {
     v_flex()
@@ -79,9 +79,9 @@ impl Render for AttestationViewModel {
                 ButtonCustomVariant::new(cx)
                     .color(rgb(0x1b1b1d).into())
                     .hover(rgb(0x232325).into())
-                    .active(rgb(0x3f3f46).into())
-                    .border(theme.border),
+                    .active(rgb(0x3f3f46).into()),
             )
+            .border_color(theme.border)
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
         let import_btn = PFButton::new(if installed { "Replace" } else { "Import" })

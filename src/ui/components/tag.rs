@@ -1,6 +1,6 @@
 //! Simple tag/badge component for displaying status or labels.
 
-use gpui::*;
+use gpui_kit::*;
 
 /// A small badge showing a status or category label.
 #[derive(IntoElement)]

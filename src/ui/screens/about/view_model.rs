@@ -1,7 +1,7 @@
 //! View model for the about screen — version info and firmware compatibility.
 
 use crate::ui::app::AppModels;
-use gpui::*;
+use gpui_kit::*;
 
 /// Application metadata and firmware compatibility information.
 pub struct AboutViewModel;

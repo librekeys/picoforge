@@ -6,9 +6,9 @@ use crate::ui::components::dialog::{
     ChangePinContent, ConfirmContent, PinPromptContent, SetPinContent, StatusContent,
 };
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, StoredCredential};
-use gpui::*;
-use gpui_component::button::ButtonVariants;
-use gpui_component::{ActiveTheme, StyledExt, WindowExt};
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::component::{ActiveTheme, StyledExt, WindowExt};
+use gpui_kit::*;
 
 /// Credential state, PIN management, and FIDO storage operations.
 pub struct PasskeysViewModel {
@@ -229,7 +229,7 @@ impl PasskeysViewModel {
             "Delete Passkey",
             format!("Are you sure you want to delete the passkey for {}?", name),
             "Delete",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |dialog_handle, _, cx| {
@@ -315,7 +315,7 @@ impl PasskeysViewModel {
             .unwrap_or(4);
 
         let slider = cx.new(|_| {
-            gpui_component::slider::SliderState::new()
+            gpui_kit::component::slider::SliderState::new()
                 .min(4.0)
                 .max(63.0)
                 .step(1.0)
@@ -323,17 +323,17 @@ impl PasskeysViewModel {
         });
 
         let current_pin = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Enter current PIN")
                 .masked(true)
         });
         let new_pin = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Enter new PIN")
                 .masked(true)
         });
         let confirm_pin = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Confirm new PIN")
                 .masked(true)
         });
@@ -401,43 +401,43 @@ impl PasskeysViewModel {
                     "Set the minimum allowed PIN length (4-63 characters) and enter a new PIN that meets this requirement.",
                 )
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_4()
                         .pb_4()
                         .child(
-                             gpui_component::v_flex()
+                             gpui_kit::component::v_flex()
                                 .gap_2()
                                 .child(label_view.clone())
-                                .child(gpui_component::slider::Slider::new(&slider_handle))
+                                .child(gpui_kit::component::slider::Slider::new(&slider_handle))
                         )
                         .child("Current PIN")
-                        .child(gpui_component::input::Input::new(&current))
+                        .child(gpui_kit::component::input::Input::new(&current))
                         .child(
-                             gpui_component::v_flex()
+                             gpui_kit::component::v_flex()
                                 .gap_2()
                                 .child(format!("New PIN (min {} chars)", current_min))
-                                .child(gpui_component::input::Input::new(&new_pin_value))
+                                .child(gpui_kit::component::input::Input::new(&new_pin_value))
                         )
                         .child("Confirm New PIN")
-                        .child(gpui_component::input::Input::new(&confirm)),
+                        .child(gpui_kit::component::input::Input::new(&confirm)),
                 )
                 .on_ok(move |_, window, cx| {
                     submit_for_ok(window, cx);
                     false
                 })
-                .footer(move |_, _window, _cx, _| {
+                .footer({
                     let submit_clone = submit_for_btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("update")
+                        gpui_kit::component::button::Button::new("update")
                             .primary()
                             .label("Update")
                             .on_click(move |_, window, cx| {
                                 submit_clone(window, cx);
                             }),
-                    ]
+                    ])
                 })
         });
     }
@@ -721,7 +721,7 @@ impl PasskeysViewModel {
         let window_handle = window.window_handle();
         let weak_self = cx.entity().downgrade();
 
-        let receiver = cx.prompt_for_paths(gpui::PathPromptOptions {
+        let receiver = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
             files: true,
             directories: false,
             multiple: false,
@@ -763,7 +763,7 @@ impl PasskeysViewModel {
             "Factory Reset Device",
             "Are you sure you want to completely erase your device? This will permanently delete ALL passkeys, credentials, and your PIN. This action cannot be undone.".to_string(),
             "Reset Device",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |_dialog_handle, window, cx| {
@@ -899,12 +899,12 @@ impl PasskeysViewModel {
         let credential_id = cred.credential_id.clone();
 
         window.open_sheet_at(
-            gpui_component::Placement::Bottom,
+            gpui_kit::component::Placement::Bottom,
             cx,
             move |sheet, _, cx| {
                 let theme = cx.theme();
 
-                let header_row = gpui_component::h_flex()
+                let header_row = gpui_kit::component::h_flex()
                     .gap_3()
                     .p_4()
                     .bg(theme.muted.opacity(0.3))
@@ -920,14 +920,14 @@ impl PasskeysViewModel {
                             .items_center()
                             .justify_center()
                             .child(
-                                gpui_component::Icon::default()
+                                gpui_kit::component::Icon::default()
                                     .path("icons/key-round.svg")
                                     .text_color(theme.primary)
                                     .size_6(),
                             ),
                     )
                     .child(
-                        gpui_component::v_flex()
+                        gpui_kit::component::v_flex()
                             .child(div().font_semibold().child(rp_id.clone()))
                             .child(
                                 div()
@@ -958,7 +958,7 @@ impl PasskeysViewModel {
                             .child(value)
                             .into_any_element()
                     };
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_1()
                         .child(
                             div()
@@ -970,7 +970,7 @@ impl PasskeysViewModel {
                         .child(value_el)
                 };
 
-                let description = gpui_component::h_flex()
+                let description = gpui_kit::component::h_flex()
                     .gap_1()
                     .child(
                         div()
@@ -989,7 +989,7 @@ impl PasskeysViewModel {
                 sheet
                     .title(
                         div().w_full().child(
-                            gpui_component::v_flex()
+                            gpui_kit::component::v_flex()
                                 .mx_auto()
                                 .max_w(px(512.))
                                 .px_4()
@@ -1000,10 +1000,9 @@ impl PasskeysViewModel {
                     )
                     .size(px(500.))
                     .resizable(false)
-                    .margin_top(px(0.))
                     .child(
                         div().mx_auto().max_w(px(512.)).w_full().px_4().child(
-                            gpui_component::v_flex()
+                            gpui_kit::component::v_flex()
                                 .gap_4()
                                 .child(header_row)
                                 .child(separator)
@@ -1022,7 +1021,7 @@ impl PasskeysViewModel {
 }
 
 struct SliderLabel {
-    slider: Entity<gpui_component::slider::SliderState>,
+    slider: Entity<gpui_kit::component::slider::SliderState>,
 }
 
 impl Render for SliderLabel {

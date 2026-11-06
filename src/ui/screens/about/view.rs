@@ -1,7 +1,7 @@
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::screens::about::view_model::AboutViewModel;
-use gpui::*;
-use gpui_component::{ActiveTheme, Icon, StyledExt, button::Button, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, button::Button, h_flex, v_flex};
+use gpui_kit::*;
 
 impl Render for AboutViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {

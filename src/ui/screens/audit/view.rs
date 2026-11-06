@@ -5,8 +5,8 @@ use crate::ui::components::card::Card;
 use crate::ui::components::page_view::PageView;
 use crate::ui::models::device::audit;
 use crate::ui::screens::audit::view_model::AuditViewModel;
-use gpui::*;
-use gpui_component::{ActiveTheme, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::*;
 
 fn empty_state(heading: &str, body: String, theme: &Theme) -> AnyElement {
     v_flex()

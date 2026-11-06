@@ -17,7 +17,7 @@
 use crate::hal::firmwares::AnyFirmware;
 use crate::hal::io;
 use crate::hal::types;
-use gpui::*;
+use gpui_kit::*;
 use std::time::Duration;
 
 /// How often the hot-plug watcher samples device presence. Only a *change*

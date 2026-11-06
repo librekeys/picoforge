@@ -2,7 +2,7 @@
 
 use crate::ui::app::AppModels;
 use crate::ui::models::device::{DeviceEvent, DeviceRepo};
-use gpui::*;
+use gpui_kit::*;
 
 /// Application state and device-detection polling for the home screen.
 pub struct HomeViewModel {

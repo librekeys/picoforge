@@ -156,4 +156,4 @@ pub mod models;
 pub mod screens;
 
 /// Closure type shared across dialog patterns in screen view-models.
-pub(crate) type DialogSubmit = std::rc::Rc<dyn Fn(&mut gpui::Window, &mut gpui::App)>;
+pub(crate) type DialogSubmit = std::rc::Rc<dyn Fn(&mut gpui_kit::Window, &mut gpui_kit::App)>;

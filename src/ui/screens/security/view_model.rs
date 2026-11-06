@@ -1,7 +1,7 @@
 //! View model for the security screen — secure boot and attestation state.
 
 use crate::ui::app::AppModels;
-use gpui::*;
+use gpui_kit::*;
 
 /// Security-related state — stub for secure boot, attestation, and reset operations.
 pub struct SecurityViewModel;

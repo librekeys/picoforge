@@ -3,9 +3,9 @@
 use crate::ui::components::card::Card;
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::offboard::view_model::OffboardViewModel;
-use gpui::*;
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::*;
 
 fn empty_state(heading: &str, body: String, theme: &Theme) -> AnyElement {
     v_flex()

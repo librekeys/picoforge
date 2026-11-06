@@ -5,10 +5,10 @@ use crate::ui::components::applet_gate::AppletGate;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, FirmwareType, OffboardReport};
-use gpui::*;
-use gpui_component::WindowExt;
-use gpui_component::button::ButtonVariants;
-use gpui_component::input::InputState;
+use gpui_kit::component::WindowExt;
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::component::input::InputState;
+use gpui_kit::*;
 
 pub struct OffboardViewModel {
     pub(super) device: Entity<DeviceRepo>,
@@ -95,27 +95,27 @@ impl OffboardViewModel {
                     "This ERASES everything on device {serial}: OTP slots, OATH, PIV, OpenPGP, the FIDO seed, passkeys, PINs, and org attestation — then writes a signed wipe receipt. It cannot be undone and needs several touches."
                 ))
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_2()
                         .pb_2()
                         .child("Confirmation")
-                        .child(gpui_component::input::Input::new(&confirm)),
+                        .child(gpui_kit::component::input::Input::new(&confirm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("go")
+                        gpui_kit::component::button::Button::new("go")
                             .danger()
                             .label("Offboard")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }

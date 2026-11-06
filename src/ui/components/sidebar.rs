@@ -3,14 +3,14 @@
 use crate::ui::app::Destination;
 use crate::ui::components::button::PFIconButton;
 use crate::ui::models::device::{DeviceMethod, DeviceRepo};
-use gpui::*;
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme, Icon, IconName, Side,
     button::{Button, ButtonVariants},
     h_flex,
     sidebar::*,
     v_flex,
 };
+use gpui_kit::*;
 
 /// Events emitted by [`AppSidebar`] to its subscribers.
 pub enum SidebarEvent {
@@ -157,7 +157,7 @@ impl Render for AppSidebar {
                             .ml_2()
                             .opacity(text_opacity)
                             .child("PicoForge")
-                            .font_weight(gpui::FontWeight::EXTRA_BOLD)
+                            .font_weight(gpui_kit::FontWeight::EXTRA_BOLD)
                             .text_color(sidebar_fg),
                     )
                 } else {
@@ -166,12 +166,13 @@ impl Render for AppSidebar {
         };
 
         // ── Navigation items (gpui-component Sidebar) ────────────────
-        let nav_sidebar = Sidebar::new(Side::Left)
+        let nav_sidebar = Sidebar::new("navigation")
+            .side(Side::Left)
             .collapsed(sidebar_width < px(120.))
             .collapsible(false)
             .w_full()
             .bg(sidebar_bg)
-            .border_color(gpui::transparent_white())
+            .border_color(gpui_kit::transparent_white())
             // Grouped so the panel reads as sections, not one long list: the
             // device overview, the credential applets, RS-Key's protection
             // features, then device-wide system actions (Offboard sits just
@@ -309,7 +310,7 @@ impl Render for AppSidebar {
                             .child(
                                 div()
                                     .text_size(px(12.))
-                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .font_weight(gpui_kit::FontWeight::MEDIUM)
                                     .text_color(muted_foreground)
                                     .child("Device Status"),
                             )
@@ -336,7 +337,7 @@ impl Render for AppSidebar {
                                     .child(
                                         div()
                                             .text_size(px(10.))
-                                            .font_weight(gpui::FontWeight::BOLD)
+                                            .font_weight(gpui_kit::FontWeight::BOLD)
                                             .text_color(color_text)
                                             .child(text),
                                     )

@@ -1,13 +1,13 @@
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::security::view_model::SecurityViewModel;
-use gpui::*;
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme, Disableable, Icon, StyledExt,
     button::{Button, ButtonCustomVariant, ButtonVariants},
     h_flex,
     switch::Switch,
     v_flex,
 };
+use gpui_kit::*;
 
 impl Render for SecurityViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -150,7 +150,7 @@ impl Render for SecurityViewModel {
                         div()
                             .border_t_1()
                             .border_color(border)
-                            .bg(gpui::rgba(0x00000033))
+                            .bg(gpui_kit::rgba(0x00000033))
                             .px_6()
                             .py_4()
                             .flex()

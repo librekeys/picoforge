@@ -4,9 +4,7 @@
 //! binary at compile time. The [`Assets`] struct is registered as a GPUI
 //! `SharedString` source so that components can reference icons by filename.
 
-#[allow(unused)]
-use anyhow::anyhow;
-use gpui::*;
+use gpui_kit::*;
 use rust_embed::RustEmbed;
 use std::borrow::Cow;
 
@@ -22,14 +20,19 @@ impl AssetSource for Assets {
             return Ok(None);
         }
 
-        Self::get(path)
-            .map(|f| Some(f.data))
-            .ok_or_else(|| anyhow!("could not find asset at path \"{path}\""))
+        if let Some(asset) = Self::get(path) {
+            return Ok(Some(asset.data));
+        }
+        gpui_kit::assets::Assets.load(path)
     }
 
     fn list(&self, path: &str) -> Result<Vec<SharedString>> {
-        Ok(Self::iter()
+        let mut paths: Vec<SharedString> = Self::iter()
             .filter_map(|p| p.starts_with(path).then(|| p.into()))
-            .collect())
+            .collect();
+        paths.extend(gpui_kit::assets::Assets.list(path)?);
+        paths.sort();
+        paths.dedup();
+        Ok(paths)
     }
 }
