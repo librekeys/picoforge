@@ -113,6 +113,7 @@ impl Render for AppSidebar {
         let state = self.device.read(cx);
         let status_owned = state.status.clone();
         let error_owned = state.error.clone();
+        let refreshing = state.loading;
 
         let sidebar_bg = cx.theme().sidebar;
         let sidebar_fg = cx.theme().sidebar_foreground;
@@ -166,9 +167,19 @@ impl Render for AppSidebar {
         };
 
         // ── Navigation items (gpui-component Sidebar) ────────────────
+        let nav_collapsed = sidebar_width < px(120.);
+        // SidebarMenu supplies gap_2 within each group. Once headings disappear,
+        // keep that same gap between groups so the icon rail has one rhythm.
+        let menu = || {
+            if nav_collapsed {
+                SidebarMenu::new().mb_2()
+            } else {
+                SidebarMenu::new()
+            }
+        };
         let nav_sidebar = Sidebar::new("navigation")
             .side(Side::Left)
-            .collapsed(sidebar_width < px(120.))
+            .collapsed(nav_collapsed)
             .collapsible(SidebarCollapsible::Icon)
             .w_full()
             .bg(sidebar_bg)
@@ -178,7 +189,7 @@ impl Render for AppSidebar {
             // features, then device-wide system actions (Offboard sits just
             // above About as a bottom-of-list decommission action).
             .child(
-                SidebarGroup::new("Device").child(SidebarMenu::new().child(self.menu_item(
+                SidebarGroup::new("Device").child(menu().child(self.menu_item(
                     cx,
                     "Home",
                     "icons/house.svg",
@@ -187,7 +198,7 @@ impl Render for AppSidebar {
             )
             .child(
                 SidebarGroup::new("Credentials").child(
-                    SidebarMenu::new()
+                    menu()
                         .child(self.menu_item(
                             cx,
                             "Passkeys",
@@ -217,7 +228,7 @@ impl Render for AppSidebar {
             )
             .child(
                 SidebarGroup::new("Protection").child(
-                    SidebarMenu::new()
+                    menu()
                         .child(self.menu_item(
                             cx,
                             "Audit",
@@ -281,7 +292,9 @@ impl Render for AppSidebar {
                     .child(
                         Button::new("refresh-btn-collapsed")
                             .ghost()
-                            .child(Icon::default().path("icons/refresh-cw.svg"))
+                            .icon(Icon::default().path("icons/refresh-cw.svg"))
+                            .loading(refreshing)
+                            .tooltip("Refresh device data")
                             .on_click(cx.listener(|_, _, _, cx| {
                                 cx.emit(SidebarEvent::RefreshDevice);
                             }))
@@ -345,6 +358,7 @@ impl Render for AppSidebar {
                     )
                     .child(
                         PFIconButton::new(Icon::default().path("icons/refresh-cw.svg"), "Refresh")
+                            .loading(refreshing)
                             .on_click(cx.listener(|_, _, _, cx| {
                                 cx.emit(SidebarEvent::RefreshDevice);
                             })),

@@ -26,6 +26,8 @@ pub struct CcidSession {
     card: pcsc::Card,
     /// The applet's `SELECT` response (FCI / version block), parsed per applet.
     pub select_resp: Vec<u8>,
+    // Declared after the card so disconnect happens before the next SELECT.
+    _session: std::sync::MutexGuard<'static, ()>,
 }
 
 impl CcidSession {
@@ -34,6 +36,7 @@ impl CcidSession {
     /// The card is kept open for the session's lifetime so a subsequent VERIFY
     /// stays in effect for the following operation.
     pub fn open(aid: &[u8]) -> Result<Self, PFError> {
+        let session_guard = super::session::acquire();
         let ctx = Context::establish(Scope::User).map_err(PFError::Pcsc)?;
         let mut readers_buf = [0; 2048];
         let reader = ctx
@@ -45,6 +48,7 @@ impl CcidSession {
         let mut session = Self {
             card,
             select_resp: Vec::new(),
+            _session: session_guard,
         };
         let select = Apdu::read(CLA_ISO, INS_SELECT, 0x04, 0x00, aid);
         session.select_resp = session.transceive_full(&select).map_err(|e| {

@@ -16,6 +16,8 @@ pub struct PcscTransport {
     pub firmware_type: FirmwareType,
     /// Raw response bytes from the SELECT AID command.
     pub select_resp: Vec<u8>,
+    // Declared after the card so disconnect happens before the next SELECT.
+    _session: std::sync::MutexGuard<'static, ()>,
 }
 
 impl PcscTransport {
@@ -29,6 +31,7 @@ impl PcscTransport {
     /// Scans for the first connected reader, sends the SELECT AID APDU,
     /// and determines the firmware type from the reader name or response data.
     pub fn open_with_aid(aid: &[u8]) -> Result<Self, PFError> {
+        let session_guard = super::session::acquire();
         let ctx = Context::establish(Scope::User).map_err(|e| {
             log::error!("Failed to establish PCSC context: {}", e);
             PFError::Pcsc(e)
@@ -87,6 +90,7 @@ impl PcscTransport {
             card,
             firmware_type: fw_type,
             select_resp: data,
+            _session: session_guard,
         })
     }
 

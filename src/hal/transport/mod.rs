@@ -26,6 +26,7 @@ pub mod pcsc;
 use pcsc::PcscTransport;
 
 pub mod ccid;
+mod session;
 
 /// A connected device handle over either the FIDO or rescue transport.
 pub enum DeviceHandle {
