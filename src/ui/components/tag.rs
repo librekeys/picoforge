@@ -1,5 +1,6 @@
 //! Simple tag/badge component for displaying status or labels.
 
+use gpui_kit::component::ActiveTheme;
 use gpui_kit::*;
 
 /// A small badge showing a status or category label.
@@ -24,11 +25,11 @@ impl Tag {
 }
 
 impl RenderOnce for Tag {
-    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+    fn render(self, _window: &mut Window, cx: &mut App) -> impl IntoElement {
         let (bg, text) = if self.active {
-            (rgb(0xffffff), rgb(0x000000))
+            (cx.theme().primary, cx.theme().primary_foreground)
         } else {
-            (rgb(0x27272a), rgb(0xffffff))
+            (cx.theme().muted, cx.theme().foreground)
         };
 
         div()

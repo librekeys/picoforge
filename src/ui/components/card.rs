@@ -103,7 +103,7 @@ impl RenderOnce for Card {
 
         div()
             .w_full()
-            .bg(rgb(0x18181b))
+            .bg(theme.group_box)
             .border_1()
             .border_color(theme.border)
             .rounded_xl()

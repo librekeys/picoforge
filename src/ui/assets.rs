@@ -1,14 +1,13 @@
 //! Embedded asset loader for SVG icons used throughout the application.
 //!
-//! Uses `rust-embed` to bundle the contents of `static/icons/` into the
-//! binary at compile time. The [`Assets`] struct is registered as a GPUI
-//! `SharedString` source so that components can reference icons by filename.
+//! Uses `rust-embed` for application SVGs under `static/`, then falls back to
+//! Kit's bundled icons. Application artwork takes precedence on shared paths.
 
 use gpui_kit::*;
 use rust_embed::RustEmbed;
 use std::borrow::Cow;
 
-/// An asset source that loads assets from the `./assets` folder.
+/// Application SVG assets with a fallback to GPUI Kit's component icons.
 #[derive(RustEmbed)]
 #[folder = "./static"]
 #[include = "**/*.svg"]
@@ -34,5 +33,30 @@ impl AssetSource for Assets {
         paths.sort();
         paths.dedup();
         Ok(paths)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Assets;
+    use gpui_kit::AssetSource;
+
+    #[test]
+    fn resolves_application_and_framework_icons() {
+        let source = Assets;
+        let path = "icons/cpu.svg";
+        assert_eq!(
+            source.load(path).unwrap().unwrap(),
+            Assets::get(path).unwrap().data
+        );
+        let framework_paths = gpui_kit::assets::Assets.list("").unwrap();
+        assert!(!framework_paths.is_empty());
+        for path in framework_paths {
+            assert!(source.load(&path).unwrap().is_some(), "missing {path}");
+        }
+        assert!(source.load("missing-icon.svg").is_err());
+        assert!(source.load("").unwrap().is_none());
+        let paths = source.list("").unwrap();
+        assert!(paths.windows(2).all(|pair| pair[0] < pair[1]));
     }
 }

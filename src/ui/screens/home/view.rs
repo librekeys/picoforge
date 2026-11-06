@@ -347,7 +347,7 @@ impl HomeViewModel {
                     .child(
                         Icon::new(IconName::TriangleAlert)
                             .size_8()
-                            .text_color(gpui_kit::yellow()),
+                            .text_color(theme.warning),
                     )
                     .child(
                         div()

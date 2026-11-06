@@ -245,8 +245,7 @@
 //!
 //! | Crate | Version | Purpose |
 //! |-------|---------|---------|
-//! | `gpui` | 0.2.2 | Zed's GPU-accelerated UI framework |
-//! | `gpui-component` | git (librekeys fork) | Reusable UI components (buttons, inputs, dialogs, etc.) |
+//! | `gpui-kit` | 0.9.0 | Matching GPUI engine, styled components, window root, and icons |
 //! | `pcsc` | 2.x | PC/SC smart card API for Rescue protocol |
 //! | `hidapi` | 2.6 | USB HID API for FIDO2/CTAPHID transport |
 //! | `serde` / `serde_json` | 1.x | Serialization/deserialization |
@@ -275,9 +274,9 @@
 //! - **Window**: Window-level operations (dialogs, notifications, focus)
 //! - **App**: Application-level state (global theme, asset loading)
 //!
-//! The project uses the **librekeys fork** of `gpui-component` (`fix/client-window-linux`
-//! branch) which applies bug fixes for Linux/FreeBSD window management. The upstream
-//! component API is the same, but check the fork's branch for any platform-specific fixes.
+//! The frontend depends on the published GPUI Kit facade. Use `gpui_kit::*`
+//! for engine types and `gpui_kit::component` for styled controls. Kit owns the
+//! window root and overlay layers; application views retain device and form state.
 //!
 //! ---
 //!
@@ -655,7 +654,7 @@
 //!
 //! - **Minimal**: Only add dependencies when genuinely needed
 //! - **Feature flags**: Enable only required features
-//! - **Fork pinning**: `gpui-component` uses librekeys fork via git URL
+//! - **UI pinning**: `gpui-kit` is pinned to 0.9.0 with the default upstream backend
 //!
 //! ---
 //!
@@ -865,8 +864,7 @@
 //! - **Pol Henarejos**: pico-fido firmware and pico-keys-sdk
 //! - **TheMaxMur**: RS-Key firmware
 //! - **Zed Industries**: GPUI framework
-//! - **Longbridge**: [gpui-component](https://github.com/longbridge/gpui-component) — Rust GUI components for building fantastic cross-platform desktop applications using GPUI
-//! - **LibreKeys**: gpui-component fork with Linux bug fixes
+//! - **Longbridge**: [GPUI Kit](https://gpui-kit.com) — Rust GUI components for building fantastic cross-platform desktop applications using GPUI
 //! - **FIDO Alliance**: CTAP2 specification
 //!
 //! ---
@@ -877,7 +875,7 @@
 //! - [pico-fido Documentation](https://github.com/polhenarejos/pico-fido)
 //! - [RS-Key Documentation](https://themaxmur.github.io/RS-Key/)
 //! - [GPUI Documentation](https://docs.rs/gpui)
-//! - [gpui-component](https://github.com/longbridge/gpui-component)
+//! - [GPUI Kit](https://gpui-kit.com)
 //! - [PC/SC Specification](https://pcsc1groupwg.readthedocs.io/)
 //! - [ISO 7816-4](https://www.iso.org/standard/74873.html)
 //!
@@ -921,6 +919,10 @@ fn main() {
                 }
             }
         }
+
+        // The passkey details sheet reaches the window content edge. Kit now
+        // owns this window-level inset in its theme rather than on each Sheet.
+        Theme::update(cx, |theme| theme.sheet.margin_top = px(0.));
 
         cx.activate(true);
 
