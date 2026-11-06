@@ -1,12 +1,10 @@
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::security::view_model::SecurityViewModel;
 use gpui_kit::component::{
-    ActiveTheme, Disableable, Icon, StyledExt,
-    button::{Button, ButtonCustomVariant, ButtonVariants},
-    h_flex,
-    switch::Switch,
-    v_flex,
+    ActiveTheme, Disableable, Icon, StyledExt, button::Button, h_flex, switch::Switch, v_flex,
 };
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 impl Render for SecurityViewModel {
@@ -157,12 +155,13 @@ impl Render for SecurityViewModel {
                             .justify_end()
                             .child(
                                 Button::new("lock-device-btn")
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
+                                    .map(|button| {
+                                        ButtonColors::new(cx)
                                             .color(destructive_red.into())
                                             .hover(destructive_red_hover.into())
-                                            .active(destructive_red_active.into()),
-                                    )
+                                            .active(destructive_red_active.into())
+                                            .apply(button, true, cx)
+                                    })
                                     .disabled(true)
                                     .child(
                                         h_flex()

@@ -1,12 +1,14 @@
 //! OpenPGP screen rendering.
 
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::button::PFButton;
 use crate::ui::components::card::Card;
 use crate::ui::components::page_view::PageView;
 use crate::ui::models::device::openpgp;
 use crate::ui::screens::openpgp::view_model::OpenPgpViewModel;
-use gpui_kit::component::button::{Button, ButtonCustomVariant, ButtonVariants};
+use gpui_kit::component::button::{Button, ButtonVariants};
 use gpui_kit::component::{ActiveTheme, Disableable, Icon, StyledExt, Theme, h_flex, v_flex};
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 fn empty_state(heading: &str, body: String, theme: &Theme) -> AnyElement {
@@ -169,13 +171,14 @@ impl Render for OpenPgpViewModel {
 
         let refresh_btn = Button::new("pgp-refresh")
             .icon(Icon::default().path("icons/refresh-cw.svg"))
-            .custom(
-                ButtonCustomVariant::new(cx)
+            .map(|button| {
+                ButtonColors::new(cx)
                     .color(rgb(0x1b1b1d).into())
                     .hover(rgb(0x232325).into())
-                    .active(rgb(0x3f3f46).into()),
-            )
-            .border_color(theme.border)
+                    .active(rgb(0x3f3f46).into())
+                    .border(theme.border)
+                    .apply(button, self.loading, cx)
+            })
             .disabled(self.loading)
             .on_click(cx.listener(|this, _, _, cx| this.refresh(cx)));
         let change_user_btn = PFButton::new("Change User PIN")

@@ -169,10 +169,10 @@ impl Render for AppSidebar {
         let nav_sidebar = Sidebar::new("navigation")
             .side(Side::Left)
             .collapsed(sidebar_width < px(120.))
-            .collapsible(false)
+            .collapsible(SidebarCollapsible::Icon)
             .w_full()
             .bg(sidebar_bg)
-            .border_color(gpui_kit::transparent_white())
+            .border_0()
             // Grouped so the panel reads as sections, not one long list: the
             // device overview, the credential applets, RS-Key's protection
             // features, then device-wide system actions (Offboard sits just
@@ -355,8 +355,7 @@ impl Render for AppSidebar {
         let sidebar_column = v_flex()
             .h_full()
             .bg(sidebar_bg)
-            .border_r_1()
-            .border_color(border_color)
+            .relative()
             .w(sidebar_width)
             .child(header)
             .child(
@@ -366,7 +365,18 @@ impl Render for AppSidebar {
                     .overflow_hidden()
                     .child(nav_sidebar),
             )
-            .child(footer);
+            .child(footer)
+            // Paint the divider without subtracting from the shared 48px icon
+            // column; header, nav and footer must have the same horizontal center.
+            .child(
+                div()
+                    .absolute()
+                    .right_0()
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.))
+                    .bg(border_color),
+            );
 
         div()
             .id("sidebar-section")

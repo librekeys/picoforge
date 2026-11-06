@@ -1,3 +1,4 @@
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::{card::Card, page_view::PageView};
 use crate::ui::models::device::{
     DeviceMethod, FirmwareType, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP,
@@ -5,6 +6,7 @@ use crate::ui::models::device::{
 };
 use crate::ui::screens::config::view_model::ConfigViewModel;
 use gpui_kit::component::{button::*, input::*, select::*, slider::*, switch::*, *};
+use gpui_kit::prelude::FluentBuilder;
 use gpui_kit::*;
 
 /// Per-status LED brightness is a full u8 on the device (0-255, 0 = off). The
@@ -334,13 +336,14 @@ impl ConfigViewModel {
                                     i
                                 )))
                                 .child(color_name)
-                                .custom(
-                                    ButtonCustomVariant::new(cx)
+                                .map(|button| {
+                                    ButtonColors::new(cx)
                                         .color(rgb(0x27272a).into())
                                         .hover(rgb(0x3f3f46).into())
-                                        .active(rgb(0x52525b).into()),
-                                )
-                                .border_color(theme.border)
+                                        .active(rgb(0x52525b).into())
+                                        .border(theme.border)
+                                        .apply(button, is_fido, cx)
+                                })
                                 .disabled(is_fido)
                                 .on_click(cycle_color_listener),
                             )
@@ -351,13 +354,14 @@ impl ConfigViewModel {
                                     i
                                 )))
                                 .child("-")
-                                .custom(
-                                    ButtonCustomVariant::new(cx)
+                                .map(|button| {
+                                    ButtonColors::new(cx)
                                         .color(rgb(0x1b1b1d).into())
                                         .hover(rgb(0x232325).into())
-                                        .active(rgb(0x3f3f46).into()),
-                                )
-                                .border_color(theme.border)
+                                        .active(rgb(0x3f3f46).into())
+                                        .border(theme.border)
+                                        .apply(button, is_fido || brightness_val == 0, cx)
+                                })
                                 .disabled(is_fido || brightness_val == 0)
                                 .on_click(dec_bright_listener),
                             )
@@ -374,13 +378,18 @@ impl ConfigViewModel {
                                     i
                                 )))
                                 .child("+")
-                                .custom(
-                                    ButtonCustomVariant::new(cx)
+                                .map(|button| {
+                                    ButtonColors::new(cx)
                                         .color(rgb(0x1b1b1d).into())
                                         .hover(rgb(0x232325).into())
-                                        .active(rgb(0x3f3f46).into()),
-                                )
-                                .border_color(theme.border)
+                                        .active(rgb(0x3f3f46).into())
+                                        .border(theme.border)
+                                        .apply(
+                                            button,
+                                            is_fido || brightness_val == LED_BRIGHTNESS_MAX,
+                                            cx,
+                                        )
+                                })
                                 .disabled(is_fido || brightness_val == LED_BRIGHTNESS_MAX)
                                 .on_click(inc_bright_listener),
                             ),
@@ -631,13 +640,14 @@ impl Render for ConfigViewModel {
                     .icon(Icon::default().path("icons/save.svg"))
                     .child("Apply Changes")
                     .disabled(self.loading || hardware_config_disabled)
-                    .custom(
-                        ButtonCustomVariant::new(cx)
+                    .map(|button| {
+                        ButtonColors::new(cx)
                             .color(rgb(0xe3e3e6).into())
                             .hover(rgb(0xcfcfd1).into())
                             .active(rgb(0xe3e3e6).into())
-                            .foreground(rgb(0x4b4b4e).into()),
-                    )
+                            .foreground(rgb(0x4b4b4e).into())
+                            .apply(button, self.loading || hardware_config_disabled, cx)
+                    })
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.apply_changes(window, cx);
                     })),

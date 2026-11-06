@@ -12,6 +12,74 @@ use gpui_kit::component::{
 use gpui_kit::prelude::*;
 use gpui_kit::*;
 
+/// PicoForge's original solid button palette, independent of Kit's translucent
+/// custom-variant defaults. Kit still owns focus, activation and loading behavior.
+#[derive(Clone, Copy)]
+pub(crate) struct ButtonColors {
+    background: Hsla,
+    hover: Hsla,
+    active: Hsla,
+    foreground: Hsla,
+    border: Hsla,
+}
+
+impl ButtonColors {
+    pub(crate) fn new(cx: &App) -> Self {
+        Self {
+            background: cx.theme().transparent,
+            hover: cx.theme().transparent,
+            active: cx.theme().transparent,
+            foreground: cx.theme().foreground,
+            border: cx.theme().transparent,
+        }
+    }
+
+    pub(crate) fn color(mut self, color: Hsla) -> Self {
+        self.background = color;
+        self
+    }
+    pub(crate) fn hover(mut self, color: Hsla) -> Self {
+        self.hover = color;
+        self
+    }
+    pub(crate) fn active(mut self, color: Hsla) -> Self {
+        self.active = color;
+        self
+    }
+    pub(crate) fn foreground(mut self, color: Hsla) -> Self {
+        self.foreground = color;
+        self
+    }
+    pub(crate) fn border(mut self, color: Hsla) -> Self {
+        self.border = color;
+        self
+    }
+
+    pub(crate) fn apply(self, button: Button, disabled: bool, cx: &App) -> Button {
+        // Kit uses custom.color as the border in every pointer state. Supply the
+        // border there and restore the independent solid background explicitly.
+        // Disabled colors match the previous component's 15% background opacity.
+        let background = if disabled {
+            self.background.opacity(0.15)
+        } else {
+            self.background
+        };
+        let border = if disabled { background } else { self.border };
+        button
+            .with_variant(gpui_kit::component::button::ButtonVariant::Custom(
+                ButtonCustomVariant::new(cx)
+                    .color(border)
+                    .hover(self.hover)
+                    .active(self.active)
+                    .foreground(self.foreground),
+            ))
+            .bg(background)
+            .border_1()
+            .border_color(border)
+            .disabled(disabled)
+    }
+}
+
 type ClickHandler = Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>;
 
 /// A stateless text button wrapper
@@ -113,13 +181,14 @@ impl RenderOnce for PFButton {
         let text = self.text;
 
         let mut btn = Button::new(self.id)
-            .custom(
-                ButtonCustomVariant::new(cx)
+            .map(|button| {
+                ButtonColors::new(cx)
                     .color(self.bg_color_start.into())
                     .hover(self.bg_color_hover.into())
-                    .active(self.bg_color_active.into()),
-            )
-            .border_color(cx.theme().border)
+                    .active(self.bg_color_active.into())
+                    .border(cx.theme().border)
+                    .apply(button, self.disabled, cx)
+            })
             .border_t_1();
 
         if self.width_full {
@@ -238,13 +307,14 @@ impl RenderOnce for PFIconButton {
         let icon = self.icon;
 
         let mut btn = Button::new("pf-icon-btn")
-            .custom(
-                ButtonCustomVariant::new(cx)
+            .map(|button| {
+                ButtonColors::new(cx)
                     .color(self.bg_color_start.into())
                     .hover(self.bg_color_hover.into())
-                    .active(self.bg_color_active.into()),
-            )
-            .border_color(cx.theme().border)
+                    .active(self.bg_color_active.into())
+                    .border(cx.theme().border)
+                    .apply(button, self.disabled, cx)
+            })
             .border_t_2();
 
         if self.width_full {
