@@ -1,7 +1,7 @@
 //! Modal dialog components for PIN prompts, confirmations, and status display.
 
 use gpui_kit::component::{
-    ActiveTheme, Disableable, Sizable, WindowExt,
+    ActiveTheme, Disableable, IconName, Sizable, WindowExt,
     button::{Button, ButtonVariant, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
@@ -126,6 +126,7 @@ impl Render for PinPromptContent {
                                 Button::new("confirm")
                                     .primary()
                                     .label("Loading...")
+                                    .icon(IconName::Loader)
                                     .loading(true),
                             ),
                     )
@@ -408,6 +409,7 @@ impl Render for ConfirmContent {
                             Button::new("ok")
                                 .with_variant(self.ok_variant)
                                 .label("Loading...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -635,6 +637,7 @@ impl Render for ChangePinContent {
                             Button::new("confirm")
                                 .primary()
                                 .label("Changing PIN...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -954,6 +957,7 @@ impl Render for SetPinContent {
                             Button::new("confirm")
                                 .primary()
                                 .label("Setting PIN...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -1246,6 +1250,7 @@ impl Render for StatusContent {
                     Button::new("loading")
                         .primary()
                         .label("Applying...")
+                        .icon(IconName::Loader)
                         .loading(true),
                 )
                 .into_any_element(),
@@ -1258,6 +1263,7 @@ impl Render for StatusContent {
                     Button::new("loading")
                         .primary()
                         .label("Applying...")
+                        .icon(IconName::Loader)
                         .loading(true),
                 )
                 .into_any_element(),

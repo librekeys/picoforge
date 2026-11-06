@@ -5,7 +5,7 @@
 use crate::ui::colors;
 use gpui_kit::Styled;
 use gpui_kit::component::{
-    ActiveTheme, Disableable, Icon, Sizable, Size,
+    ActiveTheme, Disableable, Icon, IconName, Sizable, Size,
     button::{Button, ButtonCustomVariant, ButtonVariants},
     h_flex,
 };
@@ -200,7 +200,7 @@ impl RenderOnce for PFButton {
         }
 
         if self.loading {
-            btn = btn.loading(true);
+            btn = btn.icon(IconName::Loader).loading(true);
         }
 
         if self.small {
@@ -326,7 +326,7 @@ impl RenderOnce for PFIconButton {
         }
 
         if self.loading {
-            btn = btn.loading(true);
+            btn = btn.icon(IconName::Loader).loading(true);
         }
 
         if self.small {
