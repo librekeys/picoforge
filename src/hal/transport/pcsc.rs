@@ -73,6 +73,12 @@ impl PcscTransport {
         let data = rx.to_vec();
 
         if fw_type == FirmwareType::Unknown {
+            // The byte is a protocol-capability statement ("RS-Key SDK ≥ 8"),
+            // not an identity claim: fapico2 ships an RS-Key-SDK-compatible
+            // rescue applet (apps/rescue/src/lib.rs, `RSKEY_SDK_MAJOR = 8`,
+            // pinned by fapico2's tests/protocol.rs) and answers it too.
+            // Identity resolution belongs to the FIDO AAGUID — see the
+            // merge-authority note on `crate::hal::io::merged_firmware_type`.
             if data.len() >= 4 && data[2] >= 8 {
                 fw_type = FirmwareType::RSKey;
             } else {

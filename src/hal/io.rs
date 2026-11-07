@@ -13,6 +13,26 @@ use crate::{
     },
 };
 
+/// Which transport's firmware classification wins when both legs ran.
+///
+/// The FIDO AAGUID is authoritative (divergence D5, EPIC PF-FAPICO2): it is
+/// the sealed, compile-time identity, while the PC/SC rescue SELECT's
+/// SDK byte (`data[2] >= 8` → "RS-Key") is a protocol-capability statement —
+/// fapico2 ships an RS-Key-SDK-compatible rescue applet (`apps/rescue/src/
+/// lib.rs`, `RSKEY_SDK_MAJOR = 8`) that answers that byte without being an
+/// RS-Key. The PC/SC classification therefore fills in only when the FIDO
+/// leg is absent.
+fn merged_firmware_type(
+    fido_type: Option<FirmwareType>,
+    rescue_type: Option<FirmwareType>,
+) -> FirmwareType {
+    match (fido_type, rescue_type) {
+        (Some(fido), _) => fido,
+        (None, Some(rescue)) => rescue,
+        (None, None) => FirmwareType::Unknown,
+    }
+}
+
 /// Read full device status by merging FIDO and Rescue data where available.
 ///
 /// Tries the FIDO HID transport first, then falls back to the PC/SC
@@ -119,21 +139,33 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                 secure_boot: rescue.secure_boot,
                 secure_lock: rescue.secure_lock,
                 method: DeviceMethod::Rescue,
-                firmware_type: fido.firmware_type,
+                // FIDO AAGUID wins (see `merged_firmware_type`): a fapico2
+                // board's PC/SC leg reports RSKey from the rescue SDK byte,
+                // and the merged view must not report two identities.
+                firmware_type: merged_firmware_type(
+                    Some(fido.firmware_type),
+                    Some(rescue.firmware_type),
+                ),
             })
         }
         (Some(fido), None) => {
             log::info!("Using FIDO-only device details");
             Ok(FullDeviceStatus {
-                firmware_type: fido.firmware_type,
+                firmware_type: merged_firmware_type(Some(fido.firmware_type), None),
                 ..fido
             })
         }
         (None, Some(rescue)) => {
             log::info!("Using Rescue-only device details");
-            let ft = rescue_fw_type.filter(|_| rescue.firmware_type == FirmwareType::Unknown);
+            // No FIDO leg: the PC/SC classification fills in, but only over
+            // an Unknown from the rescue read itself (same rule as before).
+            let pcsc_type =
+                rescue_fw_type.filter(|_| rescue.firmware_type == FirmwareType::Unknown);
             Ok(FullDeviceStatus {
-                firmware_type: ft.unwrap_or(rescue.firmware_type),
+                firmware_type: merged_firmware_type(
+                    None,
+                    Some(pcsc_type.unwrap_or(rescue.firmware_type)),
+                ),
                 ..rescue
             })
         }
@@ -854,4 +886,38 @@ pub fn openpgp_generate(admin: String, slot: openpgp::PgpSlot, choice: u8) -> Re
 
 pub fn openpgp_reset() -> Result<(), PFError> {
     openpgp::reset(&openpgp::open()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // US-1753 (EPIC PF-FAPICO2, divergence D5): the merge order is pinned
+    // without any HID/PC-SC IO — the FIDO AAGUID is authoritative whenever
+    // its leg ran; the PC/SC classification fills in only when it is absent.
+
+    #[test]
+    fn fido_type_wins_when_both_legs_ran() {
+        // fapico2 board: the PC/SC rescue SDK byte classifies RSKey while
+        // the FIDO AAGUID classifies Fapico2 — the merged view must not
+        // report two different firmware types.
+        let merged = merged_firmware_type(Some(FirmwareType::Fapico2), Some(FirmwareType::RSKey));
+        assert_eq!(merged, FirmwareType::Fapico2);
+    }
+
+    #[test]
+    fn rescue_type_fills_only_when_fido_absent() {
+        let merged = merged_firmware_type(None, Some(FirmwareType::RSKey));
+        assert_eq!(merged, FirmwareType::RSKey);
+    }
+
+    #[test]
+    fn unknown_when_neither_leg_classified() {
+        assert_eq!(merged_firmware_type(None, None), FirmwareType::Unknown);
+        // A FIDO Unknown is still the FIDO leg's answer: it wins.
+        assert_eq!(
+            merged_firmware_type(Some(FirmwareType::Unknown), Some(FirmwareType::RSKey)),
+            FirmwareType::Unknown
+        );
+    }
 }

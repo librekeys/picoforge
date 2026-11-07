@@ -2,11 +2,11 @@
 
 //! Firmware-type abstraction layer.
 //!
-//! This module provides the [`FirmwareTrait`] trait and two concrete
-//! implementations ([`PicoFidoFirmware`], [`RSKeyFirmware`]) that
-//! encapsulate per-firmware capability gating. The trait methods are
-//! checked throughout [`crate::hal::io`] to select the correct command
-//! path for each operation.
+//! This module provides the [`FirmwareTrait`] trait and concrete
+//! implementations ([`PicoFidoFirmware`], [`RSKeyFirmware`],
+//! [`Fapico2Firmware`]) that encapsulate per-firmware capability gating.
+//! The trait methods are checked throughout [`crate::hal::io`] to select
+//! the correct command path for each operation.
 //!
 //! ## Detection
 //!
@@ -25,9 +25,11 @@
 //! | `supports_rescue_channel` | Whether the PC/SC rescue channel is accessible. |
 
 pub mod applets;
+pub mod fapico2;
 pub mod picofido;
 pub mod rskey;
 
+pub use fapico2::*;
 pub use picofido::*;
 pub use rskey::*;
 
@@ -42,6 +44,7 @@ use crate::hal::types::*;
 pub enum AnyFirmware {
     PicoFido(PicoFidoFirmware),
     RSKey(RSKeyFirmware),
+    Fapico2(Fapico2Firmware),
 }
 
 /// Capability gating per firmware variant.
@@ -94,9 +97,7 @@ impl AnyFirmware {
         match firmware_variant {
             FirmwareType::PicoFido => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
             FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(firmware_version)),
-            // Provisional: US-1753 (EPIC PF-FAPICO2) replaces this arm with a
-            // real Fapico2Firmware dispatch once firmwares/fapico2.rs exists.
-            FirmwareType::Fapico2 => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
+            FirmwareType::Fapico2 => Self::Fapico2(Fapico2Firmware::new(firmware_version)),
             FirmwareType::LkOne | FirmwareType::Unknown => {
                 Self::PicoFido(PicoFidoFirmware::new(firmware_version))
             }
@@ -118,9 +119,7 @@ impl AnyFirmware {
                 PicoFidoFirmware::new(firmware_version).with_legacy_vendor(has_legacy_vendor),
             ),
             FirmwareType::RSKey => Self::RSKey(RSKeyFirmware::new(firmware_version)),
-            // Provisional: US-1753 (EPIC PF-FAPICO2) replaces this arm with a
-            // real Fapico2Firmware dispatch once firmwares/fapico2.rs exists.
-            FirmwareType::Fapico2 => Self::PicoFido(PicoFidoFirmware::new(firmware_version)),
+            FirmwareType::Fapico2 => Self::Fapico2(Fapico2Firmware::new(firmware_version)),
             FirmwareType::LkOne | FirmwareType::Unknown => {
                 Self::PicoFido(PicoFidoFirmware::new(firmware_version))
             }
@@ -132,6 +131,7 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(fw) => fw.version(),
             Self::RSKey(fw) => fw.version(),
+            Self::Fapico2(fw) => fw.version(),
         }
     }
 
@@ -140,6 +140,7 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(_) => FirmwareType::PicoFido,
             Self::RSKey(_) => FirmwareType::RSKey,
+            Self::Fapico2(_) => FirmwareType::Fapico2,
         }
     }
 
@@ -148,6 +149,7 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(fw) => fw.supports_legacy_fido_hardware_config(),
             Self::RSKey(fw) => fw.supports_legacy_fido_hardware_config(),
+            Self::Fapico2(fw) => fw.supports_legacy_fido_hardware_config(),
         }
     }
 
@@ -156,17 +158,20 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(fw) => fw.supports_fido_config_write(),
             Self::RSKey(fw) => fw.supports_fido_config_write(),
+            Self::Fapico2(fw) => fw.supports_fido_config_write(),
         }
     }
 
     /// Whether the inner firmware supports the new-style (post-v7.2) FIDO hardware config path.
     ///
     /// This is the logical negation of `supports_legacy_fido_hardware_config` for
-    /// pico-fido, and always `false` for RS-Key.
+    /// pico-fido, and always `false` for RS-Key and fapico2 (which config over
+    /// the `0x41` vendor channel instead).
     pub fn supports_new_fido_hardware_config(&self) -> bool {
         match self {
             Self::PicoFido(fw) => !fw.supports_legacy_fido_hardware_config(),
             Self::RSKey(_) => false,
+            Self::Fapico2(_) => false,
         }
     }
 
@@ -175,6 +180,7 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(_) => false,
             Self::RSKey(fw) => fw.supports_rs_key_vendor_command(),
+            Self::Fapico2(fw) => fw.supports_rs_key_vendor_command(),
         }
     }
 
@@ -183,6 +189,7 @@ impl AnyFirmware {
         match self {
             Self::PicoFido(_) => true,
             Self::RSKey(_) => true,
+            Self::Fapico2(_) => true,
         }
     }
 }
@@ -203,5 +210,20 @@ mod tests {
         let detected = AnyFirmware::detect_by_aaguid("66617069636F32000000000000000002");
         assert_ne!(detected, FirmwareType::PicoFido);
         assert_ne!(detected, FirmwareType::Unknown);
+    }
+
+    #[test]
+    fn test_fapico2_capability_answers() {
+        // US-1753 (EPIC PF-FAPICO2): AnyFirmware::Fapico2 must answer the
+        // capability questions — the 0x41 vendor channel is the whole point.
+        let fw = AnyFirmware::new(FirmwareType::Fapico2, "7.6");
+        assert_eq!(fw.firmware_type(), FirmwareType::Fapico2);
+        assert!(fw.supports_rs_key_vendor_command());
+        assert!(fw.supports_fido_config_write());
+        assert!(fw.supports_rescue_channel());
+        assert!(!fw.supports_legacy_fido_hardware_config());
+        assert!(!fw.supports_new_fido_hardware_config());
+        // Identity is not aliased: the dispatch must NOT fold into pico-fido.
+        assert_ne!(fw.firmware_type(), FirmwareType::PicoFido);
     }
 }
