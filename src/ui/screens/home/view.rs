@@ -66,9 +66,10 @@ impl HomeViewModel {
     fn render_device_info(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         let info = &status.info;
         let config = &status.config;
-        // RS-Key's rescue FlashInfo is the KV filesystem (credentials & config),
-        // not the whole chip — label it honestly and surface objects + chip size.
-        let is_rskey = status.firmware_type == FirmwareType::RSKey;
+        // The 0x41-dialect rescue FlashInfo is the KV filesystem (credentials
+        // & config), not the whole chip — label it honestly and surface
+        // objects + chip size.
+        let is_rskey = status.firmware_type.supports_rskey_vendor();
         let flash_label = if is_rskey {
             "Storage (credentials & config)"
         } else {
@@ -334,7 +335,7 @@ impl HomeViewModel {
     fn render_led_config(status: &FullDeviceStatus, theme: &Theme) -> impl IntoElement {
         let config = &status.config;
         let has_fido_config =
-            status.firmware_type == FirmwareType::RSKey || status.method != DeviceMethod::Fido;
+            status.firmware_type.supports_rskey_vendor() || status.method != DeviceMethod::Fido;
         Card::new()
             .title("LED Configuration")
             .icon(Icon::default().path("icons/microchip.svg"))

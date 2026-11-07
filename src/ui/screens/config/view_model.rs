@@ -314,7 +314,7 @@ impl ConfigViewModel {
         let is_rskey = device_read
             .status
             .as_ref()
-            .map(|s| s.firmware_type == crate::ui::models::device::FirmwareType::RSKey)
+            .map(|s| s.firmware_type.supports_rskey_vendor())
             .unwrap_or(false);
 
         let current_vid: SharedString = config
@@ -818,7 +818,7 @@ impl ConfigViewModel {
         let current_led_order = status.config.led_order;
         let led_num = status.config.led_num;
         let method = status.method.clone();
-        let is_rskey = status.firmware_type == crate::ui::models::device::FirmwareType::RSKey;
+        let is_rskey = status.firmware_type.supports_rskey_vendor();
 
         let mut has_changes = false;
 

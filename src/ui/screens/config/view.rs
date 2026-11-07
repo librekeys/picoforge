@@ -1,7 +1,7 @@
 use crate::ui::components::{card::Card, page_view::PageView};
 use crate::ui::models::device::{
-    DeviceMethod, FirmwareType, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP,
-    USB_CAP_OTP, USB_CAP_PIV, USB_CAP_U2F,
+    DeviceMethod, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP, USB_CAP_OTP,
+    USB_CAP_PIV, USB_CAP_U2F,
 };
 use crate::ui::screens::config::view_model::ConfigViewModel;
 use gpui::*;
@@ -564,7 +564,11 @@ impl Render for ConfigViewModel {
         let device = self.device.read(cx);
         let status = device.status.clone();
         let is_fido = status.as_ref().map(|s| s.method.clone()) == Some(DeviceMethod::Fido);
-        let is_rskey = status.as_ref().map(|s| &s.firmware_type) == Some(&FirmwareType::RSKey);
+        // Capability, not identity (US-1754, PF-FAPICO2): the RS-Key vendor
+        // config surfaces light up for every 0x41-dialect firmware.
+        let is_rskey = status
+            .as_ref()
+            .is_some_and(|s| s.firmware_type.supports_rskey_vendor());
 
         let supports_legacy_fido_config = status
             .as_ref()

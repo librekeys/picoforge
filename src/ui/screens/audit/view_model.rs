@@ -6,7 +6,7 @@ use crate::ui::app::AppModels;
 use crate::ui::components::applet_gate::AppletGate;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
-use crate::ui::models::device::{DeviceEvent, DeviceRepo, FirmwareType, audit};
+use crate::ui::models::device::{DeviceEvent, DeviceRepo, audit};
 use gpui::*;
 use gpui_component::WindowExt;
 use gpui_component::button::ButtonVariants;
@@ -151,12 +151,7 @@ impl AuditViewModel {
     }
 
     pub(super) fn gate(&self, cx: &App) -> AppletGate {
-        let repo = self.device.read(cx);
-        match &repo.status {
-            None => AppletGate::Unsupported,
-            Some(s) if s.firmware_type != FirmwareType::RSKey => AppletGate::Unsupported,
-            Some(_) => AppletGate::Ready,
-        }
+        self.device.read(cx).rskey_vendor_gate()
     }
 
     /// Masked, optional PIN input (blank = authorise by touch).

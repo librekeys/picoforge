@@ -17,6 +17,7 @@
 use crate::hal::firmwares::AnyFirmware;
 use crate::hal::io;
 use crate::hal::types;
+use crate::ui::components::applet_gate::AppletGate;
 use gpui::*;
 use std::time::Duration;
 
@@ -401,6 +402,17 @@ impl DeviceRepo {
 
     // ── Applet gating (read already-held device state) ────────────────────
 
+    /// The shared gate for the RS-Key `0x41` vendor-feature screens (Backup,
+    /// Lock, Audit, Attestation, Offboard).
+    ///
+    /// Capability, not identity (US-1754, EPIC PF-FAPICO2): the gates compare
+    /// [`FirmwareType::supports_rskey_vendor`] so every `0x41`-dialect
+    /// firmware lights these screens up, and the next such device is one
+    /// enum arm — not five byte-identical view-model edits.
+    pub fn rskey_vendor_gate(&self) -> AppletGate {
+        rskey_vendor_gate(self.status.as_ref())
+    }
+
     /// OATH feature profile of the connected firmware, if it exposes the applet.
     pub fn oath_features(&self) -> Option<OathFeatures> {
         let status = self.status.as_ref()?;
@@ -447,7 +459,7 @@ impl DeviceRepo {
 
     pub fn read_device_state_blocking() -> Result<FreshDeviceState, crate::error::PFError> {
         let status = io::read_device_details()?;
-        let (led_status, management_apps) = if status.firmware_type == types::FirmwareType::RSKey {
+        let (led_status, management_apps) = if status.firmware_type.supports_rskey_vendor() {
             (
                 io::read_led_config(status.method.clone()).ok(),
                 io::read_management_config(status.method.clone()).ok(),
@@ -712,7 +724,7 @@ impl DeviceRepo {
                     }
                 }
 
-                if status.firmware_type == types::FirmwareType::RSKey {
+                if status.firmware_type.supports_rskey_vendor() {
                     self.led_status = io::read_led_config(status.method.clone()).ok();
                     self.management_apps = io::read_management_config(status.method.clone()).ok();
                 } else {
@@ -752,5 +764,91 @@ impl DeviceRepo {
         self.management_apps = None;
         self.loading = false;
         self.error = Some(error);
+    }
+}
+
+/// The shared gate for the RS-Key `0x41` vendor-feature screens (Backup,
+/// Lock, Audit, Attestation, Offboard) — see
+/// [`DeviceRepo::rskey_vendor_gate`].
+fn rskey_vendor_gate(status: Option<&types::FullDeviceStatus>) -> AppletGate {
+    match status {
+        None => AppletGate::Unsupported,
+        Some(s) if !s.firmware_type.supports_rskey_vendor() => AppletGate::Unsupported,
+        Some(_) => AppletGate::Ready,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Explicit imports, NOT `use super::*`: the file-level `use gpui::*`
+    // glob re-exports gpui's own `test` proc-macro, which would shadow the
+    // built-in `#[test]` here and fail to expand.
+    use super::rskey_vendor_gate;
+    use crate::hal::types;
+    use crate::ui::components::applet_gate::AppletGate;
+
+    /// US-1754 (EPIC PF-FAPICO2): a status snapshot with a given firmware
+    /// type, in the shape the view-model gates consume.
+    fn status_with(firmware_type: types::FirmwareType) -> types::FullDeviceStatus {
+        types::FullDeviceStatus {
+            info: types::DeviceInfo {
+                serial: String::new(),
+                flash_used: None,
+                flash_total: None,
+                firmware_version: String::new(),
+                bcd_device: None,
+                manufacturer: None,
+                flash_files: None,
+                flash_chip_size: None,
+            },
+            config: Default::default(),
+            secure_boot: false,
+            secure_lock: false,
+            method: types::DeviceMethod::Fido,
+            firmware_type,
+        }
+    }
+
+    #[test]
+    fn vendor_gate_is_capability_not_identity() {
+        // US-1750 scenarios 3–4: every RS-Key-gated screen's gate is Ready
+        // for Fapico2, and the shared helper is where that is decided.
+        assert_eq!(
+            rskey_vendor_gate(Some(&status_with(types::FirmwareType::Fapico2))),
+            AppletGate::Ready
+        );
+        assert_eq!(
+            rskey_vendor_gate(Some(&status_with(types::FirmwareType::RSKey))),
+            AppletGate::Ready
+        );
+    }
+
+    #[test]
+    fn vendor_gate_regressions_hold() {
+        // A pico-fido board still sees none of the RS-Key screens (no
+        // regression), and no status at all stays Unsupported.
+        assert_eq!(
+            rskey_vendor_gate(Some(&status_with(types::FirmwareType::PicoFido))),
+            AppletGate::Unsupported
+        );
+        assert_eq!(
+            rskey_vendor_gate(Some(&status_with(types::FirmwareType::LkOne))),
+            AppletGate::Unsupported
+        );
+        assert_eq!(
+            rskey_vendor_gate(Some(&status_with(types::FirmwareType::Unknown))),
+            AppletGate::Unsupported
+        );
+        assert_eq!(rskey_vendor_gate(None), AppletGate::Unsupported);
+    }
+
+    #[test]
+    fn supports_rskey_vendor_truth_table() {
+        // RSKey ∪ Fapico2 and nothing else.
+        assert!(types::FirmwareType::RSKey.supports_rskey_vendor());
+        assert!(types::FirmwareType::Fapico2.supports_rskey_vendor());
+        assert!(!types::FirmwareType::PicoFido.supports_rskey_vendor());
+        assert!(!types::FirmwareType::LkOne.supports_rskey_vendor());
+        assert!(!types::FirmwareType::Unknown.supports_rskey_vendor());
     }
 }
