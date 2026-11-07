@@ -15,9 +15,9 @@ use crate::{
 
 /// Read full device status by merging FIDO and Rescue data where available.
 ///
-/// Tries the FIDO HID transport first, then falls back to the PC/SC
-/// rescue channel. When both succeed, fields from the more detailed
-/// source are used (e.g. serial/flash from Rescue, AAGUID from FIDO).
+/// Tries the PC/SC Rescue channel first, then also attempts FIDO HID. When both
+/// succeed, the function combines fields from both results (for example,
+/// serial and flash data from Rescue with the AAGUID from FIDO).
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     let mut fido_status: Option<FullDeviceStatus> = None;
     let mut rescue_status: Option<FullDeviceStatus> = None;

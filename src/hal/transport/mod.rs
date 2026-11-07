@@ -1,18 +1,18 @@
 //! Device discovery and transport abstraction.
 //!
-//! Two physical transports coexist:
+//! FIDO operations and smart-card applets use two physical transport families:
 //!
 //! * **FIDO HID** ([`fido::HidTransport`]) — the primary CTAP2 / CTAPHID channel
 //!   over USB HID. Used for normal operations (credential management, PIN,
 //!   authentication). Supports both pico-fido and RS-Key firmwares.
-//! * **Rescue PC/SC** ([`pcsc::PcscTransport`]) — an ISO 7816-4 APDU channel over
-//!   a PC/SC smart-card reader. Used when the device is in rescue/bootloader mode
-//!   or when FIDO commands are blocked (e.g. firmware version ≥ 7.4 on pico-fido).
+//! * **PC/SC / CCID** — [`pcsc::PcscTransport`] sends Rescue APDUs, while
+//!   [`ccid::CcidSession`] keeps a card session open for OATH, OTP, PIV, and
+//!   OpenPGP applet commands during normal operation.
 //!
-//! The [`DeviceHandle::discover`] method tries PC/SC first and falls back to
-//! FIDO HID. The PC/SC rescue channel provides richer device details (serial,
-//! flash stats, secure boot) and does not require PIN authentication for
-//! configuration writes.
+//! The [`DeviceHandle::discover`] method tries Rescue PC/SC first and then FIDO
+//! HID. Higher-level operations can select a transport explicitly; device-detail
+//! reads attempt both transports and merge their results. Rescue configuration
+//! writes do not require FIDO PIN authentication.
 
 use std::fmt;
 

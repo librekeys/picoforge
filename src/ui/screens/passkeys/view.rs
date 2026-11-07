@@ -1,3 +1,5 @@
+//! Passkeys screen rendering for discoverable credentials and their operations.
+
 use crate::ui::components::button::ButtonColors;
 use crate::ui::components::{
     button::{PFButton, PFIconButton},

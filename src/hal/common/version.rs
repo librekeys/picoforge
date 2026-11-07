@@ -24,10 +24,13 @@ pub struct FirmwareVersion {
 }
 
 impl FirmwareVersion {
-    /// Parse a version string in `major.minor` or `major.minor.patch` format.
+    /// Parse a dotted version string using its first two components and an
+    /// optional patch component.
     ///
-    /// Returns `None` if the string has fewer than two components, or if
-    /// any component is not a valid unsigned integer.
+    /// The major and minor components must be unsigned integers or parsing
+    /// returns `None`. A missing or invalid patch component becomes zero;
+    /// components after the patch are ignored. The original string is retained
+    /// in `raw`.
     pub fn parse(version: &str) -> Option<Self> {
         let parts: Vec<&str> = version.split('.').collect();
         let major = parts.first()?.parse().ok()?;

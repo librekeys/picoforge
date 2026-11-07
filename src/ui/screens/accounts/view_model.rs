@@ -42,7 +42,9 @@ pub struct AccountsViewModel {
     pub(super) needs_password: bool,
     password: Option<String>,
     pub(super) loading: bool,
-    /// Current unix time, ticked once a second to drive the countdown + refresh.
+    /// Current Unix time, ticked once a second for countdown display. Automatic
+    /// code reloads are checked on fixed 30-second windows, regardless of a
+    /// credential's configured TOTP period.
     pub(super) now: u64,
     last_window: u64,
     _task: Option<Task<()>>,

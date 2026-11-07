@@ -19,7 +19,9 @@ const CKPT_TAG: &[u8] = b"RSK-AUDIT-CKPT-v1";
 /// `EV_RESET` — the factory-reset event (offboard receipts require it present).
 pub const EVT_RESET: u8 = 0x04;
 
-/// One decoded journal entry.
+/// One decoded journal entry. The wire record is 20 bytes; the parser reads the
+/// sequence, uptime, event, auxiliary byte, and eight-byte detail field from
+/// bytes `0..18` and currently ignores the final two bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AuditEntry {
     pub seq: u32,

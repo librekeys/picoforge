@@ -1,37 +1,20 @@
-//! Hardware abstraction layer — all device communication lives here.
+//! Hardware abstraction layer for FIDO HID, Rescue APDUs, and smart-card applets.
 //!
-//! ```text
-//! hal/
-//! ├── mod.rs       — module root
-//! ├── io.rs        — high-level entry points dispatching across protocols
-//! ├── types.rs     — shared structs, enums, and constants
-//! ├── common/      — COSE algorithm/curve enums and firmware-version parsing
-//! │   ├── cose.rs
-//! │   └── version.rs
-//! ├── firmwares/   — per-firmware capability gating (PicoFido, RSKey)
-//! │   ├── picofido.rs
-//! │   └── rskey.rs
-//! ├── transport/   — physical transport abstractions (HID, PC/SC)
-//! │   ├── fido.rs  — CTAPHID framing over USB HID
-//! │   └── pcsc.rs  — ISO 7816-4 APDU over PC/SC
-//! ├── fido/        — FIDO2 / CTAP2 protocol implementation
-//! │   ├── constants.rs — CTAP2 command codes, CBOR keys, vendor commands
-//! │   └── ops.rs       — FidoOperations trait, PIN/credential management
-//! └── rescue/      — Rescue applet protocol (PC/SC APDU)
-//!     ├── constants.rs — ISO 7816-4 constants, PHY tags, vendor AIDs
-//!     └── ops.rs       — RescueOperations trait
-//! ```
+//! - [`types`] contains data shared across the HAL.
+//! - [`common`] contains COSE, version, and LED helpers.
+//! - [`apdu`] provides APDU, status-word, and BER-TLV types.
+//! - [`transport`] implements FIDO HID, Rescue PC/SC, and persistent CCID sessions.
+//! - [`applets`] implements OATH, OTP, PIV, and OpenPGP command sets over CCID.
+//! - [`fido`] implements CTAP2 and PicoForge vendor operations, including audit
+//!   and backup helpers.
+//! - [`rescue`] implements Rescue applet operations; [`offboard`] coordinates the
+//!   RS-Key full-device offboarding flow.
+//! - [`firmwares`] defines per-firmware capability checks, while [`io`] exposes
+//!   higher-level operations consumed by the UI.
 //!
-//! # Architecture
-//!
-//! [`types`] defines the data types shared across all submodules.
-//! [`firmwares`] provides [`AnyFirmware`](crate::hal::firmwares::AnyFirmware) with per-firmware capability
-//! checks (e.g. legacy vs new vendor commands).
-//! [`transport`] discovers the device and returns a [`DeviceHandle`](crate::hal::transport::DeviceHandle)
-//! wrapping either a FIDO HID or Rescue PC/SC connection.
-//! [`fido`] and [`rescue`] implement the protocol-level operations.
-//! [`io`] sits on top and exposes one function per device operation,
-//! selecting the correct protocol path based on the detected firmware.
+//! Device-detail reads can combine Rescue and FIDO HID results. Applet clients
+//! use persistent CCID sessions so authentication state survives across commands
+//! that require it.
 
 pub mod apdu;
 pub mod applets;

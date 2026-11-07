@@ -13,7 +13,7 @@ pub enum CoseAlgorithm {
     ES256 = -7,
     /// EdDSA (Edwards-curve Digital Signature Algorithm).
     EdDSA = -8,
-    /// ECDSA w/ SHA-256 on P-256 (parallel-sphere variant).
+    /// ECDSA using the P-256 curve and SHA-256.
     ESP256 = -9,
     /// Ed25519 signature algorithm (EdDSA on Curve25519).
     Ed25519 = -19,
@@ -25,9 +25,9 @@ pub enum CoseAlgorithm {
     ES512 = -36,
     /// ECDSA w/ SHA-256 on secp256k1 (Koblitz curve).
     ES256K = -47,
-    /// ECDSA w/ SHA-384 on P-384 (parallel-sphere variant).
+    /// ECDSA using the P-384 curve and SHA-384.
     ESP384 = -51,
-    /// ECDSA w/ SHA-512 on P-521 (parallel-sphere variant).
+    /// ECDSA using the P-521 curve and SHA-512.
     ESP512 = -52,
     /// Ed448 signature algorithm.
     Ed448 = -53,
@@ -37,11 +37,11 @@ pub enum CoseAlgorithm {
     RS384 = -258,
     /// RSASSA-PKCS1-v1_5 w/ SHA-512.
     RS512 = -259,
-    /// BLS (Boneh–Lynn–Shacham) signature w/ BLS12-381 (curve B).
+    /// ECDSA using the BrainpoolP256r1 curve and SHA-256.
     ESB256 = -265,
-    /// BLS signature w/ BLS12-381 (curve B, larger subgroup).
+    /// ECDSA using the BrainpoolP384r1 curve and SHA-384.
     ESB384 = -267,
-    /// BLS signature w/ BLS12-381 (curve B, full size).
+    /// ECDSA using the BrainpoolP512r1 curve and SHA-512.
     ESB512 = -268,
     /// ML-DSA-44 (CRYSTALS-Dilithium, NIST Level 2).
     MLDSA44 = -48,
@@ -108,7 +108,10 @@ impl fmt::Display for CoseAlgorithm {
     }
 }
 
-/// COSE elliptic curve identifiers from the IANA COSE Elliptic Curves registry.
+/// Elliptic-curve identifiers used in COSE keys and firmware responses.
+///
+/// The Brainpool variants use PicoForge's firmware IDs (`9`–`11`); the IANA
+/// COSE registry assigns those curves `256`, `258`, and `259`, respectively.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoseCurve {
@@ -128,11 +131,11 @@ pub enum CoseCurve {
     Ed448 = 7,
     /// secp256k1 (Koblitz curve, used by ES256K).
     P256K1 = 8,
-    /// Barreto–Naehrig BN256 curve (pairing-friendly).
+    /// BrainpoolP256r1 curve (firmware curve ID `9`).
     BP256R1 = 9,
-    /// Barreto–Naehrig BN384 curve (pairing-friendly).
+    /// BrainpoolP384r1 curve (firmware curve ID `10`).
     BP384R1 = 10,
-    /// Barreto–Naehrig BN512 curve (pairing-friendly).
+    /// BrainpoolP512r1 curve (firmware curve ID `11`).
     BP512R1 = 11,
 }
 

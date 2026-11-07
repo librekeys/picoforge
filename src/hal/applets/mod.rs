@@ -59,7 +59,7 @@ pub struct OpenPgpFeatures {
 /// OTP applet features a firmware exposes, read by the Slots screen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OtpFeatures {
-    /// Programmable slots — 2 (classic YubiKey) or 4 (RS-Key extension).
+    /// Number of programmable slots exposed by this firmware's profile.
     pub slots: u8,
     /// HMAC-SHA1 challenge-response programming.
     pub chalresp: bool,

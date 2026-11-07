@@ -2,9 +2,11 @@
 //!
 //! ```text
 //! fido/
-//! ├── mod.rs       — high-level FIDO2 operations (info, PIN, credentials, config)
-//! ├── constants.rs — CTAP2 command codes, CBOR map keys, COSE algorithms, bitflags
-//! └── ops.rs       — FidoOperations trait impl (CTAPHID framing, PIN, credential mgmt)
+//! ├── mod.rs       — high-level FIDO2 and vendor operations
+//! ├── constants.rs — CTAP2 enums and shared protocol constants
+//! ├── ops.rs       — CTAPHID framing, PIN, and credential-management operations
+//! ├── audit.rs     — audit journal parsing and checkpoint verification
+//! └── backup.rs    — seed backup payload and cryptographic helpers
 //! ```
 //!
 //! # Architecture
@@ -24,9 +26,9 @@
 //!  USB HID (CTAPHID protocol)
 //! ```
 //!
-//! [`constants`] is imported by both `mod.rs` and `ops.rs` and should be the
-//! single source of truth for every CTAP2-defined byte value. If you need to
-//! add a new command, sub-command, or CBOR key, put it there.
+//! [`constants`] contains the shared CTAP2 enums and protocol constants. Some
+//! local vendor schemas and CBOR keys remain next to the code that uses them;
+//! add reusable CTAP2 command, sub-command, or key definitions there.
 //!
 //! [`ops`] implements the [`FidoOperations`] trait on [`HidTransport`],
 //! owning the raw byte-level exchange: channel ID negotiation, packet
@@ -40,10 +42,10 @@
 //! # Vendor extensions
 //!
 //! Pico-fido firmware exposes vendor-specific CTAP commands (`0xC1`, `0xC2`)
-//! for hardware configuration (VID/PID, LED, memory stats). These are handled
-//! through [`send_vendor_config`](ops::FidoOperations::send_vendor_config) and the
-//! [`VendorConfigCommand`] enum in constants. Legacy firmware (≤7.2) uses a
-//! different physical-options encoding; see `AnyFirmware::supports_legacy_fido_hardware_config`.
+//! for hardware configuration and device details. RS-Key uses CTAPHID `0x41`
+//! for config reads/writes, audit, backup, soft lock, organization attestation,
+//! and LED operations. Pico-fido legacy hardware-config support is version- or
+//! probe-gated; RS-Key's `0x41` path is separate from that legacy path.
 //!
 //! # Adding a new FIDO2 operation
 //!

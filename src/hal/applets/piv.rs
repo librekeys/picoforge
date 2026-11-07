@@ -2,9 +2,9 @@
 //!
 //! Covers the management surface a config GUI needs: slot/PIN/mgmt status
 //! (GET METADATA + GET DATA), PIN/PUK/management-key management, key GENERATE,
-//! certificate import/export, and factory reset. Raw private-key crypto
-//! (sign/decrypt/ECDH) and key import from PEM are out of scope (driven by
-//! ssh/age/PKCS#11), so they are not implemented here.
+//! key import payload construction and PEM/DER parsing, certificate import/export,
+//! and factory reset. Raw private-key crypto (sign/decrypt/ECDH) is out of scope;
+//! those operations are normally provided by SSH, age, or PKCS#11 clients.
 //!
 //! Byte layout follows the RS-Key rsk-piv wire spec; the management-gated ops
 //! (GENERATE, PUT DATA, SET MGM, SET PIN RETRIES) require a GENERAL AUTHENTICATE

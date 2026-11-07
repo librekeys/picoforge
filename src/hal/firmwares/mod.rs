@@ -19,9 +19,9 @@
 //!
 //! | Method | What it gates |
 //! |---|---|
-//! | `supports_legacy_fido_hardware_config` | Whether the device accepts legacy `vendorPrototype` 0xFF commands for hardware config (pico-fido ≤ 7.2, or RS-Key which uses a separate `0x41` path). |
-//! | `supports_fido_config_write` | Whether `authenticatorConfig` + `vendorPrototype` writes can be used for config. |
-//! | `supports_rs_key_vendor_command` | Whether RS-Key-specific vendor commands (0x05 etc.) are available. |
+//! | `supports_legacy_fido_hardware_config` | PicoFido legacy config path, gated by version/probe. RS-Key returns `false`; `0x41` is separate. |
+//! | `supports_fido_config_write` | Whether FIDO config writes are supported; the command depends on firmware. |
+//! | `supports_rs_key_vendor_command` | Whether RS-Key CTAPHID `0x41` operations are supported. |
 //! | `supports_rescue_channel` | Whether the PC/SC rescue channel is accessible. |
 
 pub mod applets;

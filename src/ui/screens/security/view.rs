@@ -1,3 +1,5 @@
+//! Rendering implementation for the device Security screen.
+
 use crate::ui::components::button::ButtonColors;
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::security::view_model::SecurityViewModel;

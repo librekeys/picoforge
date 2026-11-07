@@ -1,3 +1,5 @@
+//! Navigable screens composing the PicoForge desktop interface.
+
 pub mod about;
 pub mod accounts;
 pub mod attestation;

@@ -24,7 +24,9 @@
 //!   [`ApplicationRoot`](app::ApplicationRoot) as the last child of `main-area`
 //!   so it paints on top of the content column.
 //!
-//! Each screen (Home, Passkeys, Configuration, Security, About) is split into:
+//! The screen modules cover Home, Passkeys, Configuration, Security, About,
+//! Accounts (OATH), Slots (OTP), PIV, OpenPGP, Audit, Backup, Lock, Attestation,
+//! and Offboard. Most are split into:
 //! * `view_model.rs` — the reactive state machine (`Entity<T>`, `EventEmitter<T>`)
 //! * `view.rs` — the `Render` impl that builds GPUI elements from view-model state
 //!
@@ -53,11 +55,11 @@
 //! closure. GPUI re-invokes `Render` on the next frame, comparing the new element
 //! tree against the previous one (reconciliation).
 //!
-//! ## gpui-component Concepts (longbridge/gpui-component)
+//! ## GPUI Kit Components
 //!
-//! gpui-component — <https://github.com/longbridge/gpui-component> — provides
-//! 60+ pre-built widgets on top of GPUI. PicoForge uses the **librekeys fork**
-//! (`fix/client-window-linux` branch).
+//! PicoForge uses the published `gpui-kit` facade pinned in `Cargo.toml` and
+//! imports its controls through `gpui_kit::component`. The kit supplies the
+//! window root, overlays, and reusable controls used by the screens.
 //!
 //! * **Stateless widgets** — builder-pattern constructors like
 //!   `Button::new("id").primary().label("text").on_click(...)`.
@@ -84,7 +86,7 @@
 //! │                       # Triggers initial DeviceRepo::refresh(), subscribes to
 //! │                       # DeviceEvent to invalidate passkeys on device change
 //! ├── assets.rs          # AssetLoaderImpl via rust-embed (loads SVGs from static/)
-//! ├── colors.rs          # Zinc palette constants (u32 RGB). WIP — HSLA migration planned.
+//! ├── colors.rs          # Zinc palette constants (u32 RGB)
 //! │                       # Reference: https://ui.shadcn.com/colors
 //! ├── models/
 //! │   ├── mod.rs         # pub mod device
@@ -94,35 +96,19 @@
 //! ├── components/
 //! │   ├── mod.rs         # Module declarations for sub-components
 //! │   ├── button.rs      # Custom button widgets
+//! │   ├── applet_gate.rs # Capability-gated applet states
 //! │   ├── card.rs        # Card container widgets
 //! │   ├── dialog.rs      # Custom dialog widgets
+//! │   ├── form.rs        # Shared form controls and helpers
 //! │   ├── page_view.rs   # Page view layout container
 //! │   ├── sidebar.rs     # AppSidebar — sidebar Entity with EventEmitter
 //! │   │                   # Owns collapse, width animation, toggle hover state
 //! │   │                   # Renders nav items; emits Nav / RefreshDevice events
 //! │   └── tag.rs         # Tag/badge widgets
-//! ├── screens/
-//! │   ├── mod.rs         # pub mod home, config, passkeys, security, about
-//! │   ├── home/
-//! │   │   ├── mod.rs     # HomeView re-export
-//! │   │   ├── view_model.rs  # HomeViewModel — device summary state
-//! │   │   └── view.rs    # HomeView — device status cards, connection info
-//! │   ├── config/
-//! │   │   ├── mod.rs     # ConfigView re-export
-//! │   │   ├── view_model.rs  # ConfigViewModel — PIN management, LED, transport config
-//! │   │   └── view.rs    # ConfigView — configuration form UI
-//! │   ├── passkeys/
-//! │   │   ├── mod.rs     # PasskeysView re-export
-//! │   │   ├── view_model.rs  # PasskeysViewModel — credential list, unlock state
-//! │   │   └── view.rs    # PasskeysView — passkey table, credential operations
-//! │   ├── security/
-//! │   │   ├── mod.rs     # SecurityView re-export
-//! │   │   ├── view_model.rs  # SecurityViewModel — reset, attestation, FIDO2 config
-//! │   │   └── view.rs    # SecurityView — security settings UI
-//! │   └── about/
-//! │       ├── mod.rs     # AboutView re-export
-//! │       ├── view_model.rs  # AboutViewModel — version, firmware details
-//! │       └── view.rs    # AboutView — build info, licenses, firmware version
+//! ├── screens/           # 14 navigable screen modules
+//! │   ├── about/ accounts/ attestation/ audit/ backup/ config/ home/
+//! │   ├── lock/ offboard/ openpgp/ passkeys/ piv/ security/ slots/
+//! │   └── most modules contain mod.rs, view.rs, and view_model.rs
 //! ```
 //!
 //! ## Navigation & Data Flow
@@ -144,8 +130,7 @@
 //! ## External References
 //!
 //! * GPUI framework: <https://github.com/zed-industries/zed/tree/main/crates/gpui>
-//! * gpui-component library: <https://github.com/longbridge/gpui-component>
-//! * gpui-component docs: <https://longbridge.github.io/gpui-component/>
+//! * GPUI Kit facade: `gpui-kit = 0.9.0` in `Cargo.toml`
 //! * shadcn color palette (used in `colors.rs`): <https://ui.shadcn.com/colors>
 
 pub mod app;

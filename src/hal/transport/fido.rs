@@ -62,10 +62,11 @@
 //!
 //! # Firmware compatibility
 //!
-//! Both [pico-fido] and [RS-Key] implement CTAPHID. This module handles:
-//! - Standard CTAP2 commands (GetInfo, MakeCredential, GetAssertion, etc.)
-//! - Pico-fido vendor commands (`0xC1`, `0xC2`) for hardware config
-//! - RS-Key vendor command (`0x41`) for seed backup and attestation
+//! Both [pico-fido] and [RS-Key] implement CTAPHID. This module handles standard
+//! CTAP2 framing and the RS-Key `0x41` vendor transport used by operations such
+//! as configuration reads/writes, audit, backup, soft lock, attestation, and LED
+//! management. Pico-fido `0xC1`/`0xC2` vendor commands are issued by the higher
+//! level FIDO module.
 //!
 //! # File structure
 //!
@@ -118,7 +119,8 @@ pub const CTAPHID_CBOR: u8 = 0x90;
 /// CTAPHID ERROR response byte (0xBF).
 ///
 /// Indicates the authenticator encountered an error processing the command.
-/// The next byte contains the CTAP2 error code.
+/// The next byte contains a CTAPHID transport error code (`ERR_*`), not a CTAP2
+/// command status.
 const CTAPHID_ERROR: u8 = 0xBF;
 
 /// CTAPHID KEEPALIVE status byte (0xBB).

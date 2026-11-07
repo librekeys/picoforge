@@ -1,7 +1,8 @@
 //! CTAP2 / FIDO2 protocol constants for pico-fido and RS-Key firmware.
 //!
-//! This file is the single source of truth for every byte value, error code,
-//! and CBOR map key used by this codebase. Values are organized into three
+//! This file contains shared CTAP2 enums and selected protocol constants.
+//! Other constants, such as local vendor schemas and some inline CBOR keys,
+//! remain in the modules that use them. Values here are organized into three
 //! categories:
 //!
 //! 1. **CTAP2 standard** — defined by the [FIDO CTAP2 spec], used by any
@@ -11,8 +12,9 @@
 //! 3. **RS-Key extensions** — additions specific to [RS-Key] firmware
 //!    (rescue applet AIDs, phy record tags, CTAPHID `0x41` vendor command).
 //!
-//! All enums use `#[repr(u8)]` or `#[repr(u64)]` so their numeric values
-//! match the wire format exactly.
+//! Protocol enums declare the representation required by their wire field;
+//! the re-exported COSE algorithm and key-parameter identifiers use signed
+//! 32-bit values because some identifiers are negative.
 //!
 //! # Reference
 //!

@@ -48,18 +48,23 @@
 //! - **Configure hardware settings**: USB VID/PID, LED GPIO pins, brightness, touch timeout
 //! - **Manage FIDO2 credentials**: List, delete, and factory-reset passkeys
 //! - **PIN management**: Set, change, and configure minimum PIN length
-//! - **Security features**: Enable/disable secure boot, enterprise attestation
-//! - **LED customization**: Configure LED colors and behavior for different device states (RS-Key)
-//! - **USB interface management**: Enable/disable FIDO2, OpenPGP, PIV, OATH, OTP applets (RS-Key)
-//! - **Device reboot**: Normal reboot or enter BOOTSEL/UF2 bootloader mode for firmware updates
+//! - **Applet management**: OATH accounts, OTP slots, PIV keys/certificates, and OpenPGP keys
+//! - **FIDO2 security**: PIN and passkey management, device reset, and security settings
+//! - **RS-Key operations**: Audit journal, seed backup/restore, soft lock, organization
+//!   attestation, and guided offboarding
+//! - **Hardware configuration**: USB identifiers, LED settings, touch timeout, and
+//!   enabled USB interfaces where the detected firmware supports them
+//! - **Device control**: Reboot normally or enter BOOTSEL/UF2 mode where supported
 //!
 //! The application communicates with security keys through two protocols:
 //!
-//! 1. **Rescue Protocol (PC/SC)**: Low-level APDU-based communication for hardware configuration
-//! 2. **FIDO2 Protocol (CTAP2)**: Standard authenticator protocol for credential and PIN management
+//! 1. **PC/SC / CCID**: ISO 7816 APDUs for the Rescue interface and OATH, OTP, PIV, and
+//!    OpenPGP applets.
+//! 2. **FIDO HID**: CTAPHID and CTAP2 for authenticator operations and firmware-specific
+//!    vendor commands.
 //!
-//! PicoForge automatically detects the connected device and selects the appropriate communication
-//! method, falling back gracefully between protocols when needed.
+//! Device discovery and dispatch are operation-specific. A full status read tries Rescue first,
+//! then FIDO HID, and merges the results when both transports are available.
 //!
 //! ---
 //!
@@ -67,7 +72,7 @@
 //!
 //! ### Prerequisites
 //!
-//! - **Rust toolchain** (edition 2024, MSRV 1.80+)
+//! - **Rust toolchain** (edition 2024, Rust 1.85 or newer)
 //! - **Linux**: `pcscd` daemon running (`sudo systemctl start pcscd`)
 //! - **NixOS**: Use `nix develop` for a complete development environment
 //!
@@ -149,10 +154,14 @@
 //! │   │   ├── mod.rs                      # Module root
 //! │   │   ├── io.rs                       # High-level dispatch across protocols
 //! │   │   ├── types.rs                    # Shared data structures
-//! │   │   ├── common/                     # COSE enums, version parsing
+//! │   │   ├── apdu/                       # APDU, status-word, and BER-TLV helpers
+//! │   │   ├── applets/                    # OATH, OTP, PIV, and OpenPGP clients
+//! │   │   ├── offboard.rs                 # RS-Key offboarding workflow
+//! │   │   ├── common/                     # COSE, version, and LED helpers
 //! │   │   │   ├── mod.rs
 //! │   │   │   ├── cose.rs
-//! │   │   │   └── version.rs
+//! │   │   │   ├── version.rs
+//! │   │   │   └── led.rs
 //! │   │   ├── firmwares/                  # Per-firmware capability gating
 //! │   │   │   ├── mod.rs
 //! │   │   │   ├── picofido.rs
@@ -160,11 +169,14 @@
 //! │   │   ├── transport/                  # Physical transport abstractions
 //! │   │   │   ├── mod.rs
 //! │   │   │   ├── fido.rs                 # CTAPHID over USB HID
-//! │   │   │   └── pcsc.rs                 # ISO 7816-4 over PC/SC
+//! │   │   │   ├── pcsc.rs                 # Rescue APDUs over PC/SC
+//! │   │   │   └── ccid.rs                 # Persistent applet sessions
 //! │   │   ├── fido/                       # FIDO2/CTAP2 protocol
 //! │   │   │   ├── mod.rs
 //! │   │   │   ├── constants.rs
-//! │   │   │   └── ops.rs                  # PIN, credential mgmt, vendor cmds
+//! │   │   │   ├── ops.rs                  # PIN, credential mgmt, vendor cmds
+//! │   │   │   ├── audit.rs                # Audit parsing and verification
+//! │   │   │   └── backup.rs               # Seed backup crypto and parsing
 //! │   │   └── rescue/                     # Rescue applet (PC/SC APDU)
 //! │   │       ├── mod.rs
 //! │   │       ├── constants.rs            # ISO 7816-4, PHY tags, vendor AIDs
@@ -177,33 +189,19 @@
 //! │       ├── models/                     # Shared reactive state (DeviceRepo)
 //! │       │   ├── mod.rs
 //! │       │   └── device.rs
-//! │       ├── screens/                    # Page views (sidebar sections)
+//! │       ├── screens/                    # Sidebar screens and their view models
 //! │       │   ├── mod.rs
-//! │       │   ├── home/
-//! │       │   │   ├── mod.rs
-//! │       │   │   ├── view.rs
-//! │       │   │   └── view_model.rs
-//! │       │   ├── passkeys/
-//! │       │   │   ├── mod.rs
-//! │       │   │   ├── view.rs
-//! │       │   │   └── view_model.rs
-//! │       │   ├── config/
-//! │       │   │   ├── mod.rs
-//! │       │   │   ├── view.rs
-//! │       │   │   └── view_model.rs
-//! │       │   ├── security/
-//! │       │   │   ├── mod.rs
-//! │       │   │   ├── view.rs
-//! │       │   │   └── view_model.rs
-//! │       │   └── about/
-//! │       │       ├── mod.rs
-//! │       │       ├── view.rs
-//! │       │       └── view_model.rs
+//! │       │   ├── about/ accounts/ attestation/ audit/ backup/
+//! │       │   ├── config/ home/ lock/ offboard/ openpgp/
+//! │       │   ├── passkeys/ piv/ security/ slots/
+//! │       │   └── (each screen has a module; most split view and view_model)
 //! │       └── components/                 # Reusable UI widgets
 //! │           ├── mod.rs
+//! │           ├── applet_gate.rs
 //! │           ├── button.rs
 //! │           ├── card.rs
 //! │           ├── dialog.rs
+//! │           ├── form.rs
 //! │           ├── page_view.rs
 //! │           ├── sidebar.rs
 //! │           └── tag.rs
@@ -246,7 +244,7 @@
 //! | Crate | Version | Purpose |
 //! |-------|---------|---------|
 //! | `gpui-kit` | 0.9.0 | Matching GPUI engine, styled components, window root, and icons |
-//! | `pcsc` | 2.x | PC/SC smart card API for Rescue protocol |
+//! | `pcsc` | 2.x | PC/SC API for Rescue and CCID applet sessions |
 //! | `hidapi` | 2.6 | USB HID API for FIDO2/CTAPHID transport |
 //! | `serde` / `serde_json` | 1.x | Serialization/deserialization |
 //! | `serde_cbor_2` | 0.13 | CBOR encoding for CTAP2 messages |
@@ -255,13 +253,13 @@
 //! | `rand` | 0.10 | Cryptographic random number generation |
 //! | `byteorder` | 1.5 | Big-endian byte encoding (firmware protocol requirement) |
 //! | `hex` | 0.4 | Hex encoding/decoding for VID/PID, AAGUIDs |
-//! | `base64` | 0.22 | PEM encoding for certificates |
+//! | `base64` | 0.23.1 | PEM encoding for certificates |
 //! | `bitflags` | 2.13 | Type-safe bitflags for configuration options |
 //! | `thiserror` | 2.x | Derive macro for error types |
-//! | `anyhow` | 1.x | Error propagation with context |
+//! | `anyhow` | 1.x | Declared dependency; no direct use in current Rust source |
 //! | `log` / `log4rs` | 0.4 / 1.x | Logging facade and implementation |
 //! | `directories` | 6.x | Cross-platform config/data directory paths |
-//! | `rust-embed` | 8.11 | Embed static assets in binary |
+//! | `rust-embed` | 8.13 | Embed static assets in binary |
 //!
 //! ### UI Framework: GPUI
 //!
@@ -287,12 +285,9 @@
 //! ```text
 //! ┌──────────────────────────────────────────────────────────────┐
 //! │                   UI Layer (src/ui/)                         │
-//! │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-//! │  │ HomeView │  │Passkeys  │  │ConfigVM  │  │Security  │      │
-//! │  │          │  │ViewModel │  │          │  │View      │      │
-//! │  └────┬─────┘  └─────┬────┘  └──────┬───┘  └───────┬──┘      │
-//! │       │              │              │              │         │
-//! │       └──────────────┴──────┬───────┴──────────────┘         │
+//! │  Screens + view models: 14 navigable destinations            │
+//! │  Home, Passkeys, Config, Security, Accounts, Slots, PIV      │
+//! │  OpenPGP, Audit, Backup, Lock, Attestation, Offboard, About  │
 //! │                             │                                │
 //! │                    ┌────────▼────────┐                       │
 //! │                    │ ApplicationRoot │ (app.rs)              │
@@ -338,7 +333,8 @@
 //! │              Hardware (USB Composite Device)                │
 //! │  ┌──────────┐  ┌──────────┐  ┌──────────┐                   │
 //! │  │ CCID     │  │ HID      │  │ Keyboard │                   │
-//! │  │ (Rescue) │  │ (FIDO2)  │  │ (OTP)    │                   │
+//! │  │ Rescue + │  │ FIDO2    │  │ OTP      │                   │
+//! │  │ Applets  │  │          │  │          │                   │
 //! │  └──────────┘  └──────────┘  └──────────┘                   │
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
@@ -349,9 +345,9 @@
 //!    [`DeviceRepo`](crate::ui::models::device::DeviceRepo) is the sole bridge — it re-exports all needed types and
 //!    provides `*_blocking()` static methods for background tasks.
 //!
-//! 2. **Protocol Abstraction**: The `io.rs` layer provides a unified API that
-//!    automatically selects Rescue or FIDO2 based on device capabilities and
-//!    falls back gracefully between protocols.
+//! 2. **Protocol Abstraction**: The `io.rs` layer provides unified operations.
+//!    Device-detail reads try Rescue and FIDO HID and merge data from both when
+//!    available; other operations select a transport based on their requirements.
 //!
 //! 3. **Firmware Agnosticism**: The codebase supports both pico-fido (C firmware)
 //!    and RS-Key (Rust firmware) with the same UI, detecting firmware type via
@@ -381,10 +377,12 @@
 //!       │     │         ├── READ(SecureBootStatus)
 //!       │     │         └── READ(PhyConfig)               [TLV parsing]
 //!       │     │
-//!       │     └──► fido::read_device_details()            [fallback]
+//!       │     └──► fido::read_device_details()            [also attempted]
 //!       │               ├── HidTransport::open()
 //!       │               ├── GetInfo (CTAP2 0x04)
-//!       │               └── Vendor commands (0xC1/0xC2)
+//!       │               └── Vendor/config commands supported by firmware
+//!       │
+//!       └── Merge fields from both snapshots when both reads succeed
 //!       │
 //!       ├── io::get_fido_info()
 //!       ├── io::read_led_config()                       [RS-Key only]
@@ -474,10 +472,10 @@
 //!
 //! ```text
 //! APDU Structure:
-//! ┌─────┬─────┬─────┬─────┬─────┬─────────────┐
-//! │ CLA │ INS │  P1 │  P2 │ Lc  │    Data     │
-//! └─────┴─────┴─────┴─────┴─────┴─────────────┘
-//!   0x80  cmd   param param len   payload
+//! ┌─────┬─────┬─────┬─────┬───────────────────────┐
+//! │ CLA │ INS │  P1 │  P2 │ optional Lc + Data   │
+//! └─────┴─────┴─────┴─────┴───────────────────────┘
+//!   optional Le may follow (short or extended APDU encoding)
 //!
 //! Response: [Data...] [SW1 SW2]  (SW 9000 = success)
 //! ```
@@ -493,7 +491,7 @@
 //! - `0x04`: LED GPIO pin
 //! - `0x05`: LED brightness
 //! - `0x06`: Options bitmask (LED_DIMMABLE, DISABLE_POWER_RESET, LED_STEADY)
-//! - `0x07`: Elliptic curves bitmask (SECP256K1, etc.)
+//! - `0x0A`: Elliptic curves bitmask (SECP256K1, etc.)
 //! - `0x08`: Touch/presence timeout
 //! - `0x09`: USB product name (null-terminated)
 //! - `0x0B`: Enabled USB interfaces
@@ -518,6 +516,8 @@
 //! - `ClientPin (0x06)` — PIN/UV token management
 //! - `CredentialMgmt (0x0A)` — Credential enumeration/deletion
 //! - `Config (0x0D)` — Authenticator configuration
+//! - Firmware-specific vendor operations — hardware config, audit, backup, lock,
+//!   attestation, and LED management where supported
 //! - Vendor commands (`0xC1`, `0xC2`) — Hardware config (pico-fido)
 //!
 //! **PIN Token Flow** (ECDH + AES-CBC):
@@ -533,7 +533,7 @@
 //!
 //! ### GPUI Component Pattern
 //!
-//! PicoForge uses two patterns from gpui-component:
+//! PicoForge uses two patterns through the GPUI Kit component facade:
 //!
 //! 1. **Stateless RenderOnce elements** (e.g., `Card`, `Tag`, `PageView`):
 //!    ```rust
@@ -608,7 +608,8 @@
 //! ### Rust Edition and MSRV
 //!
 //! - **Edition**: 2024 (latest Rust edition)
-//! - **MSRV**: 1.80+ (required for edition 2024 features)
+//! - **Minimum compiler for edition 2024**: Rust 1.99. Dependency or platform
+//!   requirements may impose a newer toolchain.
 //!
 //! ### Naming and Documentation
 //!
@@ -620,14 +621,14 @@
 //! ### Error Handling
 //!
 //! - **`PFError`** (src/error.rs): Application-wide error enum with variants:
-//!   - `NoDevice` — No smart card reader found
+//!   - `NoDevice` — No compatible device or reader was found
 //!   - `Pcsc(pcsc::Error)` — PC/SC communication error
 //!   - `Io(String)` — I/O or parsing error
 //!   - `Device(String)` — Device-specific error
 //!
 //! - **`Result<T, PFError>`**: Used for device operations
-//! - **`Result<T, String>`**: Used for FIDO2 operations (legacy)
-//! - **`anyhow::Result`**: Used for application-level error propagation
+//! - Some protocol helpers return `Result<T, String>`; higher-level device
+//!   operations commonly convert these into `PFError`.
 //!
 //! ### Logging
 //!
@@ -647,8 +648,9 @@
 //!
 //! - **Module-level**: `//!` doc comments with architecture details
 //! - **Function-level**: `///` doc comments for public APIs
-//! - **Inline**: Sparse, only for non-obvious logic
-//! - **No**: Section dividers, "// Step 1:" narration, or obvious comments
+//! - **Inline comments**: Use sparingly to explain non-obvious behavior
+//! - **Comments**: Use section dividers to group related code when helpful;
+//!   avoid narrating obvious steps or restating the code.
 //!
 //! ### Dependency Management
 //!
@@ -692,24 +694,25 @@
 //! | pico-fido | C | RP2040, RP2350, ESP32-S3 | `89FB94B706C936739B7E30526D968145` |
 //! | RS-Key | Rust | RP2350 | `2479C7BF6B3056839EC80E8171A918B7` |
 //!
+//! LibreKeys LK-ONE is a pico-fido fork and shares the pico-fido AAGUID. The
+//! shared AAGUID identifies the PicoFido family; firmware-specific probes can
+//! distinguish LK-ONE behavior where needed.
+//!
 //! ### Firmware Detection
 //!
-//! PicoForge detects firmware type via:
-//! 1. **AAGUID** from CTAP2 GetInfo response
-//! 2. **Reader name** containing "RS-Key" or "RSK"
-//! 3. **SDK version** from Rescue SELECT response
+//! PicoForge identifies the firmware family from the AAGUID in CTAP2 GetInfo.
+//! LK-ONE shares pico-fido's AAGUID, so additional vendor capability probing is
+//! used where the two firmware variants need different behavior. Rescue SELECT
+//! also provides an SDK version for capability checks.
 //!
 //! ### Feature Availability
 //!
-//! | Feature | pico-fido | RS-Key |
-//! |---------|-----------|--------|
-//! | Rescue (PC/SC) | ✓ | ✓ |
-//! | FIDO2 (CTAPHID) | ✓ | ✓ |
-//! | LED Applet | ✗ | ✓ |
-//! | Management Applet | ✗ | ✓ |
-//! | Enterprise Attestation | ✓ | ✓ |
-//! | Secure Boot | ✓ | ✓ (OTP fuses) |
-//! | Legacy HW Config (≤7.2) | ✓ | ✗ |
+//! The UI uses per-firmware capability profiles for applet controls. Current
+//! profiles expose OATH and four OTP slots on both firmware families; PIV and
+//! OpenPGP profiles are defined for RS-Key. RS-Key also provides its management
+//! applet and PicoForge-specific audit, backup, soft-lock, organization
+//! attestation, and offboarding operations. PicoFido hardware configuration is
+//! version/probe gated; RS-Key uses its separate CTAPHID `0x41` configuration path.
 //!
 //! ---
 //!
@@ -766,17 +769,17 @@
 //! cargo test -- --nocapture    # Show println! output
 //! ```
 //!
-//! Tests are located in:
-//! - `src/device/fido/mod.rs` — FIDO2 parsing tests
-//! - `src/device/rescue/mod.rs` — Rescue protocol tests
-//! - `tests/` — Integration tests (if any)
+//! Unit tests are defined inline in the modules they cover, including APDU,
+//! FIDO, Rescue, applet, common, and offboarding modules. The source
+//! tree currently has no separate `tests/` integration-test directory.
 //!
 //! ### Manual Testing
 //!
 //! 1. Connect a Pico FIDO device
 //! 2. Run `cargo run`
 //! 3. Verify device detection in sidebar
-//! 4. Test each view (Home, Passkeys, Configuration, Security, About)
+//! 4. Navigate through the screens and confirm unsupported applets show their
+//!    capability-gated empty state
 //! 5. Test configuration changes (VID/PID, LED settings)
 //! 6. Test credential operations (list, delete)
 //!
@@ -788,13 +791,13 @@
 //!
 //! | Platform | Format | Notes |
 //! |----------|--------|-------|
-//! | Linux | AppImage, .deb | Excludes `libpcsclite` (system dependency) |
+//! | Linux | AppImage, Flatpak | AppImage excludes `libpcsclite` (system dependency) |
 //! | macOS | .dmg | For ARM (Apple Silicon) and Intel CPUs |
 //! | Windows | .exe | Resource embedding via `tauri-winres` |
 //!
 //! ### Installation
 //!
-//! - **Linux**: Download AppImage, flatpak, rpm or .deb, install `pcscd` dependency
+//! - **Linux**: Download an AppImage or Flatpak; install the `pcscd` dependency for PC/SC access
 //! - **macOS**: Download the appropriate .dmg for your architecture (ARM or Intel), mount and drag to Applications
 //! - **Windows**: Download .exe, no additional dependencies
 //!

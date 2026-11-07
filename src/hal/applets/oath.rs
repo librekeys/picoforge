@@ -7,8 +7,8 @@
 //! parses responses, and — for password-protected devices — derives the access
 //! key (PBKDF2-HMAC-SHA1) and proves knowledge of it (HMAC-SHA1).
 
-// Full YKOATH surface; the Accounts screen wires most of it, and the rest
-// (rename, bare LIST) is exercised by the inline tests or the follow-up UI.
+// The Accounts screen uses the account-list and rename operations; inline tests
+// cover protocol helpers that do not have a direct screen call site.
 #![allow(dead_code)]
 
 use crate::error::PFError;

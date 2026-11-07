@@ -1,16 +1,18 @@
-//! Yubico OTP applet client — the two (RS-Key: four) configurable slots.
+//! Yubico OTP applet client for configurable slots exposed by the firmware
+//! profile (currently four on both PicoFido and RS-Key profiles).
 //!
 //! Speaks the standard YubiKey slot protocol over CCID (single INS `0x01`,
 //! P1 selects the operation). Slot config records are the classic 52-byte packed
 //! frame with a trailing CRC-16 (residual `0xF0B8`). The device stores the
 //! secrets; the host builds the frame and reads status.
 //!
-//! v1 programs Challenge-response (HMAC-SHA1) and OATH-HOTP — both byte-exact
-//! from RS-Key firmware. Static-password (needs a scancode map) and Yubico-OTP
-//! (needs a public id + upload) programming are a follow-up; status/delete/swap
-//! already cover all four slot types the device may hold.
+//! Frame builders cover challenge-response (HMAC-SHA1), OATH-HOTP,
+//! static-password, and Yubico-OTP programming. The corresponding write
+//! operations are wired through the HAL and Slots screen; status, delete, and
+//! swap operations are also available. Firmware capability profiles determine
+//! which controls the UI exposes.
 
-// Some frame builders / calculate are a staged surface; not all are UI-wired yet.
+// Keep protocol helpers available even when an individual helper has no direct UI call site.
 #![allow(dead_code)]
 
 use crate::error::PFError;

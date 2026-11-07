@@ -14,8 +14,9 @@
 //! through a proprietary APDU-based protocol.
 //!
 //! Both [pico-fido](https://github.com/polhenarejos/pico-fido) (C) and
-//! [RS-Key](https://github.com/TheMaxMur/RS-Key) (Rust) firmware implement
-//! this applet with the same AID and command set.
+//! [RS-Key](https://github.com/TheMaxMur/RS-Key) (Rust) firmware share the
+//! Rescue AID and core commands. Each firmware also has firmware-specific
+//! applets and extensions, so the complete command sets are not identical.
 //!
 //! # Why is Rescue Mode Needed?
 //!
@@ -197,11 +198,11 @@ pub trait RescueOperations {
 impl RescueOperations for PcscTransport {
     /// Reads comprehensive device details including identity, flash usage, secure boot status, and PHY configuration.
     ///
-    /// Performs three sequential APDU operations after applet selection:
-    /// 1. SELECT response is parsed for MCU type, firmware version, and serial number
-    /// 2. `READ(FlashInfo)` — reads flash usage statistics (free, used, total)
-    /// 3. `READ(SecureBootStatus)` — reads secure boot enable/lock state
-    /// 4. `READ(PhyConfig)` — reads TLV-encoded hardware configuration (VID/PID, LED, curves, etc.)
+    /// Parses the SELECT response for MCU type, firmware version, and serial
+    /// number, then sends three READ APDUs:
+    /// 1. `READ(FlashInfo)` — reads flash usage statistics (free, used, total)
+    /// 2. `READ(SecureBootStatus)` — reads secure boot enable/lock state
+    /// 3. `READ(PhyConfig)` — reads TLV-encoded hardware configuration (VID/PID, LED, curves, etc.)
     ///
     /// # Returns
     /// A `FullDeviceStatus` struct containing device info, parsed PHY config, and secure boot state.
@@ -441,7 +442,7 @@ impl RescueOperations for PcscTransport {
     /// - `0x05`: LED brightness
     /// - `0x08`: Touch/presence timeout
     /// - `0x06`: Options bitmask (LED_DIMMABLE, DISABLE_POWER_RESET, LED_STEADY)
-    /// - `0x07`: Elliptic curves bitmask (SECP256K1, etc.)
+    /// - `0x0A`: Elliptic curves bitmask (SECP256K1, etc.)
     /// - `0x0C`: LED driver selection
     /// - `0x09`: USB product name (null-terminated)
     /// - `0x0D`: LED order (RS-Key extension)
@@ -710,9 +711,10 @@ impl RescueOperations for PcscTransport {
 
     /// Reads the customized LED status configurations from the Vendor/LED applet.
     ///
-    /// Communicates with the `F0 00 00 00 01` applet to retrieve a 9-byte configuration block
-    /// that dictates the color and brightness for each device state (idle, processing, touch, boot),
-    /// as well as the global 'steady' toggle flag.
+    /// Communicates with the `F0 00 00 00 01` applet to retrieve its LED
+    /// configuration block. Current firmware returns 17 bytes; older layouts
+    /// of 13 or 9 bytes are also accepted by the parser. The block describes
+    /// colors and brightness by device state plus the global steady flag.
     fn read_led_config(&self) -> Result<LedStatusConfig, PFError> {
         log::info!("Reading LED status config from Vendor/LED applet");
 

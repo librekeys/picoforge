@@ -1,3 +1,5 @@
+//! Rendering implementation for the About screen.
+
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::screens::about::view_model::AboutViewModel;
 use gpui_kit::component::{ActiveTheme, Icon, StyledExt, button::Button, h_flex, v_flex};

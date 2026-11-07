@@ -255,7 +255,7 @@ pub const P2_UNUSED: u8 = 0x00;
 pub enum PhyTag {
     /// USB Vendor ID and Product ID.
     ///
-    /// Data format: `[VID_LSB, VID_MSB, PID_LSB, PID_MSB]` (4 bytes).
+    /// Data format: `[VID_MSB, VID_LSB, PID_MSB, PID_LSB]` (4 bytes, big-endian).
     /// Used to identify the device to the host system.
     VidPid = 0x00,
 
@@ -291,7 +291,7 @@ pub enum PhyTag {
 
     /// Enabled cryptographic curves (bitflags).
     ///
-    /// Data format: `[CURVES_LSB, CURVES_MSB, CURVES_3, CURVES_MSB]` (4 bytes).
+    /// Data format: a 32-bit big-endian curves bitmask (4 bytes).
     /// See `RescueCurves` bitflags for supported curves.
     Curves = 0x0A,
 
@@ -372,10 +372,10 @@ bitflags::bitflags! {
         /// the LED is only on/off.
         const LED_DIMMABLE = 0x02;
 
-        /// Disable power-on reset detection.
+        /// Disable the configured power-cycle behavior during reset.
         ///
-        /// When set, the device doesn't reset on power-on events.
-        /// Useful for devices with unstable power supply.
+        /// When set, PicoForge reports `power_cycle_on_reset` as false. The
+        /// exact reset/replug behavior is firmware-specific.
         const DISABLE_POWER_RESET = 0x04;
 
         /// LED stays steady (no blinking).
@@ -655,7 +655,8 @@ impl LedStatus {
 ///
 /// Byte sequence: `A0 00 00 05 27 47 11 17`
 ///
-/// This applet is available in both pico-fido and RS-Key firmware.
+/// This applet is available on RS-Key firmware; PicoFido's C2 management
+/// response is a separate vendor-command path, not this applet.
 pub const MANAGEMENT_AID: &[u8] = &[0xA0, 0x00, 0x00, 0x05, 0x27, 0x47, 0x11, 0x17];
 
 /// Management applet instruction codes.
@@ -680,7 +681,8 @@ pub enum ManagementInstruction {
 
 /// TLV tag for USB support flag.
 ///
-/// Value: `true` if the device supports USB, `false` otherwise.
+/// Value: 16-bit mask of supported USB interfaces, as decoded by the management
+/// response parser.
 pub const MGMT_TAG_USB_SUPPORTED: u8 = 0x01;
 
 /// TLV tag for device serial number.
@@ -700,7 +702,8 @@ pub const MGMT_TAG_FORM_FACTOR: u8 = 0x04;
 
 /// TLV tag for firmware version.
 ///
-/// Value: Firmware version number (major.minor.patch encoded as integer).
+/// Value: Firmware version bytes. The current parser uses the first two bytes
+/// as major and minor; no patch component is read from this tag.
 pub const MGMT_TAG_VERSION: u8 = 0x05;
 
 /// TLV tag for device flags.

@@ -14,7 +14,8 @@ use crate::hal::types::FirmwareType;
 /// Version-gates the legacy vendor-prototype hardware config path:
 /// - Versions ≤ 7.2 (major < 7, or 7.x where x ≤ 2) support the legacy path.
 /// - Versions ≥ 7.3 require the rescue channel or the new-style config.
-/// - An explicit `has_legacy_vendor` probe result can override the version check.
+/// - A positive `has_legacy_vendor` probe enables the legacy path even when the
+///   version is newer; a negative probe does not disable version-based support.
 #[derive(Debug, Clone)]
 pub struct PicoFidoFirmware {
     version: FirmwareVersion,
