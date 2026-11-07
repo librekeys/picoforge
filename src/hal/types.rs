@@ -176,6 +176,19 @@ impl fmt::Display for FirmwareType {
     }
 }
 
+impl FirmwareType {
+    /// Firmware speaks RS-Key's `0x41` vendor dialect (RS-Key and fapico2).
+    ///
+    /// Capability check, not identity: the five vendor-feature screens
+    /// (Backup, Lock, Audit, Attestation, Offboard) and the Config
+    /// surfaces gate on this instead of comparing `FirmwareType::RSKey`
+    /// directly, so the next `0x41`-speaking device is one enum variant
+    /// (and one arm here), not five edits.
+    pub fn supports_rskey_vendor(&self) -> bool {
+        matches!(self, Self::RSKey | Self::Fapico2)
+    }
+}
+
 // ── Rescue (PC/SC) types ────────────────────────────────────────────────────
 
 /// LED status configuration read from the Vendor/LED applet.
