@@ -67,9 +67,9 @@ use crate::{
     hal::{
         firmwares::AnyFirmware,
         types::{
-            AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FidoDeviceInfo, FirmwareType,
-            FullDeviceStatus, LKONE_AAGUID, LedStatusConfig, PICOFIDO_AAGUID, RSKEY_AAGUID,
-            StoredCredential,
+            AppConfig, AppConfigInput, DeviceInfo, DeviceMethod, FAPICO2_AAGUID, FidoDeviceInfo,
+            FirmwareType, FullDeviceStatus, LKONE_AAGUID, LedStatusConfig, PICOFIDO_AAGUID,
+            RSKEY_AAGUID, StoredCredential,
         },
     },
 };
@@ -651,6 +651,8 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         FirmwareType::RSKey
     } else if fido_info.aaguid == PICOFIDO_AAGUID || fido_info.aaguid == LKONE_AAGUID {
         FirmwareType::PicoFido
+    } else if fido_info.aaguid == FAPICO2_AAGUID {
+        FirmwareType::Fapico2
     } else {
         FirmwareType::Unknown
     };
@@ -1210,6 +1212,8 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
         FirmwareType::RSKey
     } else if fido_info.aaguid == PICOFIDO_AAGUID || fido_info.aaguid == LKONE_AAGUID {
         FirmwareType::PicoFido
+    } else if fido_info.aaguid == FAPICO2_AAGUID {
+        FirmwareType::Fapico2
     } else {
         FirmwareType::Unknown
     };
@@ -1523,7 +1527,29 @@ fn vendor_error(status: u8, op: &str) -> String {
         0x27 => {
             "denied — no touch within the window (press the button when the LED blinks)".to_string()
         }
-        0x30 => format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)"),
+        0x30 => {
+            // RS-Key's original wording covers its own 0x30 arm ("already
+            // sealed, or no OTP DEVK provisioned"). fapico2 answers 0x30 for
+            // two more reasons (EPIC PF-FAPICO2, divergences D3/D7): LOAD is
+            // reset-first — it refuses while resident credentials exist and
+            // the incoming seed differs (US-1737) — and EXPORT refuses when
+            // no master seed is installed. Split by op so the message names
+            // the reason the device refused, not a generic denial.
+            if op == "restore" {
+                format!(
+                    "{op}: operation not allowed — the board holds resident credentials \
+                     and the incoming seed differs from the installed one; \
+                     reset the device first, then restore"
+                )
+            } else if op.starts_with("export") {
+                format!(
+                    "{op}: operation not allowed — no master seed is installed; \
+                     install one first (restore / LOAD)"
+                )
+            } else {
+                format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)")
+            }
+        }
         0x3D => "device is not locked".to_string(),
         other => format!("{op} failed: status 0x{other:02x}"),
     }
@@ -1740,12 +1766,7 @@ pub(crate) fn backup_status() -> Result<backup::BackupStatus, String> {
         .rs_key_vendor(RSKEY_VENDOR_STATE, None, None)
         .map_err(|e| e.to_string())?;
     let m = vendor_map(status, map, "state")?;
-    Ok(backup::BackupStatus {
-        sealed: m_bool(&m, 1),
-        has_seed: m_bool(&m, 2),
-        locked: m_bool(&m, 3),
-        unlocked: m_bool(&m, 4),
-    })
+    Ok(backup::parse_status(&m))
 }
 
 /// Seal the one-time export window (touch-gated).
@@ -1814,16 +1835,45 @@ fn wrap_secret(transport: &HidTransport, secret: &[u8; 32]) -> Result<Vec<u8>, S
 
 /// Load the soft-locked seed into RAM for this power cycle (the lock key comes
 /// as a BIP-39 phrase). Ungated over the 0x41 channel.
-pub(crate) fn lock_unlock(mnemonic: String) -> Result<(), String> {
+/// Send UNLOCK (0x06) with the MSE-wrapped lock key, returning the status.
+///
+/// Divergence D8 (EPIC PF-FAPICO2, observed on hardware): fapico2 gates
+/// UNLOCK as `TokenOptional(0x20)` (`fapico2 vendor41.rs:395`) — when a PIN
+/// is set on the board, a token-less request answers `0x36`, while RS-Key
+/// treats the same sub-command as pure possession. The first attempt is
+/// therefore always token-less — byte-identical to the pre-D8 wire shape,
+/// so RS-Key behaviour is untouched — and the token MAC is added only when
+/// the device explicitly asks for a PIN (`0x36`) and a PIN was collected.
+fn unlock_with_lock_key(
+    transport: &HidTransport,
+    blob: Vec<u8>,
+    pin: Option<&str>,
+) -> Result<u8, String> {
+    let mut params = BTreeMap::new();
+    params.insert(Value::Integer(1), Value::Bytes(blob));
+    let (status, _) = transport
+        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params.clone())), None)
+        .map_err(|e| e.to_string())?;
+    if status != 0x36 {
+        return Ok(status);
+    }
+    let pin = pin.ok_or_else(|| vendor_error(status, "unlock"))?;
+    let (status, _) = transport
+        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), Some(pin))
+        .map_err(|e| e.to_string())?;
+    Ok(status)
+}
+
+/// Unlock the seed for this power cycle with the 24-word lock key.
+///
+/// The PIN is optional (see [`unlock_with_lock_key`]): RS-Key never asks for
+/// one; a fapico2 board with a PIN set does, and the retry supplies it.
+pub(crate) fn lock_unlock(pin: Option<String>, mnemonic: String) -> Result<(), String> {
     let key = backup::mnemonic_to_seed(&mnemonic)?;
     let transport =
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
     let blob = wrap_secret(&transport, &key)?;
-    let mut params = BTreeMap::new();
-    params.insert(Value::Integer(1), Value::Bytes(blob));
-    let (status, _) = transport
-        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), None)
-        .map_err(|e| e.to_string())?;
+    let status = unlock_with_lock_key(&transport, blob, pin.as_deref())?;
     if status == 0x3D {
         return Err("device is not locked".into());
     }
@@ -1859,12 +1909,10 @@ pub(crate) fn lock_disable(pin: String, mnemonic: String) -> Result<(), String> 
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
 
     // Unlock first (loads the seed into RAM); tolerate "already unlocked".
+    // Divergence D8 handled by `unlock_with_lock_key`: token-less first (the
+    // RS-Key shape), token retry only when the device answers 0x36.
     let blob = wrap_secret(&transport, &key)?;
-    let mut params = BTreeMap::new();
-    params.insert(Value::Integer(1), Value::Bytes(blob));
-    let (status, _) = transport
-        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), None)
-        .map_err(|e| e.to_string())?;
+    let status = unlock_with_lock_key(&transport, blob, Some(&pin))?;
     if status != 0 && status != 0x3D {
         return Err(vendor_error(status, "unlock (wrong key?)"));
     }
@@ -2526,5 +2574,88 @@ mod tests {
         // tag 0x0E len 0x01 val 0x03, and tag 0x0D len 0x01 val 0x01
         assert!(tlv.windows(3).any(|w| w == [0x0E, 0x01, 0x03]));
         assert!(tlv.windows(3).any(|w| w == [0x0D, 0x01, 0x01]));
+    }
+
+    #[test]
+    fn test_parse_get_info_fapico2_style() {
+        // US-1750 (EPIC PF-FAPICO2): hand-built GetInfo fixture for a stock
+        // fapico2 board, modelled on test_parse_get_info_rskey_style. The
+        // aaguid bytes spell out the fapico2 AAGUID hex string; classification
+        // must land on Fapico2 — not fall to the pico-fido profile, and not
+        // Unknown. Today's detect_by_aaguid knows only RSKey/PicoFido/LkOne/
+        // Unknown, so this RED test fails with detected == Unknown.
+        let mut map = BTreeMap::new();
+        map.insert(
+            Value::Integer(0x01),
+            Value::Array(vec![
+                Value::Text("U2F_V2".into()),
+                Value::Text("FIDO_2_1".into()),
+                Value::Text("FIDO_2_2".into()),
+            ]),
+        );
+        // fapico2 AAGUID
+        map.insert(
+            Value::Integer(0x03),
+            Value::Bytes(vec![
+                0x66, 0x61, 0x70, 0x69, 0x63, 0x6F, 0x32, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x02,
+            ]),
+        );
+        map.insert(Value::Integer(0x05), Value::Integer(1024));
+        map.insert(
+            Value::Integer(0x06),
+            Value::Array(vec![Value::Integer(1), Value::Integer(2)]),
+        );
+        map.insert(Value::Integer(0x0D), Value::Integer(4));
+
+        // fapico2 firmware version (7.6 encoded as (7<<8)|6 = 0x0706)
+        map.insert(Value::Integer(0x0E), Value::Integer(0x0706));
+
+        let info = parse_fido_get_info(&Value::Map(map)).unwrap();
+
+        assert_eq!(info.aaguid, "66617069636F32000000000000000002");
+        assert_eq!(info.firmware_version, "7.6");
+        assert_eq!(info.versions, vec!["U2F_V2", "FIDO_2_1", "FIDO_2_2"]);
+
+        // Scenario 1 ("the firmware type is Fapico2") cannot name the variant
+        // before US-1752 adds it to FirmwareType, so it is asserted by
+        // elimination over the four variants that exist today: the
+        // classification of a stock fapico2 getInfo must be none of them.
+        let detected = AnyFirmware::detect_by_aaguid(&info.aaguid);
+        assert_ne!(detected, FirmwareType::RSKey);
+        assert_ne!(detected, FirmwareType::LkOne);
+        assert_ne!(detected, FirmwareType::PicoFido);
+        assert_ne!(detected, FirmwareType::Unknown);
+    }
+
+    #[test]
+    fn restore_refusal_names_the_reset_requirement() {
+        // US-1755 (EPIC PF-FAPICO2, divergence D3): fapico2's LOAD is
+        // reset-first — under the reset-first gate it answers 0x30 while
+        // resident credentials exist and the incoming seed differs. The
+        // message must name the reset requirement, not claim "already
+        // sealed".
+        let msg = vendor_error(0x30, "restore");
+        assert!(msg.contains("reset"), "message: {msg}");
+        assert!(!msg.contains("already sealed"), "message: {msg}");
+    }
+
+    #[test]
+    fn export_refusal_names_the_missing_seed() {
+        // US-1755 (EPIC PF-FAPICO2, divergence D7): a seedless board answers
+        // EXPORT with 0x30. The message must say no master seed is installed
+        // and name installing a seed (LOAD / restore) as the remedy.
+        let msg = vendor_error(0x30, "export (already sealed?)");
+        assert!(msg.contains("no master seed"), "message: {msg}");
+        assert!(msg.contains("restore"), "message: {msg}");
+    }
+
+    #[test]
+    fn state_context_keeps_rskey_wording() {
+        // RS-Key's original 0x30 wording stays available for ops outside the
+        // backup restore/export split (e.g. STATE-context errors).
+        let msg = vendor_error(0x30, "some other op");
+        assert!(msg.contains("already sealed"), "message: {msg}");
+        assert!(msg.contains("OTP DEVK"), "message: {msg}");
     }
 }
