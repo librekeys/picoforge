@@ -253,7 +253,15 @@ async def run_update_script(
             )
             eprint()
             eprint(e.stderr.decode("utf-8"))
-            with open(f"{package['pname']}.log", "wb") as logfile:
+            # Canonicalise and confine the log path to the working directory
+            # so a hostile pname (e.g. "../x") cannot traverse out of it.
+            log_path = Path.cwd() / (os.path.basename(package["pname"]) + ".log")
+            resolved = log_path.resolve()
+            if resolved.parent != Path.cwd().resolve():
+                raise UpdateFailedException(
+                    f"refusing to write the update log outside the working directory: {resolved}"
+                )
+            with resolved.open("wb") as logfile:
                 logfile.write(e.stderr)
             eprint()
             eprint(
