@@ -1348,4 +1348,57 @@ mod tests {
         assert_eq!(MakeCredentialParam::ExcludeList as u8, 0x05);
         assert_eq!(MakeCredentialParam::EnterpriseAttestation as u8, 0x0A);
     }
+
+    // ── RS-Key 0x41 vendor dialect table (US-1756, EPIC PF-FAPICO2) ──────────
+    //
+    // PicoForge cannot import fapico2's crate, so the expected bytes are
+    // copied as literals from fapico2's `apps/fido/src/vendor41.rs`
+    // `Subcommand::byte()` (lines 618-635 at authoring time; the enum spans
+    // `vendor41.rs:561-596`). US-1751's hardware probe
+    // (fapico2 docs/audits/2026-11-06-picoforge-dialect-probe.md) is the
+    // on-board confirmation that the table is true.
+
+    #[test]
+    fn test_rskey_vendor_subcommands_match_fapico2_dialect() {
+        // (constant name, PicoForge constant, fapico2 Subcommand::byte literal)
+        let table: &[(&str, u8, u8)] = &[
+            ("RSKEY_VENDOR_MSE", RSKEY_VENDOR_MSE, 0x01),
+            ("RSKEY_VENDOR_EXPORT", RSKEY_VENDOR_EXPORT, 0x02),
+            ("RSKEY_VENDOR_LOAD", RSKEY_VENDOR_LOAD, 0x03),
+            ("RSKEY_VENDOR_FINALIZE", RSKEY_VENDOR_FINALIZE, 0x04),
+            ("RSKEY_VENDOR_STATE", RSKEY_VENDOR_STATE, 0x05),
+            ("RSKEY_VENDOR_UNLOCK", RSKEY_VENDOR_UNLOCK, 0x06),
+            ("RSKEY_VENDOR_AUDIT_READ", RSKEY_VENDOR_AUDIT_READ, 0x07),
+            (
+                "RSKEY_VENDOR_AUDIT_CHECKPOINT",
+                RSKEY_VENDOR_AUDIT_CHECKPOINT,
+                0x08,
+            ),
+            ("RSKEY_VENDOR_ATT_IMPORT", RSKEY_VENDOR_ATT_IMPORT, 0x09),
+            ("RSKEY_VENDOR_ATT_CLEAR", RSKEY_VENDOR_ATT_CLEAR, 0x0A),
+            ("RSKEY_VENDOR_ATT_STATE", RSKEY_VENDOR_ATT_STATE, 0x0B),
+            ("RSKEY_CONFIG_WRITE", RSKEY_CONFIG_WRITE, 0x0C),
+            ("RSKEY_CONFIG_READ", RSKEY_CONFIG_READ, 0x0D),
+            ("RSKEY_VENDOR_AUDIT_CONFIG", RSKEY_VENDOR_AUDIT_CONFIG, 0x0E),
+        ];
+        for (name, picoforge_byte, fapico2_byte) in table {
+            assert_eq!(
+                picoforge_byte, fapico2_byte,
+                "{name} diverges from fapico2 vendor41.rs Subcommand::byte()"
+            );
+        }
+    }
+
+    #[test]
+    fn test_rskey_aut_ids_match_fapico2_lock_dialect() {
+        // The at-rest soft lock rides authenticatorConfig 0xFF (VendorPrototype)
+        // on both devices: PicoForge's AUT ids are identical to fapico2's
+        // `apps/fido/src/vendor_lock.rs` AUT_ENABLE (:198) / AUT_DISABLE (:202).
+        // PicoForge's authconfig_vendor path signs the VendorPrototype
+        // sub-command with the standard pinUvAuthParam — `sign_config_command`
+        // returns the first 16 bytes of the HMAC — which fapico2's
+        // authenticatorConfig 0xFF dispatch verifies the standard way.
+        assert_eq!(RSKEY_AUT_ENABLE, 0x03E4_3F56_B342_85E2);
+        assert_eq!(RSKEY_AUT_DISABLE, 0x1831_A40F_04A2_5ED9);
+    }
 }

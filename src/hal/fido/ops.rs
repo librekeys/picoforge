@@ -1511,6 +1511,16 @@ impl FidoOperations for HidTransport {
     ///
     /// The MAC is computed as `HMAC-SHA256(pin_token, 0xFF*32 || 0x41 || 0x0C || cbor_params)[..16]`
     /// per the RS-Key protocol spec.
+    ///
+    /// # CONFIG_WRITE gating tiers (EPIC PF-FAPICO2, divergence D4)
+    ///
+    /// RS-Key firmware proper leaves CONFIG_WRITE ungated by default
+    /// (`--features strict-config` to change), but **fapico2 always
+    /// token-gates the identity tier** (VID/PID/serial PHY writes): a request
+    /// without a valid PIN-token MAC answers `0x36` ("PIN required").
+    /// Practical consequence: LED/PHY writes on fapico2 need the PIN entered
+    /// — the UI already collects one (`write_all_config` passes `pin`
+    /// through), and PicoForge always sends the MAC whenever a PIN exists.
     fn rs_key_config_write(
         &self,
         pin_token: &[u8],
@@ -1572,6 +1582,9 @@ impl FidoOperations for HidTransport {
         // With a PIN, authorise via a PERM_ACFG token + MAC — the proven
         // CONFIG_WRITE path (protocol 1, 16-byte tag). Without one, the firmware
         // gates on a physical touch instead, so no auth fields are sent.
+        // (EPIC PF-FAPICO2, divergence D4: on fapico2 the CONFIG_WRITE
+        // identity tier always needs the token MAC — see the note on
+        // `rs_key_config_write` — so writes there require a PIN, not a touch.)
         if let Some(pin) = pin {
             let token = self.get_pin_token_with_permission(
                 pin,
