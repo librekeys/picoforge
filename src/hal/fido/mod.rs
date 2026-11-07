@@ -1835,16 +1835,45 @@ fn wrap_secret(transport: &HidTransport, secret: &[u8; 32]) -> Result<Vec<u8>, S
 
 /// Load the soft-locked seed into RAM for this power cycle (the lock key comes
 /// as a BIP-39 phrase). Ungated over the 0x41 channel.
-pub(crate) fn lock_unlock(mnemonic: String) -> Result<(), String> {
+/// Send UNLOCK (0x06) with the MSE-wrapped lock key, returning the status.
+///
+/// Divergence D8 (EPIC PF-FAPICO2, observed on hardware): fapico2 gates
+/// UNLOCK as `TokenOptional(0x20)` (`fapico2 vendor41.rs:395`) — when a PIN
+/// is set on the board, a token-less request answers `0x36`, while RS-Key
+/// treats the same sub-command as pure possession. The first attempt is
+/// therefore always token-less — byte-identical to the pre-D8 wire shape,
+/// so RS-Key behaviour is untouched — and the token MAC is added only when
+/// the device explicitly asks for a PIN (`0x36`) and a PIN was collected.
+fn unlock_with_lock_key(
+    transport: &HidTransport,
+    blob: Vec<u8>,
+    pin: Option<&str>,
+) -> Result<u8, String> {
+    let mut params = BTreeMap::new();
+    params.insert(Value::Integer(1), Value::Bytes(blob));
+    let (status, _) = transport
+        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params.clone())), None)
+        .map_err(|e| e.to_string())?;
+    if status != 0x36 {
+        return Ok(status);
+    }
+    let pin = pin.ok_or_else(|| vendor_error(status, "unlock"))?;
+    let (status, _) = transport
+        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), Some(pin))
+        .map_err(|e| e.to_string())?;
+    Ok(status)
+}
+
+/// Unlock the seed for this power cycle with the 24-word lock key.
+///
+/// The PIN is optional (see [`unlock_with_lock_key`]): RS-Key never asks for
+/// one; a fapico2 board with a PIN set does, and the retry supplies it.
+pub(crate) fn lock_unlock(pin: Option<String>, mnemonic: String) -> Result<(), String> {
     let key = backup::mnemonic_to_seed(&mnemonic)?;
     let transport =
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
     let blob = wrap_secret(&transport, &key)?;
-    let mut params = BTreeMap::new();
-    params.insert(Value::Integer(1), Value::Bytes(blob));
-    let (status, _) = transport
-        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), None)
-        .map_err(|e| e.to_string())?;
+    let status = unlock_with_lock_key(&transport, blob, pin.as_deref())?;
     if status == 0x3D {
         return Err("device is not locked".into());
     }
@@ -1880,12 +1909,10 @@ pub(crate) fn lock_disable(pin: String, mnemonic: String) -> Result<(), String> 
         HidTransport::open().map_err(|e| format!("Could not open HID transport: {}", e))?;
 
     // Unlock first (loads the seed into RAM); tolerate "already unlocked".
+    // Divergence D8 handled by `unlock_with_lock_key`: token-less first (the
+    // RS-Key shape), token retry only when the device answers 0x36.
     let blob = wrap_secret(&transport, &key)?;
-    let mut params = BTreeMap::new();
-    params.insert(Value::Integer(1), Value::Bytes(blob));
-    let (status, _) = transport
-        .rs_key_vendor(RSKEY_VENDOR_UNLOCK, Some(Value::Map(params)), None)
-        .map_err(|e| e.to_string())?;
+    let status = unlock_with_lock_key(&transport, blob, Some(&pin))?;
     if status != 0 && status != 0x3D {
         return Err(vendor_error(status, "unlock (wrong key?)"));
     }

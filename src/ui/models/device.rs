@@ -574,8 +574,8 @@ impl DeviceRepo {
         io::lock_enable(pin)
     }
 
-    pub fn lock_unlock_blocking(mnemonic: String) -> Result<(), String> {
-        io::lock_unlock(mnemonic)
+    pub fn lock_unlock_blocking(pin: Option<String>, mnemonic: String) -> Result<(), String> {
+        io::lock_unlock(pin, mnemonic)
     }
 
     pub fn lock_disable_blocking(pin: String, mnemonic: String) -> Result<(), String> {
