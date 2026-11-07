@@ -8,6 +8,7 @@ permissions:
   contents: read
 jobs:
   mirror-gitlab:
+    continue-on-error: true
     concurrency:
       group: ${{ github.workflow }}-gitlab
       cancel-in-progress: true
@@ -19,6 +20,7 @@ jobs:
           GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
   mirror-codeberg:
+    continue-on-error: true
     concurrency:
       group: ${{ github.workflow }}-codeberg
       cancel-in-progress: true
@@ -30,6 +32,7 @@ jobs:
           CODEBERG_USERNAME: ${{ secrets.CODEBERG_USERNAME }}
           CODEBERG_TOKEN: ${{ secrets.CODEBERG_TOKEN }}
   mirror-disroot:
+    continue-on-error: true
     concurrency:
       group: ${{ github.workflow }}-disroot
       cancel-in-progress: true
