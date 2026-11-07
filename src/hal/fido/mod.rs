@@ -1525,7 +1525,29 @@ fn vendor_error(status: u8, op: &str) -> String {
         0x27 => {
             "denied — no touch within the window (press the button when the LED blinks)".to_string()
         }
-        0x30 => format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)"),
+        0x30 => {
+            // RS-Key's original wording covers its own 0x30 arm ("already
+            // sealed, or no OTP DEVK provisioned"). fapico2 answers 0x30 for
+            // two more reasons (EPIC PF-FAPICO2, divergences D3/D7): LOAD is
+            // reset-first — it refuses while resident credentials exist and
+            // the incoming seed differs (US-1737) — and EXPORT refuses when
+            // no master seed is installed. Split by op so the message names
+            // the reason the device refused, not a generic denial.
+            if op == "restore" {
+                format!(
+                    "{op}: operation not allowed — the board holds resident credentials \
+                     and the incoming seed differs from the installed one; \
+                     reset the device first, then restore"
+                )
+            } else if op.starts_with("export") {
+                format!(
+                    "{op}: operation not allowed — no master seed is installed; \
+                     install one first (restore / LOAD)"
+                )
+            } else {
+                format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)")
+            }
+        }
         0x3D => "device is not locked".to_string(),
         other => format!("{op} failed: status 0x{other:02x}"),
     }
@@ -1742,12 +1764,7 @@ pub(crate) fn backup_status() -> Result<backup::BackupStatus, String> {
         .rs_key_vendor(RSKEY_VENDOR_STATE, None, None)
         .map_err(|e| e.to_string())?;
     let m = vendor_map(status, map, "state")?;
-    Ok(backup::BackupStatus {
-        sealed: m_bool(&m, 1),
-        has_seed: m_bool(&m, 2),
-        locked: m_bool(&m, 3),
-        unlocked: m_bool(&m, 4),
-    })
+    Ok(backup::parse_status(&m))
 }
 
 /// Seal the one-time export window (touch-gated).
@@ -2580,5 +2597,36 @@ mod tests {
         assert_ne!(detected, FirmwareType::LkOne);
         assert_ne!(detected, FirmwareType::PicoFido);
         assert_ne!(detected, FirmwareType::Unknown);
+    }
+
+    #[test]
+    fn restore_refusal_names_the_reset_requirement() {
+        // US-1755 (EPIC PF-FAPICO2, divergence D3): fapico2's LOAD is
+        // reset-first — under the reset-first gate it answers 0x30 while
+        // resident credentials exist and the incoming seed differs. The
+        // message must name the reset requirement, not claim "already
+        // sealed".
+        let msg = vendor_error(0x30, "restore");
+        assert!(msg.contains("reset"), "message: {msg}");
+        assert!(!msg.contains("already sealed"), "message: {msg}");
+    }
+
+    #[test]
+    fn export_refusal_names_the_missing_seed() {
+        // US-1755 (EPIC PF-FAPICO2, divergence D7): a seedless board answers
+        // EXPORT with 0x30. The message must say no master seed is installed
+        // and name installing a seed (LOAD / restore) as the remedy.
+        let msg = vendor_error(0x30, "export (already sealed?)");
+        assert!(msg.contains("no master seed"), "message: {msg}");
+        assert!(msg.contains("restore"), "message: {msg}");
+    }
+
+    #[test]
+    fn state_context_keeps_rskey_wording() {
+        // RS-Key's original 0x30 wording stays available for ops outside the
+        // backup restore/export split (e.g. STATE-context errors).
+        let msg = vendor_error(0x30, "some other op");
+        assert!(msg.contains("already sealed"), "message: {msg}");
+        assert!(msg.contains("OTP DEVK"), "message: {msg}");
     }
 }
