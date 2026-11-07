@@ -16,14 +16,13 @@ use crate::ui::screens::{
     openpgp::OpenPgpViewModel, passkeys::PasskeysEvent, passkeys::PasskeysViewModel, piv::PivEvent,
     piv::PivViewModel, security::SecurityViewModel, slots::SlotsEvent, slots::SlotsViewModel,
 };
-use gpui::prelude::*;
-use gpui::*;
-use gpui_component::Root;
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme, Icon, TitleBar, WindowExt, h_flex, scroll::ScrollableElement, v_flex,
 };
+use gpui_kit::prelude::*;
+use gpui_kit::*;
 
-gpui::actions!(picoforge, [ToggleSidebar]);
+gpui_kit::actions!(picoforge, [ToggleSidebar]);
 
 /// Shared reactive models accessible to every screen view-model.
 pub struct AppModels {
@@ -168,16 +167,13 @@ impl ApplicationRoot {
 
 impl Render for ApplicationRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let dialog_layer = Root::render_dialog_layer(window, cx);
-        let sheet_layer = Root::render_sheet_layer(window, cx);
-
         let title_bar = TitleBar::new().bg(cx.theme().title_bar).child(
             h_flex()
                 .w_full()
                 .justify_between()
                 .bg(cx.theme().title_bar)
                 .items_center()
-                .cursor(gpui::CursorStyle::OpenHand),
+                .cursor(gpui_kit::CursorStyle::OpenHand),
         );
 
         let content_area = v_flex()
@@ -192,7 +188,7 @@ impl Render for ApplicationRoot {
             .min_h(px(0.))
             .min_w(px(0.))
             .overflow_y_scrollbar()
-            .flex_grow()
+            .flex_grow(1.0)
             .bg(cx.theme().background)
             .child(match self.active_destination {
                 Destination::Home => {
@@ -399,10 +395,10 @@ impl Render for ApplicationRoot {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .cursor(gpui::CursorStyle::PointingHand)
+                    .cursor(gpui_kit::CursorStyle::PointingHand)
                     .opacity(if is_toggle_visible { 1.0 } else { 0.0 })
                     .tooltip(move |window, cx| {
-                        gpui_component::tooltip::Tooltip::new(toggle_tooltip)
+                        gpui_kit::component::tooltip::Tooltip::new(toggle_tooltip)
                             .action(&ToggleSidebar, None)
                             .build(window, cx)
                     })
@@ -445,7 +441,5 @@ impl Render for ApplicationRoot {
             .size_full()
             .overflow_hidden()
             .child(body)
-            .children(dialog_layer)
-            .children(sheet_layer)
     }
 }

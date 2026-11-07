@@ -8,10 +8,10 @@ use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
 use crate::ui::components::form::{LabeledU8, select_state, selected_key};
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, MgmAuth, USB_CAP_PIV, piv};
-use gpui::*;
-use gpui_component::WindowExt;
-use gpui_component::button::ButtonVariants;
-use gpui_component::select::SelectState;
+use gpui_kit::component::WindowExt;
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::component::select::SelectState;
+use gpui_kit::*;
 
 const OPT_ALGO: &[(&str, u8)] = &[
     ("ECC P-256", 0x11),
@@ -53,7 +53,7 @@ fn piv_key_len_ok(algo: u8, len: usize) -> bool {
 /// toast and return `None`. On a `--protect`'d card the field holds the PIN; else
 /// a hex management key. `algo` is the card's read-back management-key algorithm.
 fn resolve_mgm_auth(
-    input: &Entity<gpui_component::input::InputState>,
+    input: &Entity<gpui_kit::component::input::InputState>,
     protected: bool,
     algo: u8,
     view: &WeakEntity<PivViewModel>,
@@ -158,12 +158,13 @@ impl PivViewModel {
         &self,
         window: &mut Window,
         cx: &mut App,
-    ) -> Entity<gpui_component::input::InputState> {
+    ) -> Entity<gpui_kit::component::input::InputState> {
         if self.mgm_protected() {
-            cx.new(|cx| gpui_component::input::InputState::new(window, cx).masked(true))
+            cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx).masked(true))
         } else {
             cx.new(|cx| {
-                gpui_component::input::InputState::new(window, cx).default_value(default_mgm_hex())
+                gpui_kit::component::input::InputState::new(window, cx)
+                    .default_value(default_mgm_hex())
             })
         }
     }
@@ -296,12 +297,12 @@ impl PivViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             let field = |label: &str, sel: &Entity<SelectState<Vec<LabeledU8>>>| {
-                gpui_component::v_flex()
+                gpui_kit::component::v_flex()
                     .gap_1()
                     .flex_1()
                     .child(label.to_string())
                     .child(
-                        gpui_component::select::Select::new(sel)
+                        gpui_kit::component::select::Select::new(sel)
                             .w_full()
                             .bg(rgb(0x222225)),
                     )
@@ -310,34 +311,34 @@ impl PivViewModel {
                 .title(format!("Generate — {}", piv::slot_label(slot)))
                 .child("Generates a new key pair and a self-signed certificate in this slot.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child(field("Algorithm", &algo_sel))
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_3()
                                 .child(field("PIN policy", &pin_sel))
                                 .child(field("Touch policy", &touch_sel)),
                         )
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("gen")
+                        gpui_kit::component::button::Button::new("gen")
                             .primary()
                             .label("Generate")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -434,8 +435,8 @@ impl PivViewModel {
         op: impl Fn(String, String) -> Result<(), PFError> + Send + Clone + 'static,
         ok_msg: &'static str,
     ) {
-        let a = cx.new(|cx| gpui_component::input::InputState::new(window, cx).masked(true));
-        let b = cx.new(|cx| gpui_component::input::InputState::new(window, cx).masked(true));
+        let a = cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx).masked(true));
+        let b = cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx).masked(true));
         let view = cx.entity().downgrade();
         let submit = {
             let a = a.clone();
@@ -463,29 +464,29 @@ impl PivViewModel {
             dialog
                 .title(title)
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child(label_a)
-                        .child(gpui_component::input::Input::new(&a))
+                        .child(gpui_kit::component::input::Input::new(&a))
                         .child(label_b)
-                        .child(gpui_component::input::Input::new(&b)),
+                        .child(gpui_kit::component::input::Input::new(&b)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Save")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -532,27 +533,27 @@ impl PivViewModel {
                     "Clears this slot's certificate (the key stays). Requires the management key.",
                 )
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_2()
                         .pb_2()
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("del")
+                        gpui_kit::component::button::Button::new("del")
                             .danger()
                             .label("Delete")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -564,7 +565,7 @@ impl PivViewModel {
         let mgm = self.mgm_input(window, cx);
         let protected = self.mgm_protected();
         let mgm_label = self.mgm_label();
-        let pin = cx.new(|cx| gpui_component::input::InputState::new(window, cx).masked(true));
+        let pin = cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx).masked(true));
         let pin_tries = select_state(window, cx, OPT_TRIES, 0);
         let puk_tries = select_state(window, cx, OPT_TRIES, 0);
         let view = cx.entity().downgrade();
@@ -604,12 +605,12 @@ impl PivViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             let field = |label: &str, sel: &Entity<SelectState<Vec<LabeledU8>>>| {
-                gpui_component::v_flex()
+                gpui_kit::component::v_flex()
                     .gap_1()
                     .flex_1()
                     .child(label.to_string())
                     .child(
-                        gpui_component::select::Select::new(sel)
+                        gpui_kit::component::select::Select::new(sel)
                             .w_full()
                             .bg(rgb(0x222225)),
                     )
@@ -618,35 +619,35 @@ impl PivViewModel {
                 .title("Set PIN Retries")
                 .child("Resets the PIN and PUK to their defaults and sets new retry limits.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_3()
                                 .child(field("PIN retries", &pin_tries))
                                 .child(field("PUK retries", &puk_tries)),
                         )
                         .child("Current PIN")
-                        .child(gpui_component::input::Input::new(&pin))
+                        .child(gpui_kit::component::input::Input::new(&pin))
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Apply")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -662,7 +663,7 @@ impl PivViewModel {
             "Current management key (hex)"
         };
         let cur = self.mgm_input(window, cx);
-        let new = cx.new(|cx| gpui_component::input::InputState::new(window, cx));
+        let new = cx.new(|cx| gpui_kit::component::input::InputState::new(window, cx));
         let algo_sel = select_state(window, cx, OPT_MGM_ALGO, 0);
         let touch_sel = select_state(window, cx, OPT_MGM_TOUCH, 0);
         let view = cx.entity().downgrade();
@@ -723,37 +724,37 @@ impl PivViewModel {
             let ok = submit.clone();
             let btn = submit.clone();
             let field = |label: &str, sel: &Entity<SelectState<Vec<LabeledU8>>>| {
-                gpui_component::v_flex().gap_1().flex_1().child(label.to_string()).child(
-                    gpui_component::select::Select::new(sel).w_full().bg(rgb(0x222225)),
+                gpui_kit::component::v_flex().gap_1().flex_1().child(label.to_string()).child(
+                    gpui_kit::component::select::Select::new(sel).w_full().bg(rgb(0x222225)),
                 )
             };
             dialog
                 .title("Change Management Key")
                 .child("Sets a new PIV management key. Store it safely — it is required for all key/cert changes.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child(cur_label)
-                        .child(gpui_component::input::Input::new(&cur))
+                        .child(gpui_kit::component::input::Input::new(&cur))
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_3()
                                 .child(field("New algorithm", &algo_sel))
                                 .child(field("Touch", &touch_sel)),
                         )
                         .child("New key (hex)")
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_2()
                                 .items_center()
                                 .child(
-                                    gpui_component::v_flex()
+                                    gpui_kit::component::v_flex()
                                         .flex_1()
-                                        .child(gpui_component::input::Input::new(&new)),
+                                        .child(gpui_kit::component::input::Input::new(&new)),
                                 )
                                 .child(
-                                    gpui_component::button::Button::new("gen-mgm")
+                                    gpui_kit::component::button::Button::new("gen-mgm")
                                         .label("Generate")
                                         .outline()
                                         .on_click(move |_, window, cx| gen_key(window, cx)),
@@ -764,17 +765,17 @@ impl PivViewModel {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Change")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -921,27 +922,27 @@ impl PivViewModel {
                 })
                 .child("Enter the management key to authorise the import.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_2()
                         .pb_2()
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("ok")
+                        gpui_kit::component::button::Button::new("ok")
                             .primary()
                             .label("Import")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -1018,27 +1019,27 @@ impl PivViewModel {
                 .title(format!("Delete key — {}", piv::slot_label(slot)))
                 .child("Permanently deletes this slot's key and certificate. Requires the management key.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_2()
                         .pb_2()
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("del")
+                        gpui_kit::component::button::Button::new("del")
                             .danger()
                             .label("Delete")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -1090,33 +1091,33 @@ impl PivViewModel {
                 .title(format!("Move key from {}", piv::slot_label(src)))
                 .child("Moves the key + certificate to another slot (overwrites the destination).")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Destination slot")
                         .child(
-                            gpui_component::select::Select::new(&dst_sel)
+                            gpui_kit::component::select::Select::new(&dst_sel)
                                 .w_full()
                                 .bg(rgb(0x222225)),
                         )
                         .child(mgm_label)
-                        .child(gpui_component::input::Input::new(&mgm)),
+                        .child(gpui_kit::component::input::Input::new(&mgm)),
                 )
                 .on_ok(move |_, window, cx| {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("mv")
+                        gpui_kit::component::button::Button::new("mv")
                             .primary()
                             .label("Move")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -1129,7 +1130,7 @@ impl PivViewModel {
             "Reset PIV Applet",
             "This blocks the PIN and PUK, then factory-resets PIV — deleting ALL keys and certificates and restoring the default PIN/PUK/management key. This cannot be undone.".to_string(),
             "Reset",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |_dh, window, cx| {

@@ -1,13 +1,13 @@
 //! Modal dialog components for PIN prompts, confirmations, and status display.
 
-use gpui::*;
-use gpui_component::{
-    ActiveTheme, Disableable, Sizable, WindowExt,
+use gpui_kit::component::{
+    ActiveTheme, Disableable, IconName, Sizable, WindowExt,
     button::{Button, ButtonVariant, ButtonVariants},
     h_flex,
     input::{Input, InputEvent, InputState},
     v_flex,
 };
+use gpui_kit::*;
 
 type PinPromptCallback = std::rc::Rc<dyn Fn(String, WeakEntity<PinPromptContent>, &mut App)>;
 type ConfirmCallback = std::rc::Rc<dyn Fn(WeakEntity<ConfirmContent>, &mut Window, &mut App)>;
@@ -87,9 +87,11 @@ impl Render for PinPromptContent {
                         .gap_2()
                         .items_center()
                         .child(
-                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
-                                .text_color(cx.theme().green)
-                                .with_size(gpui_component::Size::Large),
+                            gpui_kit::component::Icon::new(
+                                gpui_kit::component::IconName::CircleCheck,
+                            )
+                            .text_color(cx.theme().green)
+                            .with_size(gpui_kit::component::Size::Large),
                         )
                         .child(self.title.clone()),
                 )
@@ -124,6 +126,7 @@ impl Render for PinPromptContent {
                                 Button::new("confirm")
                                     .primary()
                                     .label("Loading...")
+                                    .icon(IconName::Loader)
                                     .loading(true),
                             ),
                     )
@@ -151,11 +154,11 @@ impl Render for PinPromptContent {
                             .bg(rgb(0x18181b))
                             .child(
                                 div().flex_shrink_0().child(
-                                    gpui_component::Icon::new(
-                                        gpui_component::IconName::TriangleAlert,
+                                    gpui_kit::component::Icon::new(
+                                        gpui_kit::component::IconName::TriangleAlert,
                                     )
                                     .text_color(rgb(0xef4444))
-                                    .with_size(gpui_component::Size::Medium),
+                                    .with_size(gpui_kit::component::Size::Medium),
                                 ),
                             )
                             .child(
@@ -228,11 +231,11 @@ impl Render for PinPromptContent {
                             .bg(rgb(0x18181b))
                             .child(
                                 div().flex_shrink_0().child(
-                                    gpui_component::Icon::new(
-                                        gpui_component::IconName::TriangleAlert,
+                                    gpui_kit::component::Icon::new(
+                                        gpui_kit::component::IconName::TriangleAlert,
                                     )
                                     .text_color(rgb(0xef4444))
-                                    .with_size(gpui_component::Size::Medium),
+                                    .with_size(gpui_kit::component::Size::Medium),
                                 ),
                             )
                             .child(
@@ -373,9 +376,11 @@ impl Render for ConfirmContent {
                         .gap_2()
                         .items_center()
                         .child(
-                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
-                                .text_color(cx.theme().green)
-                                .with_size(gpui_component::Size::Large),
+                            gpui_kit::component::Icon::new(
+                                gpui_kit::component::IconName::CircleCheck,
+                            )
+                            .text_color(cx.theme().green)
+                            .with_size(gpui_kit::component::Size::Large),
                         )
                         .child(self.title.clone()),
                 )
@@ -404,6 +409,7 @@ impl Render for ConfirmContent {
                             Button::new("ok")
                                 .with_variant(self.ok_variant)
                                 .label("Loading...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -588,9 +594,11 @@ impl Render for ChangePinContent {
                         .gap_2()
                         .items_center()
                         .child(
-                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
-                                .text_color(cx.theme().green)
-                                .with_size(gpui_component::Size::Large),
+                            gpui_kit::component::Icon::new(
+                                gpui_kit::component::IconName::CircleCheck,
+                            )
+                            .text_color(cx.theme().green)
+                            .with_size(gpui_kit::component::Size::Large),
                         )
                         .child("Change PIN"),
                 )
@@ -629,6 +637,7 @@ impl Render for ChangePinContent {
                             Button::new("confirm")
                                 .primary()
                                 .label("Changing PIN...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -907,9 +916,11 @@ impl Render for SetPinContent {
                         .gap_2()
                         .items_center()
                         .child(
-                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
-                                .text_color(cx.theme().green)
-                                .with_size(gpui_component::Size::Large),
+                            gpui_kit::component::Icon::new(
+                                gpui_kit::component::IconName::CircleCheck,
+                            )
+                            .text_color(cx.theme().green)
+                            .with_size(gpui_kit::component::Size::Large),
                         )
                         .child("Set Up PIN"),
                 )
@@ -946,6 +957,7 @@ impl Render for SetPinContent {
                             Button::new("confirm")
                                 .primary()
                                 .label("Setting PIN...")
+                                .icon(IconName::Loader)
                                 .loading(true),
                         ),
                 )
@@ -1173,9 +1185,11 @@ impl Render for StatusContent {
                         .gap_2()
                         .items_center()
                         .child(
-                            gpui_component::Icon::new(gpui_component::IconName::CircleCheck)
-                                .text_color(cx.theme().green)
-                                .with_size(gpui_component::Size::Large),
+                            gpui_kit::component::Icon::new(
+                                gpui_kit::component::IconName::CircleCheck,
+                            )
+                            .text_color(cx.theme().green)
+                            .with_size(gpui_kit::component::Size::Large),
                         )
                         .child(self.title.clone()),
                 )
@@ -1192,41 +1206,41 @@ impl Render for StatusContent {
                 )
                 .into_any_element(),
 
-            DialogPhase::Error(err_msg) => {
-                v_flex()
-                    .gap_4()
-                    .child(
-                        h_flex()
-                            .gap_2()
-                            .items_center()
-                            .child(
-                                gpui_component::Icon::new(gpui_component::IconName::CircleX)
-                                    .text_color(cx.theme().danger)
-                                    .with_size(gpui_component::Size::Large),
-                            )
-                            .child(self.title.clone()),
-                    )
-                    .child(
-                        div()
-                            .px_3()
-                            .py_2()
-                            .rounded_md()
-                            .bg(rgb(0x18181b))
-                            .text_color(rgb(0xef4444))
-                            .text_sm()
-                            .child(render_error_message(err_msg.clone())),
-                    )
-                    .child(
-                        h_flex()
-                            .justify_end()
-                            .child(Button::new("close").label("Close").on_click(
-                                |_, window, cx| {
+            DialogPhase::Error(err_msg) => v_flex()
+                .gap_4()
+                .child(
+                    h_flex()
+                        .gap_2()
+                        .items_center()
+                        .child(
+                            gpui_kit::component::Icon::new(gpui_kit::component::IconName::CircleX)
+                                .text_color(cx.theme().danger)
+                                .with_size(gpui_kit::component::Size::Large),
+                        )
+                        .child(self.title.clone()),
+                )
+                .child(
+                    div()
+                        .px_3()
+                        .py_2()
+                        .rounded_md()
+                        .bg(rgb(0x18181b))
+                        .text_color(rgb(0xef4444))
+                        .text_sm()
+                        .child(render_error_message(err_msg.clone())),
+                )
+                .child(
+                    h_flex()
+                        .justify_end()
+                        .child(
+                            Button::new("close")
+                                .label("Close")
+                                .on_click(|_, window, cx| {
                                     window.close_dialog(cx);
-                                },
-                            )),
-                    )
-                    .into_any_element()
-            }
+                                }),
+                        ),
+                )
+                .into_any_element(),
 
             DialogPhase::LoadingWithMessage(msg) => v_flex()
                 .gap_4()
@@ -1236,6 +1250,7 @@ impl Render for StatusContent {
                     Button::new("loading")
                         .primary()
                         .label("Applying...")
+                        .icon(IconName::Loader)
                         .loading(true),
                 )
                 .into_any_element(),
@@ -1248,6 +1263,7 @@ impl Render for StatusContent {
                     Button::new("loading")
                         .primary()
                         .label("Applying...")
+                        .icon(IconName::Loader)
                         .loading(true),
                 )
                 .into_any_element(),

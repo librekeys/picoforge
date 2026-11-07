@@ -8,10 +8,10 @@ use crate::ui::components::dialog;
 use crate::ui::components::dialog::{ConfirmContent, PinPromptContent};
 use crate::ui::components::form::{LabeledU8, select_state, selected_key};
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, USB_CAP_OATH, oath};
-use gpui::*;
-use gpui_component::WindowExt;
-use gpui_component::button::ButtonVariants;
-use gpui_component::select::SelectState;
+use gpui_kit::component::WindowExt;
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::component::select::SelectState;
+use gpui_kit::*;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 // Add-form dropdown options (label, key). The key is the wire value where one
@@ -365,14 +365,15 @@ impl AccountsViewModel {
 
     pub(super) fn open_add_dialog(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let issuer = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx).placeholder("Issuer (e.g. GitHub)")
+            gpui_kit::component::input::InputState::new(window, cx)
+                .placeholder("Issuer (e.g. GitHub)")
         });
         let account = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Account (e.g. you@example.com)")
         });
         let secret = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Base32 secret, or paste an otpauth:// URI")
         });
         let type_sel = select_state(window, cx, OPT_TYPE, 0);
@@ -462,12 +463,12 @@ impl AccountsViewModel {
             let submit_ok = submit.clone();
             let submit_btn = submit.clone();
             let field = |label: &str, sel: &Entity<SelectState<Vec<LabeledU8>>>| {
-                gpui_component::v_flex()
+                gpui_kit::component::v_flex()
                     .gap_1()
                     .flex_1()
                     .child(label.to_string())
                     .child(
-                        gpui_component::select::Select::new(sel)
+                        gpui_kit::component::select::Select::new(sel)
                             .w_full()
                             .bg(rgb(0x222225)),
                     )
@@ -476,23 +477,23 @@ impl AccountsViewModel {
                 .title("Add Account")
                 .child("Fill in the details, or paste an otpauth:// URI into the secret field.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Issuer")
-                        .child(gpui_component::input::Input::new(&issuer))
+                        .child(gpui_kit::component::input::Input::new(&issuer))
                         .child("Account")
-                        .child(gpui_component::input::Input::new(&account))
+                        .child(gpui_kit::component::input::Input::new(&account))
                         .child("Secret")
-                        .child(gpui_component::input::Input::new(&secret))
+                        .child(gpui_kit::component::input::Input::new(&secret))
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_3()
                                 .child(field("Account type", &type_sel))
                                 .child(field("Algorithm", &algo_sel)),
                         )
                         .child(
-                            gpui_component::h_flex()
+                            gpui_kit::component::h_flex()
                                 .gap_3()
                                 .child(field("Period (time-based)", &period_sel))
                                 .child(field("Digits", &digits_sel)),
@@ -503,17 +504,17 @@ impl AccountsViewModel {
                     submit_ok(window, cx);
                     false
                 })
-                .footer(move |_, _window, _cx, _| {
+                .footer({
                     let submit = submit_btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("add")
+                        gpui_kit::component::button::Button::new("add")
                             .primary()
                             .label("Add")
                             .on_click(move |_, window, cx| submit(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -560,12 +561,12 @@ impl AccountsViewModel {
         let oath_type = acc.oath_type;
         let period = acc.period;
         let issuer = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Issuer")
                 .default_value(acc.issuer.clone().unwrap_or_default())
         });
         let account = cx.new(|cx| {
-            gpui_component::input::InputState::new(window, cx)
+            gpui_kit::component::input::InputState::new(window, cx)
                 .placeholder("Account")
                 .default_value(acc.account.clone())
         });
@@ -604,29 +605,29 @@ impl AccountsViewModel {
                 .title("Rename Account")
                 .child("Change the issuer and account name.")
                 .child(
-                    gpui_component::v_flex()
+                    gpui_kit::component::v_flex()
                         .gap_3()
                         .pb_2()
                         .child("Issuer")
-                        .child(gpui_component::input::Input::new(&issuer))
+                        .child(gpui_kit::component::input::Input::new(&issuer))
                         .child("Account")
-                        .child(gpui_component::input::Input::new(&account)),
+                        .child(gpui_kit::component::input::Input::new(&account)),
                 )
                 .on_ok(move |_, window, cx| {
                     submit_ok(window, cx);
                     false
                 })
-                .footer(move |_, _window, _cx, _| {
+                .footer({
                     let submit = submit_btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("rename")
+                        gpui_kit::component::button::Button::new("rename")
                             .primary()
                             .label("Rename")
                             .on_click(move |_, window, cx| submit(window, cx)),
-                    ]
+                    ])
                 })
         });
     }
@@ -677,7 +678,7 @@ impl AccountsViewModel {
             "Delete Account",
             format!("Delete the account \"{label}\"? This cannot be undone."),
             "Delete",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |dialog_handle, _, cx| {
@@ -726,7 +727,7 @@ impl AccountsViewModel {
             "This permanently deletes ALL accounts and the OATH password. This cannot be undone."
                 .to_string(),
             "Reset",
-            gpui_component::button::ButtonVariant::Danger,
+            gpui_kit::component::button::ButtonVariant::Danger,
             window,
             cx,
             move |_dialog_handle, window, cx| {

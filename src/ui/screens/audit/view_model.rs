@@ -7,10 +7,10 @@ use crate::ui::components::applet_gate::AppletGate;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
 use crate::ui::models::device::{DeviceEvent, DeviceRepo, FirmwareType, audit};
-use gpui::*;
-use gpui_component::WindowExt;
-use gpui_component::button::ButtonVariants;
-use gpui_component::input::InputState;
+use gpui_kit::component::WindowExt;
+use gpui_kit::component::button::ButtonVariants;
+use gpui_kit::component::input::InputState;
+use gpui_kit::*;
 
 pub struct AuditViewModel {
     pub(super) device: Entity<DeviceRepo>,
@@ -330,15 +330,15 @@ impl AuditViewModel {
             let extra = extra.clone();
             let ok = submit.clone();
             let btn = submit.clone();
-            let mut fields = gpui_component::v_flex()
+            let mut fields = gpui_kit::component::v_flex()
                 .gap_3()
                 .pb_2()
                 .child("FIDO PIN")
-                .child(gpui_component::input::Input::new(&pin));
+                .child(gpui_kit::component::input::Input::new(&pin));
             if let Some((label, input)) = &extra {
                 fields = fields
                     .child(label.to_string())
-                    .child(gpui_component::input::Input::new(input));
+                    .child(gpui_kit::component::input::Input::new(input));
             }
             dialog
                 .title(title)
@@ -348,17 +348,17 @@ impl AuditViewModel {
                     ok(window, cx);
                     false
                 })
-                .footer(move |_, _w, _c, _| {
+                .footer({
                     let s = btn.clone();
-                    vec![
-                        gpui_component::button::Button::new("cancel")
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("cancel")
                             .label("Cancel")
                             .on_click(|_, window, cx| window.close_dialog(cx)),
-                        gpui_component::button::Button::new("run")
+                        gpui_kit::component::button::Button::new("run")
                             .primary()
                             .label("Run")
                             .on_click(move |_, window, cx| s(window, cx)),
-                    ]
+                    ])
                 })
         });
     }

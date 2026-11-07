@@ -1,11 +1,13 @@
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::{card::Card, page_view::PageView};
 use crate::ui::models::device::{
     DeviceMethod, FirmwareType, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP,
     USB_CAP_OTP, USB_CAP_PIV, USB_CAP_U2F,
 };
 use crate::ui::screens::config::view_model::ConfigViewModel;
-use gpui::*;
-use gpui_component::{button::*, input::*, select::*, slider::*, switch::*, *};
+use gpui_kit::component::{button::*, input::*, select::*, slider::*, switch::*, *};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::*;
 
 /// Per-status LED brightness is a full u8 on the device (0-255, 0 = off). The
 /// +/- steppers move in coarse steps (15 divides 255 evenly) so the whole range
@@ -329,31 +331,39 @@ impl ConfigViewModel {
                             .gap_2()
                             .items_center()
                             .child(
-                                Button::new(gpui::SharedString::from(format!("color-btn-{}", i)))
-                                    .child(color_name)
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
-                                            .color(rgb(0x27272a).into())
-                                            .hover(rgb(0x3f3f46).into())
-                                            .active(rgb(0x52525b).into())
-                                            .border(theme.border),
-                                    )
-                                    .disabled(is_fido)
-                                    .on_click(cycle_color_listener),
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "color-btn-{}",
+                                    i
+                                )))
+                                .child(color_name)
+                                .map(|button| {
+                                    ButtonColors::new(cx)
+                                        .color(rgb(0x27272a).into())
+                                        .hover(rgb(0x3f3f46).into())
+                                        .active(rgb(0x52525b).into())
+                                        .border(theme.border)
+                                        .apply(button, is_fido, cx)
+                                })
+                                .disabled(is_fido)
+                                .on_click(cycle_color_listener),
                             )
                             .child(div().w_4())
                             .child(
-                                Button::new(gpui::SharedString::from(format!("bdec-btn-{}", i)))
-                                    .child("-")
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
-                                            .color(rgb(0x1b1b1d).into())
-                                            .hover(rgb(0x232325).into())
-                                            .active(rgb(0x3f3f46).into())
-                                            .border(theme.border),
-                                    )
-                                    .disabled(is_fido || brightness_val == 0)
-                                    .on_click(dec_bright_listener),
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "bdec-btn-{}",
+                                    i
+                                )))
+                                .child("-")
+                                .map(|button| {
+                                    ButtonColors::new(cx)
+                                        .color(rgb(0x1b1b1d).into())
+                                        .hover(rgb(0x232325).into())
+                                        .active(rgb(0x3f3f46).into())
+                                        .border(theme.border)
+                                        .apply(button, is_fido || brightness_val == 0, cx)
+                                })
+                                .disabled(is_fido || brightness_val == 0)
+                                .on_click(dec_bright_listener),
                             )
                             .child(
                                 div()
@@ -363,17 +373,25 @@ impl ConfigViewModel {
                                     .child(brightness_val.to_string()),
                             )
                             .child(
-                                Button::new(gpui::SharedString::from(format!("binc-btn-{}", i)))
-                                    .child("+")
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
-                                            .color(rgb(0x1b1b1d).into())
-                                            .hover(rgb(0x232325).into())
-                                            .active(rgb(0x3f3f46).into())
-                                            .border(theme.border),
-                                    )
-                                    .disabled(is_fido || brightness_val == LED_BRIGHTNESS_MAX)
-                                    .on_click(inc_bright_listener),
+                                Button::new(gpui_kit::SharedString::from(format!(
+                                    "binc-btn-{}",
+                                    i
+                                )))
+                                .child("+")
+                                .map(|button| {
+                                    ButtonColors::new(cx)
+                                        .color(rgb(0x1b1b1d).into())
+                                        .hover(rgb(0x232325).into())
+                                        .active(rgb(0x3f3f46).into())
+                                        .border(theme.border)
+                                        .apply(
+                                            button,
+                                            is_fido || brightness_val == LED_BRIGHTNESS_MAX,
+                                            cx,
+                                        )
+                                })
+                                .disabled(is_fido || brightness_val == LED_BRIGHTNESS_MAX)
+                                .on_click(inc_bright_listener),
                             ),
                     ),
             );
@@ -416,12 +434,12 @@ impl ConfigViewModel {
                 cx.notify();
             });
 
-            rows =
-                rows.child(
-                    h_flex()
-                        .items_center()
-                        .justify_between()
-                        .child(v_flex().gap_0p5().child(name).child(
+            rows = rows.child(
+                h_flex()
+                    .items_center()
+                    .justify_between()
+                    .child(
+                        v_flex().gap_0p5().child(name).child(
                             div().text_sm().text_color(theme.muted_foreground).child(
                                 if is_supported {
                                     "Supported"
@@ -429,14 +447,15 @@ impl ConfigViewModel {
                                     "Not Supported by Firmware"
                                 },
                             ),
-                        ))
-                        .child(
-                            Switch::new(gpui::SharedString::from(format!("app-toggle-{}", cap)))
-                                .checked(is_enabled)
-                                .disabled(is_fido || !is_supported)
-                                .on_click(toggle_listener),
                         ),
-                );
+                    )
+                    .child(
+                        Switch::new(gpui_kit::SharedString::from(format!("app-toggle-{}", cap)))
+                            .checked(is_enabled)
+                            .disabled(is_fido || !is_supported)
+                            .on_click(toggle_listener),
+                    ),
+            );
         }
 
         Card::new()
@@ -519,10 +538,13 @@ impl ConfigViewModel {
                         ),
                     )
                     .child(
-                        Switch::new(gpui::SharedString::from(format!("usb-itf-toggle-{}", bit)))
-                            .checked(is_enabled || is_ccid)
-                            .disabled(is_fido || is_ccid)
-                            .on_click(toggle_listener),
+                        Switch::new(gpui_kit::SharedString::from(format!(
+                            "usb-itf-toggle-{}",
+                            bit
+                        )))
+                        .checked(is_enabled || is_ccid)
+                        .disabled(is_fido || is_ccid)
+                        .on_click(toggle_listener),
                     ),
             );
         }
@@ -618,13 +640,14 @@ impl Render for ConfigViewModel {
                     .icon(Icon::default().path("icons/save.svg"))
                     .child("Apply Changes")
                     .disabled(self.loading || hardware_config_disabled)
-                    .custom(
-                        ButtonCustomVariant::new(cx)
+                    .map(|button| {
+                        ButtonColors::new(cx)
                             .color(rgb(0xe3e3e6).into())
                             .hover(rgb(0xcfcfd1).into())
                             .active(rgb(0xe3e3e6).into())
-                            .foreground(rgb(0x4b4b4e).into()),
-                    )
+                            .foreground(rgb(0x4b4b4e).into())
+                            .apply(button, self.loading || hardware_config_disabled, cx)
+                    })
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.apply_changes(window, cx);
                     })),

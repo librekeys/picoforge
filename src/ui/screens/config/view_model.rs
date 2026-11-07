@@ -8,10 +8,10 @@ use crate::ui::models::device::{
     AppConfigInput, DeviceEvent, DeviceMethod, DeviceRepo, FullDeviceStatus, LedStatusConfig,
 };
 
-use gpui::*;
-use gpui_component::input::InputState;
-use gpui_component::select::{SelectItem, SelectState};
-use gpui_component::slider::SliderState;
+use gpui_kit::component::input::InputState;
+use gpui_kit::component::select::{SelectItem, SelectState};
+use gpui_kit::component::slider::SliderState;
+use gpui_kit::*;
 use std::time::Duration;
 
 /// Slider position shown for LED brightness when the device has no phy override.
@@ -448,7 +448,7 @@ impl ConfigViewModel {
         let vendor_select = cx.new(|cx| {
             SelectState::new(
                 vendors,
-                Some(gpui_component::IndexPath::default().row(initial_vendor_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(initial_vendor_idx)),
                 window,
                 cx,
             )
@@ -475,7 +475,7 @@ impl ConfigViewModel {
         let led_driver_select = cx.new(|cx| {
             SelectState::new(
                 drivers,
-                Some(gpui_component::IndexPath::default().row(initial_driver_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(initial_driver_idx)),
                 window,
                 cx,
             )
@@ -487,7 +487,7 @@ impl ConfigViewModel {
         let led_order_select = cx.new(|cx| {
             SelectState::new(
                 orders,
-                Some(gpui_component::IndexPath::default().row(initial_order_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(initial_order_idx)),
                 window,
                 cx,
             )
@@ -497,7 +497,7 @@ impl ConfigViewModel {
             &vendor_select,
             window,
             |this: &mut Self, _, event, window, cx| {
-                if let gpui_component::select::SelectEvent::Confirm(Some(preset)) = event {
+                if let gpui_kit::component::select::SelectEvent::Confirm(Some(preset)) = event {
                     let (_, vid_opt, pid_opt) = preset.details();
 
                     if let (Some(vid), Some(pid)) = (vid_opt, pid_opt) {
@@ -648,7 +648,7 @@ impl ConfigViewModel {
                         });
                     }
                 }
-            }).ok();
+            });
 
             let result = cx
                 .background_executor()
@@ -1156,7 +1156,7 @@ impl ConfigViewModel {
             .unwrap_or(0);
         self.vendor_select.update(cx, |select, cx| {
             select.set_selected_index(
-                Some(gpui_component::IndexPath::default().row(preset_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(preset_idx)),
                 window,
                 cx,
             );
@@ -1177,7 +1177,7 @@ impl ConfigViewModel {
 
         self.led_driver_select.update(cx, |select, cx| {
             select.set_selected_index(
-                Some(gpui_component::IndexPath::default().row(new_driver_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(new_driver_idx)),
                 window,
                 cx,
             );
@@ -1185,7 +1185,7 @@ impl ConfigViewModel {
 
         self.led_order_select.update(cx, |select, cx| {
             select.set_selected_index(
-                Some(gpui_component::IndexPath::default().row(new_order_idx)),
+                Some(gpui_kit::component::IndexPath::default().row(new_order_idx)),
                 window,
                 cx,
             );

@@ -32,3 +32,6 @@ packaging
 llm-texts
 opencode.jsonc
 AGENTS.md
+
+# Local migration working notes; never commit.
+GPUI-Kit-Migration.md

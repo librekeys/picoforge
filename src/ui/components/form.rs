@@ -1,7 +1,7 @@
 //! Small form helpers shared by the applet screens' dialogs.
 
-use gpui::*;
-use gpui_component::select::{SelectItem, SelectState};
+use gpui_kit::component::select::{SelectItem, SelectState};
+use gpui_kit::*;
 
 /// A labelled dropdown option carrying a small integer key (a wire value where
 /// one exists — algorithm byte, period, digits — or a 0/1 flag otherwise).
@@ -38,7 +38,7 @@ pub fn select_state(
     cx.new(|cx| {
         SelectState::new(
             opts,
-            Some(gpui_component::IndexPath::default().row(default_row)),
+            Some(gpui_kit::component::IndexPath::default().row(default_row)),
             window,
             cx,
         )

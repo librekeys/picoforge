@@ -3,14 +3,14 @@
 use crate::ui::app::Destination;
 use crate::ui::components::button::PFIconButton;
 use crate::ui::models::device::{DeviceMethod, DeviceRepo};
-use gpui::*;
-use gpui_component::{
+use gpui_kit::component::{
     ActiveTheme, Icon, IconName, Side,
     button::{Button, ButtonVariants},
     h_flex,
     sidebar::*,
     v_flex,
 };
+use gpui_kit::*;
 
 /// Events emitted by [`AppSidebar`] to its subscribers.
 pub enum SidebarEvent {
@@ -113,6 +113,7 @@ impl Render for AppSidebar {
         let state = self.device.read(cx);
         let status_owned = state.status.clone();
         let error_owned = state.error.clone();
+        let refreshing = state.loading;
 
         let sidebar_bg = cx.theme().sidebar;
         let sidebar_fg = cx.theme().sidebar_foreground;
@@ -157,7 +158,7 @@ impl Render for AppSidebar {
                             .ml_2()
                             .opacity(text_opacity)
                             .child("PicoForge")
-                            .font_weight(gpui::FontWeight::EXTRA_BOLD)
+                            .font_weight(gpui_kit::FontWeight::EXTRA_BOLD)
                             .text_color(sidebar_fg),
                     )
                 } else {
@@ -166,18 +167,29 @@ impl Render for AppSidebar {
         };
 
         // ── Navigation items (gpui-component Sidebar) ────────────────
-        let nav_sidebar = Sidebar::new(Side::Left)
-            .collapsed(sidebar_width < px(120.))
-            .collapsible(false)
+        let nav_collapsed = sidebar_width < px(120.);
+        // SidebarMenu supplies gap_2 within each group. Once headings disappear,
+        // keep that same gap between groups so the icon rail has one rhythm.
+        let menu = || {
+            if nav_collapsed {
+                SidebarMenu::new().mb_2()
+            } else {
+                SidebarMenu::new()
+            }
+        };
+        let nav_sidebar = Sidebar::new("navigation")
+            .side(Side::Left)
+            .collapsed(nav_collapsed)
+            .collapsible(SidebarCollapsible::Icon)
             .w_full()
             .bg(sidebar_bg)
-            .border_color(gpui::transparent_white())
+            .border_0()
             // Grouped so the panel reads as sections, not one long list: the
             // device overview, the credential applets, RS-Key's protection
             // features, then device-wide system actions (Offboard sits just
             // above About as a bottom-of-list decommission action).
             .child(
-                SidebarGroup::new("Device").child(SidebarMenu::new().child(self.menu_item(
+                SidebarGroup::new("Device").child(menu().child(self.menu_item(
                     cx,
                     "Home",
                     "icons/house.svg",
@@ -186,7 +198,7 @@ impl Render for AppSidebar {
             )
             .child(
                 SidebarGroup::new("Credentials").child(
-                    SidebarMenu::new()
+                    menu()
                         .child(self.menu_item(
                             cx,
                             "Passkeys",
@@ -216,7 +228,7 @@ impl Render for AppSidebar {
             )
             .child(
                 SidebarGroup::new("Protection").child(
-                    SidebarMenu::new()
+                    menu()
                         .child(self.menu_item(
                             cx,
                             "Audit",
@@ -280,7 +292,9 @@ impl Render for AppSidebar {
                     .child(
                         Button::new("refresh-btn-collapsed")
                             .ghost()
-                            .child(Icon::default().path("icons/refresh-cw.svg"))
+                            .icon(Icon::default().path("icons/refresh-cw.svg"))
+                            .loading(refreshing)
+                            .tooltip("Refresh device data")
                             .on_click(cx.listener(|_, _, _, cx| {
                                 cx.emit(SidebarEvent::RefreshDevice);
                             }))
@@ -309,7 +323,7 @@ impl Render for AppSidebar {
                             .child(
                                 div()
                                     .text_size(px(12.))
-                                    .font_weight(gpui::FontWeight::MEDIUM)
+                                    .font_weight(gpui_kit::FontWeight::MEDIUM)
                                     .text_color(muted_foreground)
                                     .child("Device Status"),
                             )
@@ -336,7 +350,7 @@ impl Render for AppSidebar {
                                     .child(
                                         div()
                                             .text_size(px(10.))
-                                            .font_weight(gpui::FontWeight::BOLD)
+                                            .font_weight(gpui_kit::FontWeight::BOLD)
                                             .text_color(color_text)
                                             .child(text),
                                     )
@@ -344,6 +358,7 @@ impl Render for AppSidebar {
                     )
                     .child(
                         PFIconButton::new(Icon::default().path("icons/refresh-cw.svg"), "Refresh")
+                            .loading(refreshing)
                             .on_click(cx.listener(|_, _, _, cx| {
                                 cx.emit(SidebarEvent::RefreshDevice);
                             })),
@@ -354,8 +369,7 @@ impl Render for AppSidebar {
         let sidebar_column = v_flex()
             .h_full()
             .bg(sidebar_bg)
-            .border_r_1()
-            .border_color(border_color)
+            .relative()
             .w(sidebar_width)
             .child(header)
             .child(
@@ -365,7 +379,18 @@ impl Render for AppSidebar {
                     .overflow_hidden()
                     .child(nav_sidebar),
             )
-            .child(footer);
+            .child(footer)
+            // Paint the divider without subtracting from the shared 48px icon
+            // column; header, nav and footer must have the same horizontal center.
+            .child(
+                div()
+                    .absolute()
+                    .right_0()
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.))
+                    .bg(border_color),
+            );
 
         div()
             .id("sidebar-section")

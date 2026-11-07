@@ -2,8 +2,8 @@
 
 #![allow(unused)]
 
-use gpui::*;
-use gpui_component::{ActiveTheme, Icon, Theme, h_flex, v_flex};
+use gpui_kit::component::{ActiveTheme, Icon, Theme, h_flex, v_flex};
+use gpui_kit::*;
 
 /// A titled card panel with optional description, icon, and header-right slot.
 #[derive(IntoElement)]
@@ -103,7 +103,7 @@ impl RenderOnce for Card {
 
         div()
             .w_full()
-            .bg(rgb(0x18181b))
+            .bg(theme.group_box)
             .border_1()
             .border_color(theme.border)
             .rounded_xl()

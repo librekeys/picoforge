@@ -1,13 +1,11 @@
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::page_view::PageView;
 use crate::ui::screens::security::view_model::SecurityViewModel;
-use gpui::*;
-use gpui_component::{
-    ActiveTheme, Disableable, Icon, StyledExt,
-    button::{Button, ButtonCustomVariant, ButtonVariants},
-    h_flex,
-    switch::Switch,
-    v_flex,
+use gpui_kit::component::{
+    ActiveTheme, Disableable, Icon, StyledExt, button::Button, h_flex, switch::Switch, v_flex,
 };
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::*;
 
 impl Render for SecurityViewModel {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -150,19 +148,20 @@ impl Render for SecurityViewModel {
                         div()
                             .border_t_1()
                             .border_color(border)
-                            .bg(gpui::rgba(0x00000033))
+                            .bg(gpui_kit::rgba(0x00000033))
                             .px_6()
                             .py_4()
                             .flex()
                             .justify_end()
                             .child(
                                 Button::new("lock-device-btn")
-                                    .custom(
-                                        ButtonCustomVariant::new(cx)
+                                    .map(|button| {
+                                        ButtonColors::new(cx)
                                             .color(destructive_red.into())
                                             .hover(destructive_red_hover.into())
-                                            .active(destructive_red_active.into()),
-                                    )
+                                            .active(destructive_red_active.into())
+                                            .apply(button, true, cx)
+                                    })
                                     .disabled(true)
                                     .child(
                                         h_flex()

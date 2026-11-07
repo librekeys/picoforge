@@ -1,10 +1,10 @@
 use crate::ui::components::{card::Card, page_view::PageView, tag::Tag};
 use crate::ui::models::device::{DeviceMethod, FidoDeviceInfo, FirmwareType, FullDeviceStatus};
 use crate::ui::screens::home::view_model::HomeViewModel;
-use gpui::prelude::FluentBuilder;
-use gpui::*;
-use gpui_component::{ActiveTheme, StyledExt};
-use gpui_component::{Icon, IconName, Theme, h_flex, progress::Progress, v_flex};
+use gpui_kit::component::{ActiveTheme, StyledExt};
+use gpui_kit::component::{Icon, IconName, Theme, h_flex, progress::Progress, v_flex};
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::*;
 
 impl HomeViewModel {
     fn render_kv(
@@ -152,7 +152,7 @@ impl HomeViewModel {
                                     let used = info.flash_used.unwrap();
                                     let total = info.flash_total.unwrap();
                                     let flash_percent = (used as f32 / total as f32) * 100.0;
-                                    this.child(Progress::new().value(flash_percent))
+                                    this.child(Progress::new("flash-usage").value(flash_percent))
                                 },
                             )
                             .when_some(info.flash_files.filter(|_| is_rskey), |this, nfiles| {
@@ -347,7 +347,7 @@ impl HomeViewModel {
                     .child(
                         Icon::new(IconName::TriangleAlert)
                             .size_8()
-                            .text_color(gpui::yellow()),
+                            .text_color(theme.warning),
                     )
                     .child(
                         div()
@@ -466,7 +466,7 @@ impl HomeViewModel {
                                         Icon::default()
                                             .path("icons/lock.svg")
                                             .size_3p5()
-                                            .text_color(gpui::green())
+                                            .text_color(gpui_kit::green())
                                     } else {
                                         Icon::default()
                                             .path("icons/lock-open.svg")

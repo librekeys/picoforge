@@ -3,7 +3,7 @@
 //! Sets up a rolling-file appender (10 MB per file, delete-oldest policy)
 //! and a console appender. The `picoforge` logger defaults to `Trace` in
 //! debug builds and `Info` in release builds; verbose third-party
-//! loggers (`gpui`, `gpui_component`, `blade_graphics`) are capped at
+//! loggers (`gpui`, `gpui_component`, `gpui_base`, `gpui_linux`, `wgpu_core`) are capped at
 //! `Error` to reduce noise.
 
 use directories::ProjectDirs;
@@ -83,7 +83,9 @@ pub fn logger_init() {
         )
         .logger(Logger::builder().build("gpui", LevelFilter::Error))
         .logger(Logger::builder().build("gpui_component", LevelFilter::Error))
-        .logger(Logger::builder().build("blade_graphics", LevelFilter::Error))
+        .logger(Logger::builder().build("gpui_base", LevelFilter::Error))
+        .logger(Logger::builder().build("gpui_linux", LevelFilter::Error))
+        .logger(Logger::builder().build("wgpu_core", LevelFilter::Error))
         .build(
             Root::builder()
                 .appenders(vec!["logfile", "stdout"])

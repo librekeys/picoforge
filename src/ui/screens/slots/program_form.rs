@@ -12,11 +12,11 @@ use crate::ui::components::dialog;
 use crate::ui::components::form::{LabeledU8, select_state, selected_key};
 use crate::ui::models::device::{DeviceRepo, otp};
 use crate::ui::screens::slots::view_model::{SlotsEvent, SlotsViewModel};
-use gpui::*;
-use gpui_component::button::{Button, ButtonVariants};
-use gpui_component::input::{Input, InputState};
-use gpui_component::select::{Select, SelectEvent, SelectState};
-use gpui_component::{WindowExt, h_flex, v_flex};
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::input::{Input, InputState};
+use gpui_kit::component::select::{Select, SelectEvent, SelectState};
+use gpui_kit::component::{WindowExt, h_flex, v_flex};
+use gpui_kit::*;
 
 const OPT_TYPE: &[(&str, u8)] = &[
     ("Challenge-response", 0),
@@ -110,9 +110,9 @@ pub(super) fn open(slot: u8, window: &mut Window, cx: &mut Context<SlotsViewMode
         dialog
             .title(format!("Program Slot {slot}"))
             .child(body)
-            .footer(move |_, _w, _c, _| {
+            .footer({
                 let f = footer_form.clone();
-                vec![
+                gpui_kit::component::dialog::DialogFooter::new().children(vec![
                     Button::new("cancel")
                         .label("Cancel")
                         .on_click(|_, window, cx| window.close_dialog(cx)),
@@ -122,7 +122,7 @@ pub(super) fn open(slot: u8, window: &mut Window, cx: &mut Context<SlotsViewMode
                             f.update(cx, |f, cx| f.submit(window, cx));
                         },
                     ),
-                ]
+                ])
             })
     });
 }

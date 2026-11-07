@@ -1,3 +1,4 @@
+use crate::ui::components::button::ButtonColors;
 use crate::ui::components::{
     button::{PFButton, PFIconButton},
     card::Card,
@@ -7,13 +8,13 @@ use crate::ui::components::{
 use crate::ui::models::device::{DeviceMethod, StoredCredential};
 use crate::ui::screens::passkeys::view_model::{PasskeysEvent, PasskeysViewModel};
 use directories::UserDirs;
-use gpui::prelude::FluentBuilder;
-use gpui::*;
-use gpui_component::Disableable;
-use gpui_component::button::{Button, ButtonCustomVariant, ButtonVariants};
-use gpui_component::{
+use gpui_kit::component::Disableable;
+use gpui_kit::component::button::{Button, ButtonVariants};
+use gpui_kit::component::{
     ActiveTheme, Icon, Sizable, StyledExt, Theme, badge::Badge, h_flex, switch::Switch, v_flex,
 };
+use gpui_kit::prelude::FluentBuilder;
+use gpui_kit::*;
 
 impl PasskeysViewModel {
     fn render_enterprise_attestation(&self, cx: &mut Context<Self>) -> impl IntoElement {
@@ -241,7 +242,7 @@ impl PasskeysViewModel {
     fn render_reset_device_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
 
-        let header = gpui_component::h_flex()
+        let header = gpui_kit::component::h_flex()
             .items_center()
             .justify_between()
             .w_full()
@@ -252,7 +253,7 @@ impl PasskeysViewModel {
                     .child(
                         div()
                             .text_base()
-                            .font_weight(gpui::FontWeight::MEDIUM)
+                            .font_weight(gpui_kit::FontWeight::MEDIUM)
                             .text_color(theme.foreground)
                             .child("Factory Reset"),
                     )
@@ -267,13 +268,14 @@ impl PasskeysViewModel {
                 Button::new("reset-device")
                     .icon(Icon::default().path("icons/circle-alert.svg"))
                     .child("Reset Device")
-                    .custom(
-                        ButtonCustomVariant::new(cx)
+                    .map(|button| {
+                        ButtonColors::new(cx)
                             .color(theme.danger)
                             .hover(theme.danger_hover)
                             .active(theme.danger_active)
-                            .foreground(theme.danger_foreground),
-                    )
+                            .foreground(theme.danger_foreground)
+                            .apply(button, self.loading, cx)
+                    })
                     .disabled(self.loading)
                     .on_click(cx.listener(|this, _, window, cx| {
                         this.open_reset_dialog(window, cx);
@@ -515,7 +517,7 @@ impl PasskeysViewModel {
                                                     )
                                                     .child("Unlocked"),
                                             )
-                                            .color(gpui::green()),
+                                            .color(gpui_kit::green()),
                                     )
                                     .child(div().w_px().h_4().bg(theme.border))
                                     .child(
