@@ -23,6 +23,36 @@ pub struct BackupStatus {
     pub unlocked: bool,
 }
 
+/// Parse the vendor STATE CBOR map into a [`BackupStatus`].
+///
+/// Tolerant by design (US-1755, EPIC PF-FAPICO2, divergence D2): RS-Key's
+/// STATE may carry key 5 (`rescrub_refused`, bcdDevice ≥ 0x09C5) and
+/// fapico2's never does (`{1: sealed, 2: has_seed, 3: locked, 4: unlocked}`
+/// only). Any key beyond 1..=4 is ignored, and an absent key reads `false`
+/// — extra or missing fields are never a parse error.
+pub fn parse_status(
+    m: &std::collections::BTreeMap<serde_cbor_2::Value, serde_cbor_2::Value>,
+) -> BackupStatus {
+    BackupStatus {
+        sealed: status_bool(m, 1),
+        has_seed: status_bool(m, 2),
+        locked: status_bool(m, 3),
+        unlocked: status_bool(m, 4),
+    }
+}
+
+/// Coerce a STATE field to bool (CBOR bool or non-zero integer; absent → false).
+fn status_bool(
+    m: &std::collections::BTreeMap<serde_cbor_2::Value, serde_cbor_2::Value>,
+    k: i128,
+) -> bool {
+    match m.get(&serde_cbor_2::Value::Integer(k)) {
+        Some(serde_cbor_2::Value::Bool(b)) => *b,
+        Some(serde_cbor_2::Value::Integer(n)) => *n != 0,
+        _ => false,
+    }
+}
+
 struct Len32;
 impl hkdf::KeyType for Len32 {
     fn len(&self) -> usize {
@@ -131,5 +161,56 @@ mod tests {
         assert_eq!(phrase.split_whitespace().count(), 24);
         assert_eq!(mnemonic_to_seed(&phrase).unwrap(), seed);
         assert!(mnemonic_to_seed("not a valid phrase").is_err());
+    }
+
+    /// Hand-built STATE CBOR map: `{k: value}` pairs as the wire sends them.
+    fn state_map(
+        fields: &[(i128, serde_cbor_2::Value)],
+    ) -> std::collections::BTreeMap<serde_cbor_2::Value, serde_cbor_2::Value> {
+        fields
+            .iter()
+            .map(|(k, v)| (serde_cbor_2::Value::Integer(*k), v.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn state_without_key5_parses_fine() {
+        // US-1755 (EPIC PF-FAPICO2): a fapico2 STATE answers keys 1..4 only.
+        // The parse must fully populate the status and never error.
+        let m = state_map(&[
+            (1, serde_cbor_2::Value::Bool(false)),
+            (2, serde_cbor_2::Value::Bool(true)),
+            (3, serde_cbor_2::Value::Bool(false)),
+            (4, serde_cbor_2::Value::Bool(true)),
+        ]);
+        let s = parse_status(&m);
+        assert_eq!(
+            s,
+            BackupStatus {
+                sealed: false,
+                has_seed: true,
+                locked: false,
+                unlocked: true
+            }
+        );
+    }
+
+    #[test]
+    fn state_with_rskey_rescrub_key5_parses_fine() {
+        // RS-Key's STATE may add key 5 (rescrub_refused). Any rescrub
+        // surfacing is RS-Key's business — it must not be a parse error,
+        // and it must not disturb the 1..4 fields.
+        let m = state_map(&[
+            (1, serde_cbor_2::Value::Bool(true)),
+            (2, serde_cbor_2::Value::Bool(false)),
+            (3, serde_cbor_2::Value::Bool(true)),
+            (4, serde_cbor_2::Value::Bool(false)),
+            (5, serde_cbor_2::Value::Bool(true)),
+        ]);
+        let s = parse_status(&m);
+        assert!(s.sealed);
+        assert!(!s.has_seed);
+        assert!(s.locked);
+        assert!(!s.unlocked);
     }
 }
