@@ -21,6 +21,7 @@
 >
 > **Supported Firmwares:**
 > - **[RS-Key](https://github.com/TheMaxMur/RS-Key)**: v0.2.X, v0.3.X, v0.4.X
+> - **[fapico2](https://github.com/eddieoz/fapico2)**: v0.7.6+ (classified by its own AAGUID, no override needed)
 > - **[LibreKeys One](https://github.com/librekeys/pico-fido-firmwares/releases)**: v7.4.2
 > - **[pico-fido](https://github.com/polhenarejos/pico-fido)**: v7.0, v7.2, v7.4, v7.6
 
