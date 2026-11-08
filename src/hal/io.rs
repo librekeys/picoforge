@@ -2,8 +2,8 @@
 //!
 //! Each public function here selects the appropriate protocol path based
 //! on the detected firmware type or an explicit [`DeviceMethod`] parameter.
-//! Some functions (e.g. `read_device_details`) try Rescue (PC/SC) first,
-//! then FIDO, and merge results to produce a complete status snapshot.
+//! Device details use FIDO GetInfo and the PC/SC Rescue identity response to
+//! identify supported firmware and pair both interfaces to the same key.
 
 use crate::{
     error::PFError,
@@ -15,21 +15,41 @@ use crate::{
 
 /// Read full device status by merging FIDO and Rescue data where available.
 ///
-/// Tries the PC/SC Rescue channel first, then also attempts FIDO HID. When both
-/// succeed, the function combines fields from both results (for example,
-/// serial and flash data from Rescue with the AAGUID from FIDO).
+/// Identifies a supported FIDO key by AAGUID where available, then validates
+/// the PC/SC Rescue response and matches both interfaces by firmware serial.
 pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
     let mut fido_status: Option<FullDeviceStatus> = None;
     let mut rescue_status: Option<FullDeviceStatus> = None;
     let mut rescue_fw_type: Option<FirmwareType> = None;
 
-    // Discover via Rescue/PC/SC transport (preferred for richer details)
+    // Start from the firmware's FIDO model identity (AAGUID), not a USB name.
+    match fido::read_device_details() {
+        Ok(status) => {
+            let supported = matches!(
+                status.firmware_type,
+                FirmwareType::RSKey | FirmwareType::PicoFido
+            );
+            if supported {
+                crate::hal::transport::pcsc::set_active_device_serial(Some(
+                    status.info.serial.clone(),
+                ));
+            }
+            fido_status = Some(status);
+        }
+        Err(e) => log::info!("FIDO device details unavailable: {}", e),
+    }
+
+    // PC/SC readers are accepted only after the Rescue AID returns the
+    // firmware's expected product identity block; reader names only prioritize.
     match DeviceHandle::try_rescue() {
         Ok(Some((handle, _identity))) => {
             rescue_fw_type = Some(handle.firmware_type());
             match rescue::read_device_details() {
                 Ok(status) => {
                     log::info!("Rescue device details read successfully");
+                    crate::hal::transport::pcsc::set_active_device_serial(Some(
+                        status.info.serial.clone(),
+                    ));
                     rescue_status = Some(status);
                 }
                 Err(e) => log::warn!("Rescue read_device_details failed: {}", e),
@@ -39,21 +59,28 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         Err(e) => log::warn!("Rescue PC/SC discovery error: {}", e),
     }
 
-    // Discover via FIDO/HID transport (fallback for FIDO-only details)
-    match DeviceHandle::try_fido() {
-        Ok(Some((_handle, _identity))) => match fido::read_device_details() {
-            Ok(status) => {
-                log::info!("FIDO device details read successfully");
+    // If the first enumerated HID device was unrelated, the validated PC/SC
+    // identity now lets HID locate the matching PicoFido/RS-Key interface.
+    if let Some(rescue) = rescue_status.as_ref()
+        && fido_status
+            .as_ref()
+            .is_none_or(|fido| fido.info.serial != rescue.info.serial)
+    {
+        match fido::read_device_details() {
+            Ok(status) if status.info.serial == rescue.info.serial => {
                 fido_status = Some(status);
             }
-            Err(e) => log::warn!("FIDO read_device_details failed: {}", e),
-        },
-        Ok(None) => log::info!("No FIDO HID device found"),
-        Err(e) => log::warn!("FIDO HID discovery error: {}", e),
+            Ok(status) => log::debug!(
+                "HID serial {} did not match validated PC/SC key {}",
+                status.info.serial,
+                rescue.info.serial
+            ),
+            Err(error) => log::debug!("Could not pair FIDO interface to PC/SC key: {error}"),
+        }
     }
 
     match (fido_status, rescue_status) {
-        (Some(fido), Some(rescue)) => {
+        (Some(fido), Some(rescue)) if fido.info.serial == rescue.info.serial => {
             log::info!("Merging FIDO and Rescue device details");
             Ok(FullDeviceStatus {
                 info: DeviceInfo {
@@ -121,6 +148,25 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
                 method: DeviceMethod::Rescue,
                 firmware_type: fido.firmware_type,
             })
+        }
+        (Some(fido), Some(rescue)) => {
+            log::warn!(
+                "Refusing to merge FIDO serial {} with PC/SC serial {}",
+                fido.info.serial,
+                rescue.info.serial
+            );
+            if matches!(
+                fido.firmware_type,
+                FirmwareType::RSKey | FirmwareType::PicoFido
+            ) {
+                Ok(fido)
+            } else {
+                let firmware_type = rescue_fw_type.unwrap_or(rescue.firmware_type.clone());
+                Ok(FullDeviceStatus {
+                    firmware_type,
+                    ..rescue
+                })
+            }
         }
         (Some(fido), None) => {
             log::info!("Using FIDO-only device details");

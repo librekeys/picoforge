@@ -96,23 +96,41 @@ pub struct ApplicationRoot {
     pub views_store: ViewModelStore,
     pub sidebar: Entity<AppSidebar>,
     pub focus_handle: FocusHandle,
+    device_picker_open: bool,
+    seen_inventory_revision: u64,
 }
 
 impl ApplicationRoot {
-    /// Creates the root, initialises `DeviceRepo`, sidebar, and triggers an immediate device poll.
-    pub fn new(cx: &mut Context<Self>) -> Self {
+    /// Creates the root and initializes the shared device and sidebar models.
+    pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let device = cx.new(|_| DeviceRepo::new());
         let sidebar = cx.new(|_| AppSidebar::new(Destination::Home, device.clone()));
 
-        // Re-subscribe on device changes
-        cx.subscribe(
+        // Keep screens in sync and prompt when the supported-key inventory changes.
+        cx.subscribe_in(
             &device,
+            window,
             |this: &mut Self,
-             _device: Entity<DeviceRepo>,
+             _device: &Entity<DeviceRepo>,
              _event: &DeviceEvent,
+             window: &mut Window,
              cx: &mut Context<Self>| {
                 if this.models.device.read(cx).device_changed {
                     this.views_store.passkeys = None;
+                }
+
+                let (revision, key_count) = {
+                    let repo = this.models.device.read(cx);
+                    (repo.inventory_revision, repo.connected_keys.len())
+                };
+                if revision != this.seen_inventory_revision {
+                    this.seen_inventory_revision = revision;
+                    if this.device_picker_open && key_count < 2 {
+                        this.device_picker_open = false;
+                        window.close_dialog(cx);
+                    } else if key_count > 1 {
+                        this.open_device_picker(window, cx);
+                    }
                 }
                 cx.notify();
             },
@@ -143,7 +161,7 @@ impl ApplicationRoot {
         )
         .detach();
 
-        let this = Self {
+        Self {
             models: AppModels {
                 device: device.clone(),
             },
@@ -151,13 +169,88 @@ impl ApplicationRoot {
             views_store: ViewModelStore::new(),
             sidebar,
             focus_handle: cx.focus_handle(),
-        };
+            device_picker_open: false,
+            seen_inventory_revision: 0,
+        }
+    }
 
-        device.update(cx, |repo, cx| {
-            repo.refresh(cx);
-            repo.start_hotplug_watch(cx);
+    fn open_device_picker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.device_picker_open || window.has_active_dialog(cx) {
+            return;
+        }
+
+        let (keys, selected_serial) = {
+            let repo = self.models.device.read(cx);
+            (
+                repo.connected_keys.clone(),
+                repo.selected_key_serial.clone(),
+            )
+        };
+        if keys.len() < 2 {
+            return;
+        }
+
+        self.device_picker_open = true;
+        let app = cx.entity();
+        let can_cancel = selected_serial.is_some();
+        window.open_dialog(cx, move |dialog, _window, _cx| {
+            let choices = keys.iter().enumerate().map(|(index, key)| {
+                let serial = key.serial.clone();
+                let firmware_name = match &key.firmware_type {
+                    crate::hal::types::FirmwareType::RSKey => "RS-Key",
+                    _ => "PicoFido",
+                };
+                let current = selected_serial.as_deref() == Some(key.serial.as_str());
+                let label = if current {
+                    format!("{firmware_name} · {} (current)", key.serial)
+                } else {
+                    format!("{firmware_name} · {}", key.serial)
+                };
+                let app = app.clone();
+                gpui_kit::component::button::Button::new(format!("choose-key-{index}"))
+                    .label(label)
+                    .on_click(move |_, window, cx| {
+                        app.update(cx, |this, cx| {
+                            this.device_picker_open = false;
+                            this.models
+                                .device
+                                .update(cx, |repo, cx| repo.select_key(serial.clone(), cx));
+                        });
+                        window.close_dialog(cx);
+                    })
+            });
+            let choices = v_flex()
+                .gap_2()
+                .max_h(px(360.))
+                .overflow_y_scrollbar()
+                .children(choices);
+            let body = v_flex()
+                .gap_2()
+                .child("PicoForge found more than one supported key. Choose which key to use.")
+                .child(choices);
+
+            let dialog = dialog
+                .title("Choose a security key")
+                .child(body)
+                .close_button(false)
+                .overlay_closable(false)
+                .keyboard(false);
+            if can_cancel {
+                let app = app.clone();
+                dialog.footer(
+                    gpui_kit::component::dialog::DialogFooter::new().children(vec![
+                        gpui_kit::component::button::Button::new("keep-current-key")
+                            .label("Cancel")
+                            .on_click(move |_, window, cx| {
+                                app.update(cx, |this, _| this.device_picker_open = false);
+                                window.close_dialog(cx);
+                            }),
+                    ]),
+                )
+            } else {
+                dialog
+            }
         });
-        this
     }
 
     pub fn focus_handle(&self) -> FocusHandle {
@@ -167,13 +260,26 @@ impl ApplicationRoot {
 
 impl Render for ApplicationRoot {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let connected_key_count = self.models.device.read(cx).connected_keys.len();
+        let device_switcher = if connected_key_count > 1 {
+            gpui_kit::component::button::Button::new("switch-security-key")
+                .label(format!("{connected_key_count} security keys"))
+                .on_click(cx.listener(|this, _, window, cx| {
+                    this.open_device_picker(window, cx);
+                }))
+                .into_any_element()
+        } else {
+            div().into_any_element()
+        };
         let title_bar = TitleBar::new().bg(cx.theme().title_bar).child(
             h_flex()
                 .w_full()
                 .justify_between()
                 .bg(cx.theme().title_bar)
                 .items_center()
-                .cursor(gpui_kit::CursorStyle::OpenHand),
+                .cursor(gpui_kit::CursorStyle::OpenHand)
+                .child(div().flex_grow(1.0))
+                .child(device_switcher),
         );
 
         let content_area = v_flex()

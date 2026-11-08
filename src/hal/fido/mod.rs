@@ -80,6 +80,13 @@ use ops::FidoOperations;
 use serde_cbor_2::{Value, from_slice, to_vec};
 use std::collections::BTreeMap;
 
+/// A supported security key discovered through its FIDO protocol identity.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct SupportedKey {
+    pub serial: String,
+    pub firmware_type: FirmwareType,
+}
+
 const LEGACY_PHY_OPT_DIMMABLE: u16 = 0x02;
 const LEGACY_PHY_OPT_DISABLE_POWER_RESET: u16 = 0x04;
 const LEGACY_PHY_OPT_LED_STEADY: u16 = 0x08;
@@ -620,6 +627,52 @@ pub(crate) fn read_rskey_management_info(
     // with the Management DeviceInfo TLV, so read it there directly.
     read_management_info(transport)
         .ok_or_else(|| PFError::Device("Failed to read management info over FIDO".to_string()))
+}
+
+/// Discover every attached PicoFido or RS-Key and identify it by its firmware
+/// AAGUID and board-derived Management serial.
+///
+/// These protocol values distinguish the supported firmware family and pair
+/// interfaces; they are self-reported and are not cryptographic attestation.
+pub(crate) fn discover_supported_keys() -> Result<Vec<SupportedKey>, PFError> {
+    let transports = match HidTransport::open_all() {
+        Ok(transports) => transports,
+        Err(PFError::NoDevice) => return Ok(Vec::new()),
+        Err(error) => return Err(error),
+    };
+
+    let mut keys = Vec::new();
+    for transport in transports {
+        let firmware_type = match read_device_info(&transport) {
+            Ok(info) if info.aaguid == RSKEY_AAGUID => FirmwareType::RSKey,
+            Ok(info) if info.aaguid == PICOFIDO_AAGUID || info.aaguid == LKONE_AAGUID => {
+                FirmwareType::PicoFido
+            }
+            Ok(_) => continue,
+            Err(error) => {
+                log::debug!("Skipping FIDO interface without GetInfo identity: {error}");
+                continue;
+            }
+        };
+
+        let Some(serial) = read_rskey_management_info(&transport)
+            .ok()
+            .and_then(|info| info.serial)
+            .filter(|serial| !serial.is_empty() && serial != "Unknown")
+        else {
+            log::debug!("Skipping supported FIDO key without a Management serial");
+            continue;
+        };
+
+        keys.push(SupportedKey {
+            serial,
+            firmware_type,
+        });
+    }
+
+    keys.sort_by(|left, right| left.serial.cmp(&right.serial));
+    keys.dedup_by(|left, right| left.serial == right.serial);
+    Ok(keys)
 }
 
 /// Read full device status (info, config, security flags) over the FIDO HID transport.
