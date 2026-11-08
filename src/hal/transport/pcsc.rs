@@ -77,8 +77,8 @@ impl PcscTransport {
             // not an identity claim: fapico2 ships an RS-Key-SDK-compatible
             // rescue applet (apps/rescue/src/lib.rs, `RSKEY_SDK_MAJOR = 8`,
             // pinned by fapico2's tests/protocol.rs) and answers it too.
-            // Identity resolution belongs to the FIDO AAGUID — see the
-            // merge-authority note on `crate::hal::io::merged_firmware_type`.
+            // The FIDO AAGUID (authoritative when its leg ran) settles
+            // identity upstream in io::read_device_details' merge.
             if data.len() >= 4 && data[2] >= 8 {
                 fw_type = FirmwareType::RSKey;
             } else {

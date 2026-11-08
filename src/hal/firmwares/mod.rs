@@ -2,11 +2,13 @@
 
 //! Firmware-type abstraction layer.
 //!
-//! This module provides the [`FirmwareTrait`] trait and concrete
-//! implementations ([`PicoFidoFirmware`], [`RSKeyFirmware`],
-//! [`Fapico2Firmware`]) that encapsulate per-firmware capability gating.
-//! The trait methods are checked throughout [`crate::hal::io`] to select
-//! the correct command path for each operation.
+//! This module provides the [`FirmwareTrait`] trait and two concrete
+//! implementations ([`PicoFidoFirmware`], [`RSKeyFirmware`]) that
+//! encapsulate per-firmware capability gating. The trait methods are
+//! checked throughout [`crate::hal::io`] to select the correct command
+//! path for each operation. A third implementation, [`Fapico2Firmware`]
+//! (third-party, maintained separately), answers the same capability
+//! questions via the RS-Key `0x41` dialect.
 //!
 //! ## Detection
 //!
@@ -165,8 +167,8 @@ impl AnyFirmware {
     /// Whether the inner firmware supports the new-style (post-v7.2) FIDO hardware config path.
     ///
     /// This is the logical negation of `supports_legacy_fido_hardware_config` for
-    /// pico-fido, and always `false` for RS-Key and fapico2 (which config over
-    /// the `0x41` vendor channel instead).
+    /// pico-fido, and always `false` for RS-Key. Fapico2 answers `false` too:
+    /// it does its config over the `0x41` vendor channel instead.
     pub fn supports_new_fido_hardware_config(&self) -> bool {
         match self {
             Self::PicoFido(fw) => !fw.supports_legacy_fido_hardware_config(),

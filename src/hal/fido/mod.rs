@@ -59,6 +59,9 @@
 pub mod audit;
 pub mod backup;
 pub mod constants;
+/// Third-party fapico2 firmware support (owned by the fapico2 author, not a
+/// PicoForge maintainer concern) — see the module's own header.
+pub mod fapico2;
 pub mod ops;
 use crate::hal::transport::fido::{CTAPHID_CBOR, HidTransport};
 
@@ -679,6 +682,11 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         // legacy 0xC1 vendor command. Always attempt it; pre-v0.3.1
         // firmware gracefully returns the config unchanged with a log.
         read_rskey_physical_config(&transport, config)
+    } else if firmware_type == FirmwareType::Fapico2 {
+        // fapico2 (third-party, see the fapico2 module header) answers the
+        // same 0x41 CONFIG_READ dialect — its own thin wrapper, so this
+        // RS-Key branch stays untouched.
+        fapico2::read_config(&transport, config)
     } else if supports_legacy_hardware_config {
         read_legacy_physical_config(&transport, config)
     } else {
@@ -1236,6 +1244,9 @@ pub fn write_config(config: AppConfigInput, pin: Option<String>) -> Result<Strin
 
     match firmware_type {
         FirmwareType::RSKey => write_rskey_config(&transport, &config, pin_val),
+        // fapico2 (third-party): its own 0x41 write path with its own strings
+        // and refusal validation — see the fapico2 module header.
+        FirmwareType::Fapico2 => fapico2::write_config(&transport, &config, pin_val),
         FirmwareType::PicoFido if firmware.supports_fido_config_write() => {
             write_legacy_hardware_config(&transport, &config, pin_val)
         }
@@ -1527,29 +1538,7 @@ fn vendor_error(status: u8, op: &str) -> String {
         0x27 => {
             "denied — no touch within the window (press the button when the LED blinks)".to_string()
         }
-        0x30 => {
-            // RS-Key's original wording covers its own 0x30 arm ("already
-            // sealed, or no OTP DEVK provisioned"). fapico2 answers 0x30 for
-            // two more reasons (EPIC PF-FAPICO2, divergences D3/D7): LOAD is
-            // reset-first — it refuses while resident credentials exist and
-            // the incoming seed differs (US-1737) — and EXPORT refuses when
-            // no master seed is installed. Split by op so the message names
-            // the reason the device refused, not a generic denial.
-            if op == "restore" {
-                format!(
-                    "{op}: operation not allowed — the board holds resident credentials \
-                     and the incoming seed differs from the installed one; \
-                     reset the device first, then restore"
-                )
-            } else if op.starts_with("export") {
-                format!(
-                    "{op}: operation not allowed — no master seed is installed; \
-                     install one first (restore / LOAD)"
-                )
-            } else {
-                format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)")
-            }
-        }
+        0x30 => format!("{op}: operation not allowed (already sealed, or no OTP DEVK provisioned)"),
         0x3D => "device is not locked".to_string(),
         other => format!("{op} failed: status 0x{other:02x}"),
     }
@@ -1766,7 +1755,12 @@ pub(crate) fn backup_status() -> Result<backup::BackupStatus, String> {
         .rs_key_vendor(RSKEY_VENDOR_STATE, None, None)
         .map_err(|e| e.to_string())?;
     let m = vendor_map(status, map, "state")?;
-    Ok(backup::parse_status(&m))
+    Ok(backup::BackupStatus {
+        sealed: m_bool(&m, 1),
+        has_seed: m_bool(&m, 2),
+        locked: m_bool(&m, 3),
+        unlocked: m_bool(&m, 4),
+    })
 }
 
 /// Seal the one-time export window (touch-gated).
@@ -1790,7 +1784,7 @@ pub(crate) fn backup_export(pin: Option<String>) -> Result<String, String> {
     let (status, map) = transport
         .rs_key_vendor(RSKEY_VENDOR_EXPORT, None, pin.as_deref())
         .map_err(|e| e.to_string())?;
-    let m = vendor_map(status, map, "export (already sealed?)")?;
+    let m = fapico2::vendor_map_fapico2(&transport, status, map, "export (already sealed?)")?;
     let enc = m_bytes(&m, 1).ok_or("export: missing sealed seed")?;
     let seed = backup::chacha_open(&key, &enc, &aad)?;
     let seed: [u8; 32] = seed
@@ -1817,7 +1811,10 @@ pub(crate) fn backup_restore(pin: Option<String>, mnemonic: String) -> Result<()
         .rs_key_vendor(RSKEY_VENDOR_LOAD, Some(Value::Map(params)), pin.as_deref())
         .map_err(|e| e.to_string())?;
     if status != 0 {
-        return Err(vendor_error(status, "restore"));
+        // 0x30 wording is firmware-specific (fapico2's LOAD is reset-first,
+        // D3) — resolved lazily on this error path only; RS-Key keeps the
+        // original string via the same call.
+        return Err(fapico2::backup_error(status, "restore", &transport));
     }
     Ok(())
 }
@@ -2629,33 +2626,17 @@ mod tests {
     }
 
     #[test]
-    fn restore_refusal_names_the_reset_requirement() {
-        // US-1755 (EPIC PF-FAPICO2, divergence D3): fapico2's LOAD is
-        // reset-first — under the reset-first gate it answers 0x30 while
-        // resident credentials exist and the incoming seed differs. The
-        // message must name the reset requirement, not claim "already
-        // sealed".
-        let msg = vendor_error(0x30, "restore");
-        assert!(msg.contains("reset"), "message: {msg}");
-        assert!(!msg.contains("already sealed"), "message: {msg}");
-    }
-
-    #[test]
-    fn export_refusal_names_the_missing_seed() {
-        // US-1755 (EPIC PF-FAPICO2, divergence D7): a seedless board answers
-        // EXPORT with 0x30. The message must say no master seed is installed
-        // and name installing a seed (LOAD / restore) as the remedy.
-        let msg = vendor_error(0x30, "export (already sealed?)");
-        assert!(msg.contains("no master seed"), "message: {msg}");
-        assert!(msg.contains("restore"), "message: {msg}");
-    }
-
-    #[test]
-    fn state_context_keeps_rskey_wording() {
-        // RS-Key's original 0x30 wording stays available for ops outside the
-        // backup restore/export split (e.g. STATE-context errors).
-        let msg = vendor_error(0x30, "some other op");
-        assert!(msg.contains("already sealed"), "message: {msg}");
-        assert!(msg.contains("OTP DEVK"), "message: {msg}");
+    fn vendor_error_0x30_keeps_the_original_wording_for_every_op() {
+        // Zero-regression guard (PR #131 review r4505152822): RS-Key's 0x30
+        // wording is the original generic denial for EVERY op — restore and
+        // export included. The fapico2-specific wording lives in
+        // super::fapico2::vendor_error and must never leak into this path.
+        for op in ["restore", "export (already sealed?)", "some other op"] {
+            let msg = vendor_error(0x30, op);
+            assert!(msg.contains("already sealed"), "op {op}: {msg}");
+            assert!(msg.contains("OTP DEVK"), "op {op}: {msg}");
+            assert!(!msg.contains("reset the device first"), "op {op}: {msg}");
+            assert!(!msg.contains("no master seed"), "op {op}: {msg}");
+        }
     }
 }
