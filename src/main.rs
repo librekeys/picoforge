@@ -968,8 +968,14 @@ fn main() {
         };
 
         gpui_kit::open_window(window_options, cx, |window, cx| {
-            let view = cx.new(ApplicationRoot::new);
+            let view = cx.new(|cx| ApplicationRoot::new(window, cx));
             window.focus(&view.read(cx).focus_handle(), cx);
+            view.update(cx, |root, cx| {
+                root.models.device.update(cx, |repo, cx| {
+                    repo.refresh(cx);
+                    repo.start_hotplug_watch(cx);
+                });
+            });
             view
         })
         .expect("failed to open PicoForge window");
