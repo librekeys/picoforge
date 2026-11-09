@@ -157,6 +157,8 @@ pub enum FirmwareType {
     RSKey,
     /// LibreKeys LK-ONE (pico-fido fork, same AAGUID as pico-fido).
     LkOne,
+    /// eddieoz's fapico2 firmware — pico-fido lineage with its own AAGUID.
+    Fapico2,
     /// Unrecognised or undetected firmware.
     #[default]
     Unknown,
@@ -168,8 +170,22 @@ impl fmt::Display for FirmwareType {
             Self::PicoFido => write!(f, "pico-fido"),
             Self::RSKey => write!(f, "RS-Key"),
             Self::LkOne => write!(f, "LK-ONE"),
+            Self::Fapico2 => write!(f, "fapico2"),
             Self::Unknown => write!(f, "Unknown"),
         }
+    }
+}
+
+impl FirmwareType {
+    /// Firmware speaks RS-Key's `0x41` vendor dialect (RS-Key and fapico2).
+    ///
+    /// Capability check, not identity: the five vendor-feature screens
+    /// (Backup, Lock, Audit, Attestation, Offboard) and the Config
+    /// surfaces gate on this instead of comparing `FirmwareType::RSKey`
+    /// directly, so the next `0x41`-speaking device is one enum variant
+    /// (and one arm here), not five edits.
+    pub fn supports_rskey_vendor(&self) -> bool {
+        matches!(self, Self::RSKey | Self::Fapico2)
     }
 }
 
@@ -253,6 +269,8 @@ pub const RSKEY_AAGUID: &str = "2479C7BF6B3056839EC80E8171A918B7";
 pub const PICOFIDO_AAGUID: &str = "89FB94B706C936739B7E30526D968145";
 /// AAGUID assigned to LibreKeys LK-ONE hardware (same as pico-fido fork).
 pub const LKONE_AAGUID: &str = "89FB94B706C936739B7E30526D968145";
+/// AAGUID assigned to the fapico2 firmware (eddieoz/fapico2).
+pub const FAPICO2_AAGUID: &str = "66617069636F32000000000000000002";
 /// LibreKeys USB VID:PID allocated by OpenMoko.
 pub const LKONE_VID: u16 = 0x1D50;
 pub const LKONE_PID: u16 = 0x619B;

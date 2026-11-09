@@ -5,7 +5,7 @@ use crate::ui::app::AppModels;
 use crate::ui::components::applet_gate::AppletGate;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
-use crate::ui::models::device::{AttStatus, DeviceEvent, DeviceRepo, FirmwareType};
+use crate::ui::models::device::{AttStatus, DeviceEvent, DeviceRepo};
 use gpui_kit::component::WindowExt;
 use gpui_kit::component::button::ButtonVariants;
 use gpui_kit::component::input::InputState;
@@ -46,12 +46,7 @@ impl AttestationViewModel {
     }
 
     pub(super) fn gate(&self, cx: &App) -> AppletGate {
-        let repo = self.device.read(cx);
-        match &repo.status {
-            None => AppletGate::Unsupported,
-            Some(s) if s.firmware_type != FirmwareType::RSKey => AppletGate::Unsupported,
-            Some(_) => AppletGate::Ready,
-        }
+        self.device.read(cx).rskey_vendor_gate()
     }
 
     fn load(&mut self, cx: &mut Context<Self>) {

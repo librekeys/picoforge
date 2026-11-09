@@ -198,6 +198,7 @@ impl ApplicationRoot {
                 let serial = key.serial.clone();
                 let firmware_name = match &key.firmware_type {
                     crate::hal::types::FirmwareType::RSKey => "RS-Key",
+                    crate::hal::types::FirmwareType::Fapico2 => "fapico2",
                     _ => "PicoFido",
                 };
                 let current = selected_serial.as_deref() == Some(key.serial.as_str());

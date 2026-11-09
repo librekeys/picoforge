@@ -61,6 +61,13 @@ pub(crate) fn probe_device_identity(
     let serial = u32::from_be_bytes([data[4] & 0x03, data[5], data[6], data[7]]).to_string();
     // The Yubico-compatible Management AID exists on RS-Key, while PicoFido
     // exposes its management response over CTAPHID instead.
+    //
+    // `data[2]` is a protocol-capability statement ("RS-Key SDK >= 8"), not an
+    // identity claim: fapico2 ships an RS-Key-SDK-compatible rescue applet
+    // (`RSKEY_SDK_MAJOR = 8`, pinned by its tests/protocol.rs) and answers it
+    // too, but it is not RS-Key and exposes no Management AID. PC/SC alone
+    // therefore cannot name fapico2; `io::read_device_details` reads the FIDO
+    // AAGUID first and keeps it authoritative when both interfaces are paired.
     let firmware_type = if select_aid(card, MANAGEMENT_AID)?.ends_with(&SW_SUCCESS) {
         FirmwareType::RSKey
     } else {

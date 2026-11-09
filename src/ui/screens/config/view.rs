@@ -1,8 +1,9 @@
+use crate::hal::types::FirmwareType;
 use crate::ui::components::button::ButtonColors;
 use crate::ui::components::{card::Card, page_view::PageView};
 use crate::ui::models::device::{
-    DeviceMethod, FirmwareType, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP,
-    USB_CAP_OTP, USB_CAP_PIV, USB_CAP_U2F,
+    DeviceMethod, LedColor, LedStatus, USB_CAP_FIDO2, USB_CAP_OATH, USB_CAP_OPENPGP, USB_CAP_OTP,
+    USB_CAP_PIV, USB_CAP_U2F,
 };
 use crate::ui::screens::config::view_model::ConfigViewModel;
 use gpui_kit::component::{button::*, input::*, select::*, slider::*, switch::*, *};
@@ -89,33 +90,40 @@ impl ConfigViewModel {
         is_fido: bool,
         is_rskey: bool,
         hardware_config_disabled: bool,
+        hide_unsupported: bool,
     ) -> impl IntoElement {
         // GPIO pin + driver are the LED hardware topology — always shown.
-        let mut content = v_flex().gap_4().child(
-            div()
-                .grid()
-                .grid_cols(2)
-                .gap_4()
-                .child(
-                    v_flex().gap_2().child("LED GPIO Pin").child(
-                        Input::new(&self.led_gpio_input)
-                            .bg(rgb(0x222225))
-                            .disabled(hardware_config_disabled),
-                    ),
-                )
-                .child(
-                    v_flex().gap_2().child("LED Driver").child(
-                        Select::new(&self.led_driver_select)
-                            .w_full()
-                            .bg(rgb(0x222225))
-                            .disabled(is_fido),
-                    ),
-                ),
+        // `hide_unsupported` (fapico2) drops the driver cell: its firmware
+        // refuses a write blob carrying the driver tag.
+        let mut grid = div().grid().gap_4();
+        grid = if hide_unsupported {
+            grid.grid_cols(1)
+        } else {
+            grid.grid_cols(2)
+        };
+        grid = grid.child(
+            v_flex().gap_2().child("LED GPIO Pin").child(
+                Input::new(&self.led_gpio_input)
+                    .bg(rgb(0x222225))
+                    .disabled(hardware_config_disabled),
+            ),
         );
+        if !hide_unsupported {
+            grid = grid.child(
+                v_flex().gap_2().child("LED Driver").child(
+                    Select::new(&self.led_driver_select)
+                        .w_full()
+                        .bg(rgb(0x222225))
+                        .disabled(is_fido),
+                ),
+            );
+        }
+        let mut content = v_flex().gap_4().child(grid);
 
         // Colour order is an RS-Key extension (phy tag 0x0D); pico-fido ignores
         // it, so only surface it for RS-Key. Fixes red/green swap on GRB panels.
-        if is_rskey {
+        // fapico2 refuses the order tag, so it is hidden there too.
+        if is_rskey && !hide_unsupported {
             content = content.child(
                 v_flex().gap_2().child("LED Colour Order").child(
                     Select::new(&self.led_order_select)
@@ -586,7 +594,17 @@ impl Render for ConfigViewModel {
         let device = self.device.read(cx);
         let status = device.status.clone();
         let is_fido = status.as_ref().map(|s| s.method.clone()) == Some(DeviceMethod::Fido);
-        let is_rskey = status.as_ref().map(|s| &s.firmware_type) == Some(&FirmwareType::RSKey);
+        // Capability, not identity (US-1754, PF-FAPICO2): the RS-Key vendor
+        // config surfaces light up for every 0x41-dialect firmware.
+        let is_rskey = status
+            .as_ref()
+            .is_some_and(|s| s.firmware_type.supports_rskey_vendor());
+        // fapico2 (third-party): same 0x41 dialect, but its firmware refuses
+        // a whole write blob containing the tags it has no field for — hide
+        // those controls instead of dead-ending a mixed save.
+        let is_fapico2 = status
+            .as_ref()
+            .is_some_and(|s| s.firmware_type == FirmwareType::Fapico2);
 
         let supports_legacy_fido_config = status
             .as_ref()
@@ -600,7 +618,13 @@ impl Render for ConfigViewModel {
         let is_fido_no_rskey = is_fido && !is_rskey;
 
         let led_card = self
-            .render_led_card(cx, is_fido_no_rskey, is_rskey, hardware_config_disabled)
+            .render_led_card(
+                cx,
+                is_fido_no_rskey,
+                is_rskey,
+                hardware_config_disabled,
+                is_fapico2,
+            )
             .into_any_element();
         let options_card = self
             .render_options_card(cx, hardware_config_disabled)
@@ -632,7 +656,19 @@ impl Render for ConfigViewModel {
             inner = inner.child(self.render_rskey_led_card(cx, false));
         }
 
-        inner = inner.child(touch_card).child(options_card);
+        if is_fapico2 {
+            // The touch card is dropped for fapico2 (its firmware refuses the
+            // presence-timeout tag) — say so instead of a silent gap.
+            inner = inner.child(
+                div()
+                    .text_sm()
+                    .text_color(cx.theme().muted_foreground)
+                    .child("Touch timeout, curve mask, LED driver and LED order are not configurable on fapico2 firmware."),
+            );
+        } else {
+            inner = inner.child(touch_card);
+        }
+        inner = inner.child(options_card);
 
         inner = inner.child(
             h_flex().justify_end().pt_4().child(

@@ -10,11 +10,13 @@
 - [kralonur](https://github.com/kralonur): Improved Pico-FIDO 7.6 compatibility and preserved legacy FIDO hardware configuration support.
 - [TheMaxMur](https://github.com/TheMaxMur): Add RS-Key support.
 - [Scott-Nx](https://github.com/Scott-Nx): Fixed OATH credential creation for short TOTP/HOTP secrets on YKOATH-compatible devices.
+- [eddieoz](https://github.com/eddieoz): Added fapico2 support — classification by fapico2's own AAGUID, capability-gated RS-Key vendor features, and fapico2-aware backup error handling.
 
 **Third-party Libraries**
 
 - [Pico FIDO](https://github.com/polhenarejos/pico-fido) - The firmware this tool configures
 - [RS-Key](https://github.com/TheMaxMur/RS-Key) - The second firmware this tool configures
+- [fapico2](https://github.com/eddieoz/fapico2) - The third firmware this tool configures
 - [GPUI](https://www.gpui.rs/) - UI framework written in rust
 - [gpui-component](https://longbridge.github.io/gpui-component/) - UI components for GPUI framework
 - [pcsc-rust](https://github.com/bluetech/pcsc-rust) - Smart card interface

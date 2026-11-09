@@ -27,7 +27,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
         Ok(status) => {
             let supported = matches!(
                 status.firmware_type,
-                FirmwareType::RSKey | FirmwareType::PicoFido
+                FirmwareType::RSKey | FirmwareType::PicoFido | FirmwareType::Fapico2
             );
             if supported {
                 crate::hal::transport::pcsc::set_active_device_serial(Some(
@@ -157,7 +157,7 @@ pub fn read_device_details() -> Result<FullDeviceStatus, PFError> {
             );
             if matches!(
                 fido.firmware_type,
-                FirmwareType::RSKey | FirmwareType::PicoFido
+                FirmwareType::RSKey | FirmwareType::PicoFido | FirmwareType::Fapico2
             ) {
                 Ok(fido)
             } else {
@@ -427,8 +427,12 @@ pub fn lock_enable(pin: String) -> Result<String, String> {
 }
 
 /// Unlock the seed for this power cycle (BIP-39 lock key).
-pub fn lock_unlock(mnemonic: String) -> Result<(), String> {
-    fido::lock_unlock(mnemonic)
+///
+/// `pin` is optional: RS-Key never needs it for UNLOCK; a fapico2 board with
+/// a PIN set does (divergence D8) and the retry only fires when the device
+/// answers "PIN required".
+pub fn lock_unlock(pin: Option<String>, mnemonic: String) -> Result<(), String> {
+    fido::lock_unlock(pin, mnemonic)
 }
 
 /// Disable the lock (unlock + restore plaintext).

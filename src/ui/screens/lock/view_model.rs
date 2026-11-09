@@ -1,11 +1,12 @@
 //! View model for the Lock screen — at-rest soft-lock of the FIDO seed.
 
+use crate::hal::types::FirmwareType;
 use crate::ui::DialogSubmit;
 use crate::ui::app::AppModels;
 use crate::ui::components::applet_gate::AppletGate;
 use crate::ui::components::dialog;
 use crate::ui::components::dialog::StatusContent;
-use crate::ui::models::device::{DeviceEvent, DeviceRepo, FirmwareType, backup};
+use crate::ui::models::device::{DeviceEvent, DeviceRepo, backup};
 use gpui_kit::component::WindowExt;
 use gpui_kit::component::button::{ButtonVariant, ButtonVariants};
 use gpui_kit::component::input::InputState;
@@ -44,12 +45,7 @@ impl LockViewModel {
     }
 
     pub(super) fn gate(&self, cx: &App) -> AppletGate {
-        let repo = self.device.read(cx);
-        match &repo.status {
-            None => AppletGate::Unsupported,
-            Some(s) if s.firmware_type != FirmwareType::RSKey => AppletGate::Unsupported,
-            Some(_) => AppletGate::Ready,
-        }
+        self.device.read(cx).rskey_vendor_gate()
     }
 
     fn load(&mut self, cx: &mut Context<Self>) {
@@ -169,20 +165,74 @@ impl LockViewModel {
     // ── Unlock ──────────────────────────────────────────────────────────────
 
     pub(super) fn open_unlock(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let is_fapico2 = self
+            .device
+            .read(cx)
+            .status
+            .as_ref()
+            .is_some_and(|s| s.firmware_type == FirmwareType::Fapico2);
         let phrase = Self::phrase_input(window, cx);
         let view = cx.entity().downgrade();
+
+        if !is_fapico2 {
+            // RS-Key (and every other firmware on this screen) unlocks by
+            // possession — the dialog is the original phrase-only one,
+            // byte-for-byte (PR #131 zero-regression constraint).
+            let submit = {
+                let phrase = phrase.clone();
+                std::rc::Rc::new(move |window: &mut Window, cx: &mut App| {
+                    let m = phrase.read(cx).text().to_string();
+                    if m.trim().is_empty() {
+                        return;
+                    }
+                    window.close_dialog(cx);
+                    let status = dialog::open_status_dialog("Unlocking", window, cx);
+                    let _ = view.update(cx, |this, cx| {
+                        this.run_unit(
+                            move || DeviceRepo::lock_unlock_blocking(None, m),
+                            "Unlocked — FIDO works until power-off.",
+                            status,
+                            cx,
+                        );
+                    });
+                })
+            };
+            Self::dialog_phrase_only(
+                "Unlock Seed",
+                "Loads the seed into RAM for this power cycle using the lock key.",
+                phrase,
+                ("Unlock", ButtonVariant::Primary),
+                submit,
+                window,
+                cx,
+            );
+            return;
+        }
+
+        // fapico2 only (divergence D8): a board with a PIN set answers the
+        // token-less UNLOCK with 0x36, so offer the optional PIN up front.
+        // The field is left empty for PIN-less boards; the device's own
+        // "device requires a PIN" error catches the rest honestly.
+        let pin = cx.new(|cx| {
+            InputState::new(window, cx)
+                .masked(true)
+                .placeholder("FIDO PIN (optional)")
+        });
         let submit = {
+            let pin = pin.clone();
             let phrase = phrase.clone();
             std::rc::Rc::new(move |window: &mut Window, cx: &mut App| {
+                let p = pin.read(cx).text().to_string();
                 let m = phrase.read(cx).text().to_string();
                 if m.trim().is_empty() {
                     return;
                 }
                 window.close_dialog(cx);
+                let pin_opt = if p.is_empty() { None } else { Some(p) };
                 let status = dialog::open_status_dialog("Unlocking", window, cx);
                 let _ = view.update(cx, |this, cx| {
                     this.run_unit(
-                        move || DeviceRepo::lock_unlock_blocking(m),
+                        move || DeviceRepo::lock_unlock_blocking(pin_opt, m),
                         "Unlocked — FIDO works until power-off.",
                         status,
                         cx,
@@ -190,10 +240,11 @@ impl LockViewModel {
                 });
             })
         };
-        Self::dialog_phrase_only(
+        Self::dialog(
             "Unlock Seed",
-            "Loads the seed into RAM for this power cycle using the lock key.",
-            phrase,
+            "Loads the seed into RAM for this power cycle using the lock key. The FIDO PIN is optional — enter it only if your board has a PIN set.",
+            Some(("Lock key (24 words)", phrase)),
+            pin,
             ("Unlock", ButtonVariant::Primary),
             submit,
             window,
