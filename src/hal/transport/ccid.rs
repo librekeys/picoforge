@@ -10,6 +10,7 @@
 // `send_chained` is consumed by the PIV/OpenPGP import stages, not by OATH.
 #![allow(dead_code)]
 
+use super::pcsc::{active_device_serial, ordered_readers, probe_device_identity};
 use crate::error::PFError;
 use crate::hal::apdu::{
     Apdu, CLA_CHAIN, CLA_ISO, INS_GET_RESPONSE, INS_SELECT, INS_SEND_REMAINING, StatusWord,
@@ -29,30 +30,72 @@ pub struct CcidSession {
 }
 
 impl CcidSession {
-    /// Connect to the first reader and `SELECT` the given applet AID.
+    /// Find a PicoFido or RS-Key reader, then `SELECT` the given applet AID.
     ///
     /// The card is kept open for the session's lifetime so a subsequent VERIFY
-    /// stays in effect for the following operation.
+    /// stays in effect for the following operation. Every enumerated reader is
+    /// checked against the firmware-specific Rescue identity before use.
     pub fn open(aid: &[u8]) -> Result<Self, PFError> {
         let ctx = Context::establish(Scope::User).map_err(PFError::Pcsc)?;
-        let mut readers_buf = [0; 2048];
-        let reader = ctx
-            .list_readers(&mut readers_buf)?
-            .next()
-            .ok_or(PFError::NoDevice)?;
-        let card = ctx.connect(reader, ShareMode::Shared, Protocols::ANY)?;
+        let readers = ordered_readers(&ctx)?;
+        if readers.is_empty() {
+            return Err(PFError::NoDevice);
+        }
 
-        let mut session = Self {
-            card,
-            select_resp: Vec::new(),
-        };
         let select = Apdu::read(CLA_ISO, INS_SELECT, 0x04, 0x00, aid);
-        session.select_resp = session.transceive_full(&select).map_err(|e| {
-            PFError::Device(format!(
-                "Applet not available — enable it and the CCID interface in Configuration ({e})"
-            ))
-        })?;
-        Ok(session)
+        let expected_serial = active_device_serial();
+        let mut last_error = None;
+        for reader in readers {
+            let reader_name = reader.to_string_lossy();
+            let card = match ctx.connect(reader.as_c_str(), ShareMode::Shared, Protocols::ANY) {
+                Ok(card) => card,
+                Err(error) => {
+                    last_error = Some(error.to_string());
+                    continue;
+                }
+            };
+            let identity = match probe_device_identity(&card) {
+                Ok(Some(identity)) => identity,
+                Ok(None) => continue,
+                Err(error) => {
+                    log::debug!("Could not identify PC/SC reader {reader_name}: {error}");
+                    last_error = Some(error);
+                    continue;
+                }
+            };
+            if expected_serial
+                .as_deref()
+                .is_some_and(|serial| serial != identity.serial)
+            {
+                continue;
+            }
+
+            let mut session = Self {
+                card,
+                select_resp: Vec::new(),
+            };
+            match session.transceive_full(&select) {
+                Ok(response) => {
+                    session.select_resp = response;
+                    log::info!(
+                        "Opened {:?} applet on reader {reader_name}",
+                        identity.firmware_type
+                    );
+                    return Ok(session);
+                }
+                Err(error) => {
+                    log::debug!("Applet unavailable on reader {reader_name}: {error}");
+                    last_error = Some(error.to_string());
+                }
+            }
+        }
+
+        let detail = last_error
+            .map(|error| format!(" ({error})"))
+            .unwrap_or_default();
+        Err(PFError::Device(format!(
+            "Applet not available on any PicoFido or RS-Key reader — enable it and CCID in Configuration{detail}"
+        )))
     }
 
     /// Send one APDU, returning `(response_data, status_word)`.

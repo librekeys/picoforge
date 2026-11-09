@@ -5,12 +5,12 @@
 //! comment was changed to introduce this module. The pieces that must stay
 //! wire-compatible with RS-Key live in the parent module and are reused
 //! unmodified — as a child module this file can call the parent's private
-//! helpers directly ([`super::build_rskey_phy_tlv`],
-//! [`super::read_rskey_physical_config`], [`super::vendor_error`]).
+//! helpers directly (`super::build_rskey_phy_tlv`,
+//! `super::read_rskey_physical_config`, `super::vendor_error`).
 //!
 //! What is fapico2-specific (EPIC PF-FAPICO2 divergences):
 //!
-//! - **0x30 wording (D3/D7)** — the parent [`super::vendor_error`] keeps
+//! - **0x30 wording (D3/D7)** — the parent `vendor_error` keeps
 //!   RS-Key's original generic denial for every op. fapico2 answers 0x30 for
 //!   different reasons: LOAD refuses while resident credentials exist
 //!   (reset-first gate, US-1737 — the incoming seed may not even have an
@@ -33,7 +33,7 @@
 //!   therefore asks for an unplug/re-plug instead of RS-Key's
 //!   "re-enumerating" wording.
 
-use super::constants::{RSKEY_CFG_TARGET_PHY, PinUvAuthTokenPermissions};
+use super::constants::{PinUvAuthTokenPermissions, RSKEY_CFG_TARGET_PHY};
 use super::ops::FidoOperations;
 use super::{build_rskey_phy_tlv, read_device_info, read_rskey_physical_config, vendor_error};
 use crate::error::PFError;
@@ -187,9 +187,7 @@ pub(crate) fn write_config(
     transport
         .rs_key_config_read(RSKEY_CFG_TARGET_PHY)
         .map_err(|_| {
-            PFError::Device(
-                "This fapico2 firmware does not support FIDO configuration.".into(),
-            )
+            PFError::Device("This fapico2 firmware does not support FIDO configuration.".into())
         })?;
 
     let pin_token = transport
@@ -225,7 +223,10 @@ mod tests {
         let msg = vendor_error_fapico2(0x30, "restore");
         assert!(msg.contains("reset"), "message: {msg}");
         assert!(!msg.contains("already sealed"), "message: {msg}");
-        assert!(!msg.contains("differs from the installed one"), "message: {msg}");
+        assert!(
+            !msg.contains("differs from the installed one"),
+            "message: {msg}"
+        );
     }
 
     #[test]

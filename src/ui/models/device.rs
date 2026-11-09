@@ -74,6 +74,12 @@ pub struct DeviceRepo {
     pub fido_info: Option<types::FidoDeviceInfo>,
     pub led_status: Option<types::LedStatusConfig>,
     pub management_apps: Option<types::ManagementAppConfig>,
+    /// Every attached PicoFido or RS-Key identified by its FIDO identity and serial.
+    pub(crate) connected_keys: Vec<crate::hal::fido::SupportedKey>,
+    /// Serial used to pin all HID and PC/SC operations to the selected key.
+    pub(crate) selected_key_serial: Option<String>,
+    /// Increments only when the discovered supported-key list changes.
+    pub(crate) inventory_revision: u64,
     pub error: Option<String>,
     pub loading: bool,
     pub device_changed: bool,
@@ -89,6 +95,9 @@ impl DeviceRepo {
             fido_info: None,
             led_status: None,
             management_apps: None,
+            connected_keys: Vec::new(),
+            selected_key_serial: None,
+            inventory_revision: 0,
             error: None,
             loading: false,
             device_changed: false,
@@ -698,7 +707,7 @@ impl DeviceRepo {
         }));
     }
 
-    /// Initiate a device-details refresh (async, emits [`DeviceEvent::Updated`] on completion).
+    /// Rediscover supported keys, read the active device, and emit `Updated`.
     pub fn refresh(&mut self, cx: &mut Context<Self>) {
         if self.loading {
             return;
@@ -707,6 +716,44 @@ impl DeviceRepo {
         self.begin_load();
 
         let old_serial = self.status.as_ref().map(|s| s.info.serial.clone());
+        let discovered_keys = match crate::hal::fido::discover_supported_keys() {
+            Ok(keys) => keys,
+            Err(error) => {
+                log::warn!("Could not refresh supported-key inventory: {error}");
+                self.connected_keys.clone()
+            }
+        };
+        if discovered_keys != self.connected_keys {
+            self.connected_keys = discovered_keys;
+            self.inventory_revision = self.inventory_revision.wrapping_add(1);
+        }
+
+        if self
+            .selected_key_serial
+            .as_ref()
+            .is_some_and(|serial| !self.connected_keys.iter().any(|key| &key.serial == serial))
+        {
+            self.selected_key_serial = None;
+        }
+
+        if self.selected_key_serial.is_none() && self.connected_keys.len() == 1 {
+            self.selected_key_serial = self.connected_keys.first().map(|key| key.serial.clone());
+        }
+
+        crate::hal::transport::pcsc::set_active_device_serial(self.selected_key_serial.clone());
+
+        if self.connected_keys.len() > 1 && self.selected_key_serial.is_none() {
+            self.status = None;
+            self.fido_info = None;
+            self.led_status = None;
+            self.management_apps = None;
+            self.error = None;
+            self.device_changed = old_serial.is_some();
+            self.end_load();
+            cx.emit(DeviceEvent::Updated);
+            cx.notify();
+            return;
+        }
 
         match io::read_device_details() {
             Ok(status) => {
@@ -741,6 +788,16 @@ impl DeviceRepo {
         self.end_load();
         cx.emit(DeviceEvent::Updated);
         cx.notify();
+    }
+
+    /// Select one of the currently discovered supported keys and refresh its state.
+    pub(crate) fn select_key(&mut self, serial: String, cx: &mut Context<Self>) {
+        if !self.connected_keys.iter().any(|key| key.serial == serial) {
+            return;
+        }
+        self.selected_key_serial = Some(serial.clone());
+        crate::hal::transport::pcsc::set_active_device_serial(Some(serial));
+        self.refresh(cx);
     }
 
     // ── State lifecycle helpers ────────────────────────────────────────────

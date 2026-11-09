@@ -22,8 +22,9 @@
 //!   SELECT answers `data[2] = RSKEY_SDK_MAJOR = 8`
 //!   (`apps/rescue/src/lib.rs`, pinned by `tests/protocol.rs`). That byte is a
 //!   capability statement ("RS-Key SDK ≥ 8"), not an identity claim — see the
-//!   merge-authority note in [`crate::hal::io`] and
-//!   [`crate::hal::transport::pcsc`].
+//!   merge-authority note in [`crate::hal::io::read_device_details`] and
+//!   [`crate::hal::transport::pcsc`]: PC/SC cannot name fapico2 alone, and the
+//!   FIDO AAGUID stays authoritative when both interfaces are paired.
 //! - `supports_legacy_fido_hardware_config` — **false**: fapico2 has no legacy
 //!   pico-fido `vendorPrototype` 0xFF hardware-config path. US-1751's probe on
 //!   a stock board answered the `0x41` CONFIG_READ, never the legacy CONFIG_PHY_*
